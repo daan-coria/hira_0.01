@@ -1,27 +1,46 @@
-import { Routes, Route, NavLink } from 'react-router-dom'
-import Dashboard from '@/pages/Dashboard'
-import StaffingPlan from '@/pages/StaffingPlan'
-import GapSummary from '@/pages/GapSummary'
-import PositionControl from '@/pages/PositionControl'
+import { Routes, Route, Navigate } from "react-router-dom"
+import FacilitySetupCard from "@/components/FacilitySetupCard"
+import ToolPage from "@/pages/ToolPage"
+import { useApp } from "@/store/AppContext"
 
 export default function App() {
+  const { state } = useApp()
+  const isSetupComplete = state.facilitySetup && state.toolType
+
   return (
     <div className="app-shell">
       <header className="app-header p-4 border-b border-gray-200">
-        <h1 className="text-lg font-semibold">IP Staffing</h1>
-        <nav className="flex gap-3 mt-2">
-          <NavLink to="/" className="btn-ghost">Dashboard</NavLink>
-          <NavLink to="/plan" className="btn-ghost">Staffing Plan</NavLink>
-          <NavLink to="/gap" className="btn-ghost">Gap Summary</NavLink>
-          <NavLink to="/position" className="btn-ghost">Position Control</NavLink>
-        </nav>
+        <h1 className="text-lg font-semibold">HIRA Staffing Tool</h1>
       </header>
+
       <main className="p-4">
         <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/plan" element={<StaffingPlan />} />
-          <Route path="/gap" element={<GapSummary />} />
-          <Route path="/position" element={<PositionControl />} />
+          {/* Setup page */}
+          <Route path="/setup" element={<FacilitySetupCard />} />
+
+          {/* Tool page */}
+          <Route
+            path="/tool"
+            element={
+              isSetupComplete ? (
+                <ToolPage />
+              ) : (
+                <Navigate to="/setup" replace />
+              )
+            }
+          />
+
+          {/* Default route → redirect */}
+          <Route
+            path="/"
+            element={
+              isSetupComplete ? (
+                <Navigate to="/tool" replace />
+              ) : (
+                <Navigate to="/setup" replace />
+              )
+            }
+          />
         </Routes>
       </main>
     </div>
