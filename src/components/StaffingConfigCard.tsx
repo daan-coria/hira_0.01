@@ -1,56 +1,58 @@
 import { useState, useEffect } from "react"
 
-type StaffingRequirementRow = {
+type StaffingConfigRow = {
   id?: number
-  department: string
-  shift: string
-  start_hour: number
-  end_hour: number
-  planned_fte: number
+  role: string
+  ratio_mode: "Ratio" | "Fixed"
+  max_ratio: number
+  include_in_ratio: boolean
+  direct_care_percent: number
+  category: string
 }
 
-export default function StaffingRequirementsCard() {
-  const [rows, setRows] = useState<StaffingRequirementRow[]>([])
+export default function StaffingConfigCard() {
+  const [rows, setRows] = useState<StaffingConfigRow[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchRequirements()
+    fetchConfigs()
   }, [])
 
-  const fetchRequirements = async () => {
+  const fetchConfigs = async () => {
     try {
       setLoading(true)
-      const res = await fetch("/api/staffing-plan")
+      const res = await fetch("/api/staffing-config")
       const data = await res.json()
       setRows(data)
     } catch (err) {
-      console.error("Failed to load staffing requirements", err)
+      console.error("Failed to load staffing configuration", err)
     } finally {
       setLoading(false)
     }
   }
 
   const addRow = () => {
-    const newRow: StaffingRequirementRow = {
-      department: "",
-      shift: "",
-      start_hour: 0,
-      end_hour: 0,
-      planned_fte: 0,
+    const newRow: StaffingConfigRow = {
+      role: "",
+      ratio_mode: "Ratio",
+      max_ratio: 0,
+      include_in_ratio: true,
+      direct_care_percent: 0,
+      category: "",
     }
     setRows((prev) => [...prev, newRow])
   }
 
-  const updateRow = (index: number, field: keyof StaffingRequirementRow, value: any) => {
+  const updateRow = (index: number, field: keyof StaffingConfigRow, value: any) => {
     const newRows = [...rows]
     newRows[index] = { ...newRows[index], [field]: value }
     setRows(newRows)
   }
 
-  const saveRow = async (row: StaffingRequirementRow) => {
+  const saveRow = async (row: StaffingConfigRow) => {
     try {
       const method = row.id ? "PUT" : "POST"
-      const url = row.id ? `/api/staffing-plan/${row.id}` : "/api/staffing-plan"
+      const url = row.id ? `/api/staffing-config/${row.id}` : "/api/staffing-config"
 
       await fetch(url, {
         method,
@@ -58,115 +60,143 @@ export default function StaffingRequirementsCard() {
         body: JSON.stringify(row),
       })
 
-      await fetchRequirements()
+      await fetchConfigs()
     } catch (err) {
-      console.error("Failed to save staffing requirement row", err)
+      console.error("Failed to save staffing config row", err)
     }
   }
 
   const removeRow = async (id?: number, index?: number) => {
     try {
       if (id) {
-        await fetch(`/api/staffing-plan/${id}`, { method: "DELETE" })
-        await fetchRequirements()
+        await fetch(`/api/staffing-config/${id}`, { method: "DELETE" })
+        await fetchConfigs()
       } else if (index !== undefined) {
         setRows((prev) => prev.filter((_, i) => i !== index))
       }
     } catch (err) {
-      console.error("Failed to delete staffing requirement row", err)
+      console.error("Failed to delete staffing config row", err)
     }
   }
 
   return (
     <div className="card p-4">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-lg font-semibold">Staffing Requirements</h3>
+        <h3 className="text-lg font-semibold">Staffing Configuration</h3>
         <button onClick={addRow} className="btn btn-primary">
-          + Add Requirement
+          + Add Config
         </button>
       </div>
 
       {loading ? (
-        <p className="text-gray-500">Loading staffing requirements...</p>
+        <p className="text-gray-500">Loading staffing configuration...</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full border border-gray-200 text-sm">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-3 py-2 border">Department</th>
-                <th className="px-3 py-2 border">Shift</th>
-                <th className="px-3 py-2 border">Start Hour</th>
-                <th className="px-3 py-2 border">End Hour</th>
-                <th className="px-3 py-2 border">Planned FTE</th>
+                <th className="px-3 py-2 border">Role</th>
+                <th className="px-3 py-2 border">Ratio / Fixed</th>
+                <th className="px-3 py-2 border">Max Ratio</th>
+                <th className="px-3 py-2 border">Include in Ratio</th>
+                <th className="px-3 py-2 border">Direct Care %</th>
+                <th className="px-3 py-2 border">Category</th>
                 <th className="px-3 py-2 border">Actions</th>
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-4 text-gray-500">
-                    No staffing requirements added yet.
+                  <td colSpan={7} className="text-center py-4 text-gray-500">
+                    No staffing configs added yet.
                   </td>
                 </tr>
               ) : (
                 rows.map((row, i) => (
                   <tr key={row.id || i}>
-                    <td className="border px-2 py-1">
-                      <input
-                        type="text"
-                        value={row.department}
-                        onChange={(e) => updateRow(i, "department", e.target.value)}
-                        className="input w-full"
-                      />
-                    </td>
+                    {/* Role */}
                     <td className="border px-2 py-1">
                       <select
-                        value={row.shift}
-                        onChange={(e) => updateRow(i, "shift", e.target.value)}
+                        value={row.role}
+                        onChange={(e) => updateRow(i, "role", e.target.value)}
                         className="input w-full"
                       >
-                        <option value="">-- Select Shift --</option>
-                        <option value="Day">Day</option>
-                        <option value="Night">Night</option>
-                        <option value="Evening">Evening</option>
+                        <option value="">-- Select Role --</option>
+                        <option value="RN">RN</option>
+                        <option value="LPN">LPN</option>
+                        <option value="CNA">CNA</option>
+                        <option value="Clerk">Clerk</option>
                       </select>
                     </td>
+
+                    {/* Ratio / Fixed */}
                     <td className="border px-2 py-1">
-                      <input
-                        type="number"
-                        min="0"
-                        max="23"
-                        value={row.start_hour}
+                      <select
+                        value={row.ratio_mode}
                         onChange={(e) =>
-                          updateRow(i, "start_hour", Number(e.target.value))
+                          updateRow(i, "ratio_mode", e.target.value as "Ratio" | "Fixed")
                         }
-                        className="input w-20"
-                      />
+                        className="input w-full"
+                      >
+                        <option value="Ratio">Ratio</option>
+                        <option value="Fixed">Fixed</option>
+                      </select>
                     </td>
-                    <td className="border px-2 py-1">
-                      <input
-                        type="number"
-                        min="0"
-                        max="23"
-                        value={row.end_hour}
-                        onChange={(e) =>
-                          updateRow(i, "end_hour", Number(e.target.value))
-                        }
-                        className="input w-20"
-                      />
-                    </td>
+
+                    {/* Max Ratio */}
                     <td className="border px-2 py-1">
                       <input
                         type="number"
                         min="0"
                         step="0.1"
-                        value={row.planned_fte}
+                        value={row.max_ratio}
                         onChange={(e) =>
-                          updateRow(i, "planned_fte", Number(e.target.value))
+                          updateRow(i, "max_ratio", Number(e.target.value))
                         }
-                        className="input w-24"
+                        className="input w-20"
                       />
                     </td>
+
+                    {/* Include in Ratio */}
+                    <td className="border px-2 py-1 text-center">
+                      <input
+                        type="checkbox"
+                        checked={row.include_in_ratio}
+                        onChange={(e) =>
+                          updateRow(i, "include_in_ratio", e.target.checked)
+                        }
+                      />
+                    </td>
+
+                    {/* Direct Care % */}
+                    <td className="border px-2 py-1">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={row.direct_care_percent}
+                        onChange={(e) =>
+                          updateRow(i, "direct_care_percent", Number(e.target.value))
+                        }
+                        className="input w-20"
+                      />
+                    </td>
+
+                    {/* Category */}
+                    <td className="border px-2 py-1">
+                      <select
+                        value={row.category}
+                        onChange={(e) => updateRow(i, "category", e.target.value)}
+                        className="input w-full"
+                      >
+                        <option value="">-- Select Category --</option>
+                        <option value="Nursing">Nursing</option>
+                        <option value="Support">Support</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </td>
+
+                    {/* Actions */}
                     <td className="border px-2 py-1 text-center space-x-2">
                       <button
                         onClick={() => saveRow(row)}

@@ -1,5 +1,5 @@
 import { useApp } from "@/store/AppContext"
-import FacilitySetupCard from "@/components/FacilitySetupCard"
+import FacilitySetupCard from "@/components/FacilityHeader"
 import ToolPage from "@/pages/ToolPage"
 
 export default function ToolNavigator() {
