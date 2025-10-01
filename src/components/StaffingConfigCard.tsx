@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { useApp } from "@/store/AppContext"
 
 type StaffingConfigRow = {
   id?: number
@@ -11,17 +12,33 @@ type StaffingConfigRow = {
 }
 
 export default function StaffingConfigCard() {
+  const { state } = useApp()
+  const { facilitySetup } = state
+
   const [rows, setRows] = useState<StaffingConfigRow[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchConfigs()
-  }, [])
+    if (facilitySetup) {
+      fetchConfigs()
+    }
+  }, [facilitySetup])
 
   const fetchConfigs = async () => {
     try {
+      if (!facilitySetup) return
       setLoading(true)
-      const res = await fetch("/api/staffing-config")
+
+      const query = new URLSearchParams({
+        facility: facilitySetup.facility,
+        department: facilitySetup.department,
+        costCenter: facilitySetup.costCenter,
+        bedCount: String(facilitySetup.bedCount),
+        start: facilitySetup.dateRange.start,
+        end: facilitySetup.dateRange.end,
+      })
+
+      const res = await fetch(`/api/staffing-config?${query.toString()}`)
       const data = await res.json()
       setRows(data)
     } catch (err) {
@@ -31,33 +48,16 @@ export default function StaffingConfigCard() {
     }
   }
 
-  const addRow = () => {
-    const newRow: StaffingConfigRow = {
-      role: "",
-      ratio_mode: "Ratio",
-      max_ratio: 0,
-      include_in_ratio: true,
-      direct_care_percent: 0,
-      category: "",
-    }
-    setRows((prev) => [...prev, newRow])
-  }
-
-  const updateRow = (index: number, field: keyof StaffingConfigRow, value: any) => {
-    const newRows = [...rows]
-    newRows[index] = { ...newRows[index], [field]: value }
-    setRows(newRows)
-  }
-
   const saveRow = async (row: StaffingConfigRow) => {
     try {
+      if (!facilitySetup) return
       const method = row.id ? "PUT" : "POST"
       const url = row.id ? `/api/staffing-config/${row.id}` : "/api/staffing-config"
 
       await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(row),
+        body: JSON.stringify({ ...row, ...facilitySetup }),
       })
 
       await fetchConfigs()
@@ -66,13 +66,12 @@ export default function StaffingConfigCard() {
     }
   }
 
-  const removeRow = async (id?: number, index?: number) => {
+  const removeRow = async (id?: number) => {
     try {
+      if (!facilitySetup) return
       if (id) {
         await fetch(`/api/staffing-config/${id}`, { method: "DELETE" })
         await fetchConfigs()
-      } else if (index !== undefined) {
-        setRows((prev) => prev.filter((_, i) => i !== index))
       }
     } catch (err) {
       console.error("Failed to delete staffing config row", err)
@@ -83,7 +82,22 @@ export default function StaffingConfigCard() {
     <div className="card p-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-lg font-semibold">Staffing Configuration</h3>
-        <button onClick={addRow} className="btn btn-primary">
+        <button
+          onClick={() =>
+            setRows((prev) => [
+              ...prev,
+              {
+                role: "",
+                ratio_mode: "Ratio",
+                max_ratio: 0,
+                include_in_ratio: true,
+                direct_care_percent: 0,
+                category: "",
+              },
+            ])
+          }
+          className="btn btn-primary"
+        >
           + Add Config
         </button>
       </div>
@@ -118,7 +132,13 @@ export default function StaffingConfigCard() {
                     <td className="border px-2 py-1">
                       <select
                         value={row.role}
-                        onChange={(e) => updateRow(i, "role", e.target.value)}
+                        onChange={(e) =>
+                          setRows((prev) =>
+                            prev.map((r, idx) =>
+                              idx === i ? { ...r, role: e.target.value } : r
+                            )
+                          )
+                        }
                         className="input w-full"
                       >
                         <option value="">-- Select Role --</option>
@@ -134,7 +154,13 @@ export default function StaffingConfigCard() {
                       <select
                         value={row.ratio_mode}
                         onChange={(e) =>
-                          updateRow(i, "ratio_mode", e.target.value as "Ratio" | "Fixed")
+                          setRows((prev) =>
+                            prev.map((r, idx) =>
+                              idx === i
+                                ? { ...r, ratio_mode: e.target.value as "Ratio" | "Fixed" }
+                                : r
+                            )
+                          )
                         }
                         className="input w-full"
                       >
@@ -151,7 +177,11 @@ export default function StaffingConfigCard() {
                         step="0.1"
                         value={row.max_ratio}
                         onChange={(e) =>
-                          updateRow(i, "max_ratio", Number(e.target.value))
+                          setRows((prev) =>
+                            prev.map((r, idx) =>
+                              idx === i ? { ...r, max_ratio: Number(e.target.value) } : r
+                            )
+                          )
                         }
                         className="input w-20"
                       />
@@ -163,7 +193,11 @@ export default function StaffingConfigCard() {
                         type="checkbox"
                         checked={row.include_in_ratio}
                         onChange={(e) =>
-                          updateRow(i, "include_in_ratio", e.target.checked)
+                          setRows((prev) =>
+                            prev.map((r, idx) =>
+                              idx === i ? { ...r, include_in_ratio: e.target.checked } : r
+                            )
+                          )
                         }
                       />
                     </td>
@@ -176,7 +210,13 @@ export default function StaffingConfigCard() {
                         max="100"
                         value={row.direct_care_percent}
                         onChange={(e) =>
-                          updateRow(i, "direct_care_percent", Number(e.target.value))
+                          setRows((prev) =>
+                            prev.map((r, idx) =>
+                              idx === i
+                                ? { ...r, direct_care_percent: Number(e.target.value) }
+                                : r
+                            )
+                          )
                         }
                         className="input w-20"
                       />
@@ -186,7 +226,13 @@ export default function StaffingConfigCard() {
                     <td className="border px-2 py-1">
                       <select
                         value={row.category}
-                        onChange={(e) => updateRow(i, "category", e.target.value)}
+                        onChange={(e) =>
+                          setRows((prev) =>
+                            prev.map((r, idx) =>
+                              idx === i ? { ...r, category: e.target.value } : r
+                            )
+                          )
+                        }
                         className="input w-full"
                       >
                         <option value="">-- Select Category --</option>
@@ -205,7 +251,7 @@ export default function StaffingConfigCard() {
                         Save
                       </button>
                       <button
-                        onClick={() => removeRow(row.id, i)}
+                        onClick={() => removeRow(row.id)}
                         className="btn btn-sm btn-danger"
                       >
                         Remove

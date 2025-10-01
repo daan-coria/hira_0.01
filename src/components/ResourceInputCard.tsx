@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { useApp } from "@/store/AppContext"
 
 type ResourceRow = {
   id?: number
@@ -12,18 +13,33 @@ type ResourceRow = {
 }
 
 export default function ResourceInputCard() {
+  const { state } = useApp()
   const [rows, setRows] = useState<ResourceRow[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Fetch all resources on mount
+  const { facilitySetup } = state
+
   useEffect(() => {
-    fetchResources()
-  }, [])
+    if (facilitySetup) {
+      fetchResources()
+    }
+  }, [facilitySetup])
 
   const fetchResources = async () => {
     try {
+      if (!facilitySetup) return
       setLoading(true)
-      const res = await fetch("/api/resource-input")
+
+      const query = new URLSearchParams({
+        facility: facilitySetup.facility,
+        department: facilitySetup.department,
+        costCenter: facilitySetup.costCenter,
+        bedCount: String(facilitySetup.bedCount),
+        start: facilitySetup.dateRange.start,
+        end: facilitySetup.dateRange.end,
+      })
+
+      const res = await fetch(`/api/resource-input?${query.toString()}`)
       const data = await res.json()
       setRows(data)
     } catch (err) {
@@ -33,34 +49,16 @@ export default function ResourceInputCard() {
     }
   }
 
-  const addRow = () => {
-    const newRow: ResourceRow = {
-      first_name: "",
-      last_name: "",
-      position: "",
-      unit_fte: 1.0,
-      availability: "Day",
-      weekend_assignment: "",
-      vacancy_status: "Filled",
-    }
-    setRows((prev) => [...prev, newRow])
-  }
-
-  const updateRow = (index: number, field: keyof ResourceRow, value: any) => {
-    const newRows = [...rows]
-    newRows[index] = { ...newRows[index], [field]: value }
-    setRows(newRows)
-  }
-
   const saveRow = async (row: ResourceRow) => {
     try {
+      if (!facilitySetup) return
       const method = row.id ? "PUT" : "POST"
       const url = row.id ? `/api/resource-input/${row.id}` : "/api/resource-input"
 
       await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(row),
+        body: JSON.stringify({ ...row, ...facilitySetup }),
       })
 
       await fetchResources()
@@ -69,14 +67,12 @@ export default function ResourceInputCard() {
     }
   }
 
-  const removeRow = async (id?: number, index?: number) => {
+  const removeRow = async (id?: number) => {
     try {
+      if (!facilitySetup) return
       if (id) {
         await fetch(`/api/resource-input/${id}`, { method: "DELETE" })
         await fetchResources()
-      } else if (index !== undefined) {
-        // remove unsaved row from UI only
-        setRows((prev) => prev.filter((_, i) => i !== index))
       }
     } catch (err) {
       console.error("Failed to delete resource row", err)
@@ -87,7 +83,23 @@ export default function ResourceInputCard() {
     <div className="card p-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-lg font-semibold">Resource Input</h3>
-        <button onClick={addRow} className="btn btn-primary">
+        <button
+          onClick={() =>
+            setRows((prev) => [
+              ...prev,
+              {
+                first_name: "",
+                last_name: "",
+                position: "",
+                unit_fte: 1.0,
+                availability: "Day",
+                weekend_assignment: "",
+                vacancy_status: "Filled",
+              },
+            ])
+          }
+          className="btn btn-primary"
+        >
           + Add Resource
         </button>
       </div>
@@ -124,7 +136,11 @@ export default function ResourceInputCard() {
                         type="text"
                         value={row.first_name}
                         onChange={(e) =>
-                          updateRow(i, "first_name", e.target.value)
+                          setRows((prev) =>
+                            prev.map((r, idx) =>
+                              idx === i ? { ...r, first_name: e.target.value } : r
+                            )
+                          )
                         }
                         className="input w-full"
                       />
@@ -134,7 +150,11 @@ export default function ResourceInputCard() {
                         type="text"
                         value={row.last_name}
                         onChange={(e) =>
-                          updateRow(i, "last_name", e.target.value)
+                          setRows((prev) =>
+                            prev.map((r, idx) =>
+                              idx === i ? { ...r, last_name: e.target.value } : r
+                            )
+                          )
                         }
                         className="input w-full"
                       />
@@ -143,7 +163,11 @@ export default function ResourceInputCard() {
                       <select
                         value={row.position}
                         onChange={(e) =>
-                          updateRow(i, "position", e.target.value)
+                          setRows((prev) =>
+                            prev.map((r, idx) =>
+                              idx === i ? { ...r, position: e.target.value } : r
+                            )
+                          )
                         }
                         className="input w-full"
                       >
@@ -161,7 +185,13 @@ export default function ResourceInputCard() {
                         min="0"
                         value={row.unit_fte}
                         onChange={(e) =>
-                          updateRow(i, "unit_fte", Number(e.target.value))
+                          setRows((prev) =>
+                            prev.map((r, idx) =>
+                              idx === i
+                                ? { ...r, unit_fte: Number(e.target.value) }
+                                : r
+                            )
+                          )
                         }
                         className="input w-20"
                       />
@@ -170,7 +200,13 @@ export default function ResourceInputCard() {
                       <select
                         value={row.availability}
                         onChange={(e) =>
-                          updateRow(i, "availability", e.target.value)
+                          setRows((prev) =>
+                            prev.map((r, idx) =>
+                              idx === i
+                                ? { ...r, availability: e.target.value }
+                                : r
+                            )
+                          )
                         }
                         className="input w-full"
                       >
@@ -182,7 +218,13 @@ export default function ResourceInputCard() {
                       <select
                         value={row.weekend_assignment}
                         onChange={(e) =>
-                          updateRow(i, "weekend_assignment", e.target.value)
+                          setRows((prev) =>
+                            prev.map((r, idx) =>
+                              idx === i
+                                ? { ...r, weekend_assignment: e.target.value }
+                                : r
+                            )
+                          )
                         }
                         className="input w-full"
                       >
@@ -197,7 +239,13 @@ export default function ResourceInputCard() {
                       <select
                         value={row.vacancy_status}
                         onChange={(e) =>
-                          updateRow(i, "vacancy_status", e.target.value)
+                          setRows((prev) =>
+                            prev.map((r, idx) =>
+                              idx === i
+                                ? { ...r, vacancy_status: e.target.value }
+                                : r
+                            )
+                          )
                         }
                         className="input w-full"
                       >
@@ -214,7 +262,7 @@ export default function ResourceInputCard() {
                         Save
                       </button>
                       <button
-                        onClick={() => removeRow(row.id, i)}
+                        onClick={() => removeRow(row.id)}
                         className="btn btn-sm btn-danger"
                       >
                         Remove
