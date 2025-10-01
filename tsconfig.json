@@ -16,14 +16,10 @@
     "noEmit": true,
     "allowJs": false,
     "strict": true,
-    "baseUrl": ".",
+    "baseUrl": "src",
     "paths": {
-      "@/*": [
-        "src/*"
-      ]
+      "@/*": ["*"]
     }
   },
-  "include": [
-    "src"
-  ]
+  "include": ["src"]
 }

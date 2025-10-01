@@ -1,121 +1,106 @@
 import { useState } from "react"
 import { useApp } from "@/store/AppContext"
 
-type FacilitySetup = {
-  facility: string
-  department: string
-  costCenter: string
-  bedCount: number
-  dateRange: { start: string; end: string }
-}
-
 export default function FacilityHeader() {
-  const { dispatch } = useApp()
+  const { setFacilitySetup, setToolType } = useApp()
 
   const [facility, setFacility] = useState("")
   const [department, setDepartment] = useState("")
   const [costCenter, setCostCenter] = useState("")
   const [bedCount, setBedCount] = useState<number>(0)
   const [dateRange, setDateRange] = useState({ start: "", end: "" })
-  const [loading, setLoading] = useState(false)
-  const [lastRefreshed, setLastRefreshed] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
 
-  const handleRefresh = async () => {
+  const handleSubmit = () => {
     if (!facility || !department || !costCenter || !dateRange.start || !dateRange.end) {
       alert("Please complete all fields")
       return
     }
 
-    const toolType: "IP" | "ED" =
-      department.toLowerCase().includes("ed") ? "ED" : "IP"
-
-    const setup: FacilitySetup = {
-      facility,
-      department,
-      costCenter,
-      bedCount,
-      dateRange,
-    }
-
-    try {
-      setLoading(true)
-      setError(null)
-      // Let the app know we’re loading
-      dispatch({ type: "SET_REFRESH", payload: { status: "loading" } })
-
-      // Call backend to refresh (roster, open reqs, ADT, etc.)
-      const res = await fetch("/api/refresh-data", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(setup),
-      })
-      if (!res.ok) throw new Error(`Refresh failed: ${res.status} ${res.statusText}`)
-      const result = await res.json()
-
-      // Save setup + tool selection
-      dispatch({ type: "SET_SETUP", payload: { setup, toolType } })
-      // Save refresh result
-      dispatch({ type: "SET_REFRESH", payload: { status: "success", data: result } })
-
-      setLastRefreshed(new Date().toLocaleString())
-    } catch (err: any) {
-      const msg = err?.message ?? "Failed to refresh data"
-      setError(msg)
-      dispatch({ type: "SET_REFRESH", payload: { status: "error" } })
-      console.error(err)
-    } finally {
-      setLoading(false)
-    }
+    const toolType = department.toLowerCase().includes("ed") ? "ED" : "IP"
+    setToolType(toolType)
+    setFacilitySetup({ facility, department, costCenter, bedCount, dateRange })
   }
 
   return (
-    <div className="w-full bg-gray-50 border-b border-gray-200 p-3 flex flex-wrap gap-3 items-end">
-      <div>
-        <label className="block text-xs font-medium">Facility</label>
-        <input className="input w-40" value={facility} onChange={e => setFacility(e.target.value)} />
+    <div className="card mb-6">
+      <h1 className="text-2xl font-bold mb-4 text-gray-800">HIRA Staffing Tool</h1>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Facility */}
+        <div>
+          <label className="block text-sm font-medium text-gray-600 mb-1">Facility</label>
+          <input
+            type="text"
+            value={facility}
+            onChange={(e) => setFacility(e.target.value)}
+            className="input w-full border rounded-lg px-3 py-2"
+            placeholder="Facility name"
+          />
+        </div>
+
+        {/* Department */}
+        <div>
+          <label className="block text-sm font-medium text-gray-600 mb-1">Department</label>
+          <select
+            value={department}
+            onChange={(e) => setDepartment(e.target.value)}
+            className="input w-full border rounded-lg px-3 py-2"
+          >
+            <option value="">-- Select Department --</option>
+            <option value="IP - Inpatient">Inpatient (IP)</option>
+            <option value="ED - Emergency">Emergency (ED)</option>
+          </select>
+        </div>
+
+        {/* Cost Center */}
+        <div>
+          <label className="block text-sm font-medium text-gray-600 mb-1">Cost Center</label>
+          <input
+            type="text"
+            value={costCenter}
+            onChange={(e) => setCostCenter(e.target.value)}
+            className="input w-full border rounded-lg px-3 py-2"
+            placeholder="e.g. CC1234"
+          />
+        </div>
+
+        {/* Bed Count */}
+        <div>
+          <label className="block text-sm font-medium text-gray-600 mb-1">Bed Count</label>
+          <input
+            type="number"
+            value={bedCount}
+            onChange={(e) => setBedCount(Number(e.target.value))}
+            className="input w-full border rounded-lg px-3 py-2"
+          />
+        </div>
+
+        {/* Start Date */}
+        <div>
+          <label className="block text-sm font-medium text-gray-600 mb-1">Start Date</label>
+          <input
+            type="date"
+            value={dateRange.start}
+            onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
+            className="input w-full border rounded-lg px-3 py-2"
+          />
+        </div>
+
+        {/* End Date */}
+        <div>
+          <label className="block text-sm font-medium text-gray-600 mb-1">End Date</label>
+          <input
+            type="date"
+            value={dateRange.end}
+            onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+            className="input w-full border rounded-lg px-3 py-2"
+          />
+        </div>
       </div>
 
-      <div>
-        <label className="block text-xs font-medium">Department</label>
-        <select className="input w-48" value={department} onChange={e => setDepartment(e.target.value)}>
-          <option value="">-- Select Department --</option>
-          <option value="IP - Inpatient">Inpatient (IP)</option>
-          <option value="ED - Emergency">Emergency (ED)</option>
-        </select>
-      </div>
-
-      <div>
-        <label className="block text-xs font-medium">Cost Center</label>
-        <input className="input w-32" value={costCenter} onChange={e => setCostCenter(e.target.value)} />
-      </div>
-
-      <div>
-        <label className="block text-xs font-medium">Bed Count</label>
-        <input type="number" className="input w-24" value={bedCount} onChange={e => setBedCount(+e.target.value)} />
-      </div>
-
-      <div>
-        <label className="block text-xs font-medium">Start Date</label>
-        <input type="date" className="input" value={dateRange.start}
-               onChange={e => setDateRange({ ...dateRange, start: e.target.value })} />
-      </div>
-
-      <div>
-        <label className="block text-xs font-medium">End Date</label>
-        <input type="date" className="input" value={dateRange.end}
-               onChange={e => setDateRange({ ...dateRange, end: e.target.value })} />
-      </div>
-
-      <div>
-        <button className="btn btn-primary mt-4" onClick={handleRefresh} disabled={loading}>
-          {loading ? "Refreshing..." : "Refresh Data"}
+      <div className="mt-4 flex justify-end">
+        <button onClick={handleSubmit} className="btn">
+          Refresh Data
         </button>
-      </div>
-
-      <div className="ml-4 text-sm">
-        {lastRefreshed && !error && <span className="text-green-600">Last refreshed: {lastRefreshed}</span>}
-        {error && <span className="text-red-600">Error: {error}</span>}
       </div>
     </div>
   )

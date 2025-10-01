@@ -1,37 +1,44 @@
-import { Routes, Route, Navigate } from "react-router-dom"
+import { Routes, Route } from "react-router-dom"
+
+// Components
 import FacilityHeader from "@/components/FacilityHeader"
+import ToolNavigator from "@/router/ToolNavigator"
+
+// Pages
 import ToolPage from "@/pages/ToolPage"
-import { useApp } from "@/store/AppContext"
+import StaffingPlan from "@/pages/StaffingPlanPage"
+import PositionControl from "@/pages/PositionControlPage"
+import GapSummary from "@/pages/GapSummaryPage"
+import Dashboard from "@/pages/DashboardPage" 
 
 export default function App() {
-  const { state } = useApp()
-  const isSetupComplete = Boolean(state.facilitySetup && state.toolType)
-
   return (
-    <div className="app-shell">
-      <header className="app-header border-b border-gray-200">
-        <h1 className="p-4 text-lg font-semibold">HIRA Staffing Tool</h1>
-        <FacilityHeader />
+    <div className="min-h-screen bg-gray-50 text-gray-900 flex flex-col">
+      {/* Header */}
+      <header className="border-b bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <FacilityHeader />
+        </div>
       </header>
 
-      <main className="p-4">
+      {/* Navigation */}
+      <ToolNavigator />
+
+      {/* Main Content */}
+      <main className="flex-1 max-w-7xl mx-auto px-6 py-6 space-y-8">
         <Routes>
-          <Route
-            path="/tool"
-            element={isSetupComplete ? <ToolPage /> : <Navigate to="/" replace />}
-          />
-          <Route
-            path="/"
-            element={
-              isSetupComplete ? (
-                <Navigate to="/tool" replace />
-              ) : (
-                <p className="text-gray-500 mt-4">Please complete setup above.</p>
-              )
-            }
-          />
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/tool" element={<ToolPage />} />
+          <Route path="/plan" element={<StaffingPlan />} />
+          <Route path="/position" element={<PositionControl />} />
+          <Route path="/gap" element={<GapSummary />} />
         </Routes>
       </main>
+
+      {/* Footer */}
+      <footer className="border-t bg-white text-center py-3 text-sm text-gray-500">
+        © {new Date().getFullYear()} HIRA Staffing Tool. All rights reserved.
+      </footer>
     </div>
   )
 }
