@@ -1,0 +1,23 @@
+{
+  // Disable VS Code’s built-in CSS/SCSS/LESS validation
+  "css.validate": false,
+  "scss.validate": false,
+  "less.validate": false,
+
+  // Make Tailwind IntelliSense work in TS/JSX/TSX files
+  "tailwindCSS.includeLanguages": {
+    "typescript": "javascript",
+    "typescriptreact": "javascript",
+    "javascriptreact": "javascript",
+    "html": "html"
+  },
+
+  // Optional: highlight Tailwind classes correctly in custom patterns
+  "tailwindCSS.experimental.classRegex": [
+    ["className\\s*=\\s*\"([^\"]*)\"", "([A-Za-z0-9-_:]+)"],
+    ["className\\s*=\\s*'([^']*)'", "([A-Za-z0-9-_:]+)"]
+  ],
+
+  // Make VS Code aware of your Tailwind config
+  "tailwindCSS.experimental.configFile": "./tailwind.config.ts"
+}
