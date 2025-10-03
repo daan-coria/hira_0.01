@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useApp } from "@/store/AppContext"
+import Card from "@/components/ui/Card"
 
 type GapSummaryRow = {
-  id: number
+  id?: number
   department: string
   shift: string
   available_fte: number
@@ -19,11 +20,11 @@ export default function GapSummaryCard() {
 
   useEffect(() => {
     if (facilitySetup) {
-      fetchGapSummary()
+      fetchGaps()
     }
   }, [facilitySetup])
 
-  const fetchGapSummary = async () => {
+  const fetchGaps = async () => {
     try {
       if (!facilitySetup) return
       setLoading(true)
@@ -47,192 +48,67 @@ export default function GapSummaryCard() {
     }
   }
 
-  const saveRow = async (row: GapSummaryRow) => {
-    try {
-      if (!facilitySetup) return
-      const method = row.id ? "PUT" : "POST"
-      const url = row.id ? `/api/gap-summary/${row.id}` : "/api/gap-summary"
-
-      await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...row, ...facilitySetup }),
-      })
-
-      await fetchGapSummary()
-    } catch (err) {
-      console.error("Failed to save gap summary row", err)
-    }
-  }
-
-  const removeRow = async (id?: number) => {
-    try {
-      if (!facilitySetup) return
-      if (id) {
-        await fetch(`/api/gap-summary/${id}`, { method: "DELETE" })
-        await fetchGapSummary()
-      }
-    } catch (err) {
-      console.error("Failed to delete gap summary row", err)
-    }
-  }
-
   return (
-    <div className="card p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-lg font-semibold">Gap Summary</h3>
-        <button
-          onClick={() =>
-            setRows((prev) => [
-              ...prev,
-              {
-                department: facilitySetup?.department || "",
-                shift: "",
-                available_fte: 0,
-                required_fte: 0,
-              },
-            ])
-          }
-          className="btn btn-primary"
-        >
-          + Add Gap Record
-        </button>
-      </div>
+    <Card>
+      <h3 className="text-lg font-semibold mb-3">Gap Summary</h3>
 
       {loading ? (
         <p className="text-gray-500">Loading gap summary...</p>
+      ) : rows.length === 0 ? (
+        <p className="text-gray-500">No gap data available.</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="min-w-full border border-gray-200 text-sm">
-            <thead className="bg-gray-50">
+          <table className="min-w-full border border-gray-200 text-sm rounded-lg overflow-hidden">
+            <thead className="bg-gray-100 text-gray-700">
               <tr>
-                <th className="px-3 py-2 border">Department</th>
-                <th className="px-3 py-2 border">Shift</th>
-                <th className="px-3 py-2 border">Available FTE</th>
-                <th className="px-3 py-2 border">Required FTE</th>
-                <th className="px-3 py-2 border">Gap</th>
-                <th className="px-3 py-2 border">Actions</th>
+                <th scope="col" className="px-3 py-2 border text-left">
+                  Department
+                </th>
+                <th scope="col" className="px-3 py-2 border text-left">
+                  Shift
+                </th>
+                <th scope="col" className="px-3 py-2 border text-right">
+                  Available FTE
+                </th>
+                <th scope="col" className="px-3 py-2 border text-right">
+                  Required FTE
+                </th>
+                <th scope="col" className="px-3 py-2 border text-right">
+                  Gap
+                </th>
               </tr>
             </thead>
             <tbody>
-              {rows.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="text-center py-4 text-gray-500">
-                    No gap summary records yet.
+              {rows.map((row, i) => (
+                <tr
+                  key={row.id || i}
+                  className="odd:bg-white even:bg-gray-50 hover:bg-gray-100 transition-colors"
+                >
+                  <td className="border px-2 py-1">{row.department}</td>
+                  <td className="border px-2 py-1">{row.shift}</td>
+                  <td className="border px-2 py-1 text-right">
+                    {row.available_fte}
+                  </td>
+                  <td className="border px-2 py-1 text-right">
+                    {row.required_fte}
+                  </td>
+                  <td
+                    className={`border px-2 py-1 text-right font-semibold ${
+                      row.gap < 0
+                        ? "text-red-600"
+                        : row.gap > 0
+                        ? "text-green-600"
+                        : "text-gray-700"
+                    }`}
+                  >
+                    {row.gap}
                   </td>
                 </tr>
-              ) : (
-                rows.map((row, i) => {
-                  const gapValue =
-                    row.gap !== undefined
-                      ? row.gap
-                      : row.available_fte - row.required_fte
-                  return (
-                    <tr key={row.id || i}>
-                      {/* Department */}
-                      <td className="border px-2 py-1">
-                        <input
-                          type="text"
-                          value={row.department}
-                          onChange={(e) =>
-                            setRows((prev) =>
-                              prev.map((r, idx) =>
-                                idx === i ? { ...r, department: e.target.value } : r
-                              )
-                            )
-                          }
-                          className="input w-full"
-                        />
-                      </td>
-
-                      {/* Shift */}
-                      <td className="border px-2 py-1">
-                        <select
-                          value={row.shift}
-                          onChange={(e) =>
-                            setRows((prev) =>
-                              prev.map((r, idx) =>
-                                idx === i ? { ...r, shift: e.target.value } : r
-                              )
-                            )
-                          }
-                          className="input w-full"
-                        >
-                          <option value="">-- Select Shift --</option>
-                          <option value="Day">Day</option>
-                          <option value="Night">Night</option>
-                          <option value="Evening">Evening</option>
-                        </select>
-                      </td>
-
-                      {/* Available FTE */}
-                      <td className="border px-2 py-1">
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.1"
-                          value={row.available_fte}
-                          onChange={(e) =>
-                            setRows((prev) =>
-                              prev.map((r, idx) =>
-                                idx === i
-                                  ? { ...r, available_fte: Number(e.target.value) }
-                                  : r
-                              )
-                            )
-                          }
-                          className="input w-24"
-                        />
-                      </td>
-
-                      {/* Required FTE */}
-                      <td className="border px-2 py-1">
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.1"
-                          value={row.required_fte}
-                          onChange={(e) =>
-                            setRows((prev) =>
-                              prev.map((r, idx) =>
-                                idx === i
-                                  ? { ...r, required_fte: Number(e.target.value) }
-                                  : r
-                              )
-                            )
-                          }
-                          className="input w-24"
-                        />
-                      </td>
-
-                      {/* Gap (calculated) */}
-                      <td className="border px-2 py-1 text-center">
-                        {gapValue}
-                      </td>
-
-                      {/* Actions */}
-                      <td className="border px-2 py-1 text-center space-x-2">
-                        <button
-                          onClick={() => saveRow(row)}
-                          className="btn btn-sm btn-success"
-                        >
-                          Save
-                        </button>
-                        <button
-                          onClick={() => removeRow(row.id)}
-                          className="btn btn-sm btn-danger"
-                        >
-                          Remove
-                        </button>
-                      </td>
-                    </tr>
-                  )
-                })
-              )}
+              ))}
             </tbody>
           </table>
         </div>
       )}
-    </div>
+    </Card>
   )
 }

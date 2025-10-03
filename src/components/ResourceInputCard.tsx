@@ -1,5 +1,11 @@
 import { useState, useEffect } from "react"
 import { useApp } from "@/store/AppContext"
+import Card from "@/components/ui/Card"
+import Button from "@/components/ui/Button"
+import Input from "@/components/ui/Input"
+import Select from "@/components/ui/Select"
+import Loading from "@/components/ui/Loading"
+import ErrorBanner from "@/components/ui/ErrorBanner"
 
 type ResourceRow = {
   id?: number
@@ -16,6 +22,7 @@ export default function ResourceInputCard() {
   const { state } = useApp()
   const [rows, setRows] = useState<ResourceRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const { facilitySetup } = state
 
@@ -29,6 +36,7 @@ export default function ResourceInputCard() {
     try {
       if (!facilitySetup) return
       setLoading(true)
+      setError(null)
 
       const query = new URLSearchParams({
         facility: facilitySetup.facility,
@@ -40,10 +48,13 @@ export default function ResourceInputCard() {
       })
 
       const res = await fetch(`/api/resource-input?${query.toString()}`)
+      if (!res.ok) throw new Error("Failed to fetch resources")
+
       const data = await res.json()
       setRows(data)
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to load resource input", err)
+      setError(err.message || "Failed to load resource input")
     } finally {
       setLoading(false)
     }
@@ -52,38 +63,45 @@ export default function ResourceInputCard() {
   const saveRow = async (row: ResourceRow) => {
     try {
       if (!facilitySetup) return
+      setError(null)
+
       const method = row.id ? "PUT" : "POST"
       const url = row.id ? `/api/resource-input/${row.id}` : "/api/resource-input"
 
-      await fetch(url, {
+      const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...row, ...facilitySetup }),
       })
 
+      if (!res.ok) throw new Error("Failed to save resource row")
       await fetchResources()
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to save resource row", err)
+      setError(err.message || "Failed to save resource row")
     }
   }
 
   const removeRow = async (id?: number) => {
     try {
-      if (!facilitySetup) return
-      if (id) {
-        await fetch(`/api/resource-input/${id}`, { method: "DELETE" })
-        await fetchResources()
-      }
-    } catch (err) {
+      if (!facilitySetup || !id) return
+      setError(null)
+
+      const res = await fetch(`/api/resource-input/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Failed to delete resource row")
+
+      await fetchResources()
+    } catch (err: any) {
       console.error("Failed to delete resource row", err)
+      setError(err.message || "Failed to delete resource row")
     }
   }
 
   return (
-    <div className="card p-4">
+    <Card>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-lg font-semibold">Resource Input</h3>
-        <button
+        <Button
           onClick={() =>
             setRows((prev) => [
               ...prev,
@@ -98,14 +116,14 @@ export default function ResourceInputCard() {
               },
             ])
           }
-          className="btn btn-primary"
         >
           + Add Resource
-        </button>
+        </Button>
       </div>
 
+      {error && <ErrorBanner message={error} />}
       {loading ? (
-        <p className="text-gray-500">Loading resources...</p>
+        <Loading message="Loading resources..." />
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full border border-gray-200 text-sm">
@@ -131,8 +149,11 @@ export default function ResourceInputCard() {
               ) : (
                 rows.map((row, i) => (
                   <tr key={row.id || i}>
+                    {/* First Name */}
                     <td className="border px-2 py-1">
-                      <input
+                      <Input
+                        id={`first_name_${i}`}
+                        label=""
                         type="text"
                         value={row.first_name}
                         onChange={(e) =>
@@ -142,11 +163,15 @@ export default function ResourceInputCard() {
                             )
                           )
                         }
-                        className="input w-full"
+                        className="!m-0 !p-1"
                       />
                     </td>
+
+                    {/* Last Name */}
                     <td className="border px-2 py-1">
-                      <input
+                      <Input
+                        id={`last_name_${i}`}
+                        label=""
                         type="text"
                         value={row.last_name}
                         onChange={(e) =>
@@ -156,11 +181,15 @@ export default function ResourceInputCard() {
                             )
                           )
                         }
-                        className="input w-full"
+                        className="!m-0 !p-1"
                       />
                     </td>
+
+                    {/* Position */}
                     <td className="border px-2 py-1">
-                      <select
+                      <Select
+                        id={`position_${i}`}
+                        label=""
                         value={row.position}
                         onChange={(e) =>
                           setRows((prev) =>
@@ -169,17 +198,21 @@ export default function ResourceInputCard() {
                             )
                           )
                         }
-                        className="input w-full"
+                        className="!m-0 !p-1"
                       >
                         <option value="">-- Select --</option>
                         <option value="RN">RN</option>
                         <option value="LPN">LPN</option>
                         <option value="CNA">CNA</option>
                         <option value="Clerk">Clerk</option>
-                      </select>
+                      </Select>
                     </td>
+
+                    {/* Unit FTE */}
                     <td className="border px-2 py-1">
-                      <input
+                      <Input
+                        id={`fte_${i}`}
+                        label=""
                         type="number"
                         step="0.1"
                         min="0"
@@ -193,29 +226,35 @@ export default function ResourceInputCard() {
                             )
                           )
                         }
-                        className="input w-20"
+                        className="!m-0 !p-1 w-20"
                       />
                     </td>
+
+                    {/* Availability */}
                     <td className="border px-2 py-1">
-                      <select
+                      <Select
+                        id={`availability_${i}`}
+                        label=""
                         value={row.availability}
                         onChange={(e) =>
                           setRows((prev) =>
                             prev.map((r, idx) =>
-                              idx === i
-                                ? { ...r, availability: e.target.value }
-                                : r
+                              idx === i ? { ...r, availability: e.target.value } : r
                             )
                           )
                         }
-                        className="input w-full"
+                        className="!m-0 !p-1"
                       >
                         <option value="Day">Day</option>
                         <option value="Night">Night</option>
-                      </select>
+                      </Select>
                     </td>
+
+                    {/* Weekend Group */}
                     <td className="border px-2 py-1">
-                      <select
+                      <Select
+                        id={`weekend_${i}`}
+                        label=""
                         value={row.weekend_assignment}
                         onChange={(e) =>
                           setRows((prev) =>
@@ -226,17 +265,21 @@ export default function ResourceInputCard() {
                             )
                           )
                         }
-                        className="input w-full"
+                        className="!m-0 !p-1"
                       >
                         <option value="">--</option>
                         <option value="A">A</option>
                         <option value="B">B</option>
                         <option value="C">C</option>
                         <option value="WC">WC</option>
-                      </select>
+                      </Select>
                     </td>
+
+                    {/* Vacancy Status */}
                     <td className="border px-2 py-1">
-                      <select
+                      <Select
+                        id={`vacancy_${i}`}
+                        label=""
                         value={row.vacancy_status}
                         onChange={(e) =>
                           setRows((prev) =>
@@ -247,26 +290,22 @@ export default function ResourceInputCard() {
                             )
                           )
                         }
-                        className="input w-full"
+                        className="!m-0 !p-1"
                       >
                         <option value="Filled">Filled</option>
                         <option value="Vacant">Vacant</option>
                         <option value="Open Req">Open Req</option>
-                      </select>
+                      </Select>
                     </td>
+
+                    {/* Actions */}
                     <td className="border px-2 py-1 text-center space-x-2">
-                      <button
-                        onClick={() => saveRow(row)}
-                        className="btn btn-sm btn-success"
-                      >
+                      <Button onClick={() => saveRow(row)} variant="primary" className="!px-2 !py-1 text-xs">
                         Save
-                      </button>
-                      <button
-                        onClick={() => removeRow(row.id)}
-                        className="btn btn-sm btn-danger"
-                      >
+                      </Button>
+                      <Button onClick={() => removeRow(row.id)} variant="ghost" className="!px-2 !py-1 text-xs text-red-600">
                         Remove
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))
@@ -275,6 +314,6 @@ export default function ResourceInputCard() {
           </table>
         </div>
       )}
-    </div>
+    </Card>
   )
 }

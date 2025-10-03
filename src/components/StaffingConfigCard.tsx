@@ -1,5 +1,11 @@
 import { useState, useEffect } from "react"
 import { useApp } from "@/store/AppContext"
+import Card from "@/components/ui/Card"
+import Button from "@/components/ui/Button"
+import Input from "@/components/ui/Input"
+import Select from "@/components/ui/Select"
+import Loading from "@/components/ui/Loading"
+import ErrorBanner from "@/components/ui/ErrorBanner"
 
 type StaffingConfigRow = {
   id?: number
@@ -17,6 +23,7 @@ export default function StaffingConfigCard() {
 
   const [rows, setRows] = useState<StaffingConfigRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (facilitySetup) {
@@ -28,6 +35,7 @@ export default function StaffingConfigCard() {
     try {
       if (!facilitySetup) return
       setLoading(true)
+      setError(null)
 
       const query = new URLSearchParams({
         facility: facilitySetup.facility,
@@ -39,10 +47,13 @@ export default function StaffingConfigCard() {
       })
 
       const res = await fetch(`/api/staffing-config?${query.toString()}`)
+      if (!res.ok) throw new Error("Failed to load staffing configuration")
+
       const data = await res.json()
       setRows(data)
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to load staffing configuration", err)
+      setError(err.message || "Failed to load staffing configuration")
     } finally {
       setLoading(false)
     }
@@ -51,38 +62,45 @@ export default function StaffingConfigCard() {
   const saveRow = async (row: StaffingConfigRow) => {
     try {
       if (!facilitySetup) return
+      setError(null)
+
       const method = row.id ? "PUT" : "POST"
       const url = row.id ? `/api/staffing-config/${row.id}` : "/api/staffing-config"
 
-      await fetch(url, {
+      const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...row, ...facilitySetup }),
       })
 
+      if (!res.ok) throw new Error("Failed to save staffing configuration")
       await fetchConfigs()
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to save staffing config row", err)
+      setError(err.message || "Failed to save staffing configuration")
     }
   }
 
   const removeRow = async (id?: number) => {
     try {
-      if (!facilitySetup) return
-      if (id) {
-        await fetch(`/api/staffing-config/${id}`, { method: "DELETE" })
-        await fetchConfigs()
-      }
-    } catch (err) {
+      if (!facilitySetup || !id) return
+      setError(null)
+
+      const res = await fetch(`/api/staffing-config/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Failed to delete staffing configuration")
+
+      await fetchConfigs()
+    } catch (err: any) {
       console.error("Failed to delete staffing config row", err)
+      setError(err.message || "Failed to delete staffing configuration")
     }
   }
 
   return (
-    <div className="card p-4">
+    <Card>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-lg font-semibold">Staffing Configuration</h3>
-        <button
+        <Button
           onClick={() =>
             setRows((prev) => [
               ...prev,
@@ -96,14 +114,14 @@ export default function StaffingConfigCard() {
               },
             ])
           }
-          className="btn btn-primary"
         >
           + Add Config
-        </button>
+        </Button>
       </div>
 
+      {error && <ErrorBanner message={error} />}
       {loading ? (
-        <p className="text-gray-500">Loading staffing configuration...</p>
+        <Loading message="Loading staffing configuration..." />
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full border border-gray-200 text-sm">
@@ -130,7 +148,9 @@ export default function StaffingConfigCard() {
                   <tr key={row.id || i}>
                     {/* Role */}
                     <td className="border px-2 py-1">
-                      <select
+                      <Select
+                        id={`role_${i}`}
+                        label=""
                         value={row.role}
                         onChange={(e) =>
                           setRows((prev) =>
@@ -139,19 +159,21 @@ export default function StaffingConfigCard() {
                             )
                           )
                         }
-                        className="input w-full"
+                        className="!m-0 !p-1"
                       >
                         <option value="">-- Select Role --</option>
                         <option value="RN">RN</option>
                         <option value="LPN">LPN</option>
                         <option value="CNA">CNA</option>
                         <option value="Clerk">Clerk</option>
-                      </select>
+                      </Select>
                     </td>
 
                     {/* Ratio / Fixed */}
                     <td className="border px-2 py-1">
-                      <select
+                      <Select
+                        id={`ratio_${i}`}
+                        label=""
                         value={row.ratio_mode}
                         onChange={(e) =>
                           setRows((prev) =>
@@ -162,19 +184,21 @@ export default function StaffingConfigCard() {
                             )
                           )
                         }
-                        className="input w-full"
+                        className="!m-0 !p-1"
                       >
                         <option value="Ratio">Ratio</option>
                         <option value="Fixed">Fixed</option>
-                      </select>
+                      </Select>
                     </td>
 
                     {/* Max Ratio */}
                     <td className="border px-2 py-1">
-                      <input
+                      <Input
+                        id={`max_ratio_${i}`}
+                        label=""
                         type="number"
-                        min="0"
-                        step="0.1"
+                        min={0}
+                        step={0.1}
                         value={row.max_ratio}
                         onChange={(e) =>
                           setRows((prev) =>
@@ -183,31 +207,40 @@ export default function StaffingConfigCard() {
                             )
                           )
                         }
-                        className="input w-20"
+                        className="!m-0 !p-1 w-20"
                       />
                     </td>
 
                     {/* Include in Ratio */}
                     <td className="border px-2 py-1 text-center">
-                      <input
-                        type="checkbox"
-                        checked={row.include_in_ratio}
-                        onChange={(e) =>
-                          setRows((prev) =>
-                            prev.map((r, idx) =>
-                              idx === i ? { ...r, include_in_ratio: e.target.checked } : r
+                      <div className="flex justify-center items-center">
+                        <input
+                          id={`include_${i}`}
+                          type="checkbox"
+                          checked={row.include_in_ratio}
+                          onChange={(e) =>
+                            setRows((prev) =>
+                              prev.map((r, idx) =>
+                                idx === i
+                                  ? { ...r, include_in_ratio: e.target.checked }
+                                  : r
+                              )
                             )
-                          )
-                        }
-                      />
+                          }
+                          className="h-4 w-4 text-brand-600 focus:ring-brand-500 border-gray-300 rounded"
+                          aria-label="Include in Ratio"   // ✅ accessibility fix
+                        />
+                      </div>
                     </td>
 
                     {/* Direct Care % */}
                     <td className="border px-2 py-1">
-                      <input
+                      <Input
+                        id={`direct_${i}`}
+                        label=""
                         type="number"
-                        min="0"
-                        max="100"
+                        min={0}
+                        max={100}
                         value={row.direct_care_percent}
                         onChange={(e) =>
                           setRows((prev) =>
@@ -218,13 +251,15 @@ export default function StaffingConfigCard() {
                             )
                           )
                         }
-                        className="input w-20"
+                        className="!m-0 !p-1 w-20"
                       />
                     </td>
 
                     {/* Category */}
                     <td className="border px-2 py-1">
-                      <select
+                      <Select
+                        id={`category_${i}`}
+                        label=""
                         value={row.category}
                         onChange={(e) =>
                           setRows((prev) =>
@@ -233,29 +268,31 @@ export default function StaffingConfigCard() {
                             )
                           )
                         }
-                        className="input w-full"
+                        className="!m-0 !p-1"
                       >
                         <option value="">-- Select Category --</option>
                         <option value="Nursing">Nursing</option>
                         <option value="Support">Support</option>
                         <option value="Other">Other</option>
-                      </select>
+                      </Select>
                     </td>
 
                     {/* Actions */}
                     <td className="border px-2 py-1 text-center space-x-2">
-                      <button
+                      <Button
                         onClick={() => saveRow(row)}
-                        className="btn btn-sm btn-success"
+                        variant="primary"
+                        className="!px-2 !py-1 text-xs"
                       >
                         Save
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         onClick={() => removeRow(row.id)}
-                        className="btn btn-sm btn-danger"
+                        variant="ghost"
+                        className="!px-2 !py-1 text-xs text-red-600"
                       >
                         Remove
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))
@@ -264,6 +301,6 @@ export default function StaffingConfigCard() {
           </table>
         </div>
       )}
-    </div>
+    </Card>
   )
 }

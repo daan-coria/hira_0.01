@@ -1,12 +1,16 @@
 import { useState, useEffect } from "react"
 import { useApp } from "@/store/AppContext"
+import Card from "@/components/ui/Card"
+import Button from "@/components/ui/Button"
+import Input from "@/components/ui/Input"
+import Select from "@/components/ui/Select"
 
 type PositionControlRow = {
-  id: number
+  id?: number
   role: string
   budgeted_fte: number
   filled_fte: number
-  open_fte: number // calculated = budgeted - filled
+  open_fte?: number // calculated = budgeted - filled
 }
 
 export default function PositionControlCard() {
@@ -50,7 +54,9 @@ export default function PositionControlCard() {
     try {
       if (!facilitySetup) return
       const method = row.id ? "PUT" : "POST"
-      const url = row.id ? `/api/position-control/${row.id}` : "/api/position-control"
+      const url = row.id
+        ? `/api/position-control/${row.id}`
+        : "/api/position-control"
 
       await fetch(url, {
         method,
@@ -77,20 +83,19 @@ export default function PositionControlCard() {
   }
 
   return (
-    <div className="card p-4">
+    <Card>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-lg font-semibold">Position Control</h3>
-        <button
+        <Button
           onClick={() =>
             setRows((prev) => [
               ...prev,
               { role: "", budgeted_fte: 0, filled_fte: 0, open_fte: 0 },
             ])
           }
-          className="btn btn-primary"
         >
           + Add Position
-        </button>
+        </Button>
       </div>
 
       {loading ? (
@@ -121,7 +126,9 @@ export default function PositionControlCard() {
                     <tr key={row.id || i}>
                       {/* Role */}
                       <td className="border px-2 py-1">
-                        <select
+                        <Select
+                          id={`role_${i}`}
+                          label="Role"
                           value={row.role}
                           onChange={(e) =>
                             setRows((prev) =>
@@ -130,22 +137,24 @@ export default function PositionControlCard() {
                               )
                             )
                           }
-                          className="input w-full"
+                          className="!m-0 !p-1"
                         >
                           <option value="">-- Select Role --</option>
                           <option value="RN">RN</option>
                           <option value="LPN">LPN</option>
                           <option value="CNA">CNA</option>
                           <option value="Clerk">Clerk</option>
-                        </select>
+                        </Select>
                       </td>
 
                       {/* Budgeted FTE */}
                       <td className="border px-2 py-1">
-                        <input
+                        <Input
+                          id={`budgeted_${i}`}
+                          label="Budgeted FTE"
                           type="number"
-                          min="0"
-                          step="0.1"
+                          min={0}
+                          step={0.1}
                           value={row.budgeted_fte}
                           onChange={(e) =>
                             setRows((prev) =>
@@ -156,16 +165,18 @@ export default function PositionControlCard() {
                               )
                             )
                           }
-                          className="input w-24"
+                          className="!m-0 !p-1 w-24"
                         />
                       </td>
 
                       {/* Filled FTE */}
                       <td className="border px-2 py-1">
-                        <input
+                        <Input
+                          id={`filled_${i}`}
+                          label="Filled FTE"
                           type="number"
-                          min="0"
-                          step="0.1"
+                          min={0}
+                          step={0.1}
                           value={row.filled_fte}
                           onChange={(e) =>
                             setRows((prev) =>
@@ -176,29 +187,35 @@ export default function PositionControlCard() {
                               )
                             )
                           }
-                          className="input w-24"
+                          className="!m-0 !p-1 w-24"
                         />
                       </td>
 
                       {/* Open FTE (calculated) */}
-                      <td className="border px-2 py-1 text-center">
+                      <td
+                        className={`border px-2 py-1 text-center font-semibold ${
+                          openFTE > 0 ? "text-red-600" : "text-gray-700"
+                        }`}
+                      >
                         {openFTE}
                       </td>
 
                       {/* Actions */}
                       <td className="border px-2 py-1 text-center space-x-2">
-                        <button
+                        <Button
                           onClick={() => saveRow(row)}
-                          className="btn btn-sm btn-success"
+                          variant="primary"
+                          className="!px-2 !py-1 text-xs"
                         >
                           Save
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           onClick={() => removeRow(row.id)}
-                          className="btn btn-sm btn-danger"
+                          variant="ghost"
+                          className="!px-2 !py-1 text-xs text-red-600"
                         >
                           Remove
-                        </button>
+                        </Button>
                       </td>
                     </tr>
                   )
@@ -208,6 +225,6 @@ export default function PositionControlCard() {
           </table>
         </div>
       )}
-    </div>
+    </Card>
   )
 }

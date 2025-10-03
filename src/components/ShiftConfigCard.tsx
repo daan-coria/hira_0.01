@@ -1,5 +1,11 @@
 import { useState, useEffect } from "react"
 import { useApp } from "@/store/AppContext"
+import Card from "@/components/ui/Card"
+import Button from "@/components/ui/Button"
+import Input from "@/components/ui/Input"
+import Select from "@/components/ui/Select"
+import Loading from "@/components/ui/Loading"
+import ErrorBanner from "@/components/ui/ErrorBanner"
 
 type ShiftConfigRow = {
   id?: number
@@ -14,6 +20,7 @@ export default function ShiftConfigCard() {
 
   const [rows, setRows] = useState<ShiftConfigRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (facilitySetup) {
@@ -25,6 +32,7 @@ export default function ShiftConfigCard() {
     try {
       if (!facilitySetup) return
       setLoading(true)
+      setError(null)
 
       const query = new URLSearchParams({
         facility: facilitySetup.facility,
@@ -36,10 +44,13 @@ export default function ShiftConfigCard() {
       })
 
       const res = await fetch(`/api/shift-config?${query.toString()}`)
+      if (!res.ok) throw new Error("Failed to load shift configurations")
+
       const data = await res.json()
       setRows(data)
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to load shift configs", err)
+      setError(err.message || "Failed to load shift configurations")
     } finally {
       setLoading(false)
     }
@@ -48,52 +59,56 @@ export default function ShiftConfigCard() {
   const saveRow = async (row: ShiftConfigRow) => {
     try {
       if (!facilitySetup) return
+      setError(null)
+
       const method = row.id ? "PUT" : "POST"
       const url = row.id ? `/api/shift-config/${row.id}` : "/api/shift-config"
 
-      await fetch(url, {
+      const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...row, ...facilitySetup }),
       })
 
+      if (!res.ok) throw new Error("Failed to save shift configuration")
       await fetchShiftConfigs()
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to save shift row", err)
+      setError(err.message || "Failed to save shift configuration")
     }
   }
 
   const removeRow = async (id?: number) => {
     try {
-      if (!facilitySetup) return
-      if (id) {
-        await fetch(`/api/shift-config/${id}`, { method: "DELETE" })
-        await fetchShiftConfigs()
-      }
-    } catch (err) {
+      if (!facilitySetup || !id) return
+      setError(null)
+
+      const res = await fetch(`/api/shift-config/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Failed to delete shift configuration")
+
+      await fetchShiftConfigs()
+    } catch (err: any) {
       console.error("Failed to delete shift row", err)
+      setError(err.message || "Failed to delete shift configuration")
     }
   }
 
   return (
-    <div className="card p-4">
+    <Card>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-lg font-semibold">Shift Configuration</h3>
-        <button
+        <Button
           onClick={() =>
-            setRows((prev) => [
-              ...prev,
-              { role: "", shift: "", hours: 8 },
-            ])
+            setRows((prev) => [...prev, { role: "", shift: "", hours: 8 }])
           }
-          className="btn btn-primary"
         >
           + Add Shift
-        </button>
+        </Button>
       </div>
 
+      {error && <ErrorBanner message={error} />}
       {loading ? (
-        <p className="text-gray-500">Loading shift configs...</p>
+        <Loading message="Loading shift configurations..." />
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full border border-gray-200 text-sm">
@@ -117,7 +132,9 @@ export default function ShiftConfigCard() {
                   <tr key={row.id || i}>
                     {/* Role */}
                     <td className="border px-2 py-1">
-                      <select
+                      <Select
+                        id={`role_${i}`}
+                        label=""
                         value={row.role}
                         onChange={(e) =>
                           setRows((prev) =>
@@ -126,19 +143,21 @@ export default function ShiftConfigCard() {
                             )
                           )
                         }
-                        className="input w-full"
+                        className="!m-0 !p-1"
                       >
                         <option value="">-- Select Role --</option>
                         <option value="RN">RN</option>
                         <option value="LPN">LPN</option>
                         <option value="CNA">CNA</option>
                         <option value="Clerk">Clerk</option>
-                      </select>
+                      </Select>
                     </td>
 
                     {/* Shift */}
                     <td className="border px-2 py-1">
-                      <input
+                      <Input
+                        id={`shift_${i}`}
+                        label=""
                         type="text"
                         value={row.shift}
                         onChange={(e) =>
@@ -148,16 +167,18 @@ export default function ShiftConfigCard() {
                             )
                           )
                         }
-                        className="input w-full"
+                        className="!m-0 !p-1"
                       />
                     </td>
 
                     {/* Hours */}
                     <td className="border px-2 py-1">
-                      <input
+                      <Input
+                        id={`hours_${i}`}
+                        label=""
                         type="number"
-                        min="1"
-                        step="1"
+                        min={1}
+                        step={1}
                         value={row.hours}
                         onChange={(e) =>
                           setRows((prev) =>
@@ -166,24 +187,26 @@ export default function ShiftConfigCard() {
                             )
                           )
                         }
-                        className="input w-20"
+                        className="!m-0 !p-1 w-20"
                       />
                     </td>
 
                     {/* Actions */}
                     <td className="border px-2 py-1 text-center space-x-2">
-                      <button
+                      <Button
                         onClick={() => saveRow(row)}
-                        className="btn btn-sm btn-success"
+                        variant="primary"
+                        className="!px-2 !py-1 text-xs"
                       >
                         Save
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         onClick={() => removeRow(row.id)}
-                        className="btn btn-sm btn-danger"
+                        variant="ghost"
+                        className="!px-2 !py-1 text-xs text-red-600"
                       >
                         Remove
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))
@@ -192,6 +215,6 @@ export default function ShiftConfigCard() {
           </table>
         </div>
       )}
-    </div>
+    </Card>
   )
 }

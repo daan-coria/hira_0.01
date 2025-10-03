@@ -1,5 +1,9 @@
 import { useState, useEffect } from "react"
 import { useApp } from "@/store/AppContext"
+import Card from "@/components/ui/Card"
+import Button from "@/components/ui/Button"
+import Input from "@/components/ui/Input"
+import Select from "@/components/ui/Select"
 
 type StaffingRequirementRow = {
   id?: number
@@ -49,7 +53,9 @@ export default function StaffingRequirementsCard() {
     try {
       if (!facilitySetup) return
       const method = row.id ? "PUT" : "POST"
-      const url = row.id ? `/api/staffing-requirements/${row.id}` : "/api/staffing-requirements"
+      const url = row.id
+        ? `/api/staffing-requirements/${row.id}`
+        : "/api/staffing-requirements"
 
       await fetch(url, {
         method,
@@ -75,24 +81,23 @@ export default function StaffingRequirementsCard() {
     }
   }
 
-  // If not IP, don’t render at all
+  // Render only for IP tool
   if (toolType !== "IP") return null
 
   return (
-    <div className="card p-4">
+    <Card>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-lg font-semibold">Staffing Requirements (IP Only)</h3>
-        <button
+        <Button
           onClick={() =>
             setRows((prev) => [
               ...prev,
               { role: "", required_fte: 0, notes: "" },
             ])
           }
-          className="btn btn-primary"
         >
           + Add Requirement
-        </button>
+        </Button>
       </div>
 
       {loading ? (
@@ -120,7 +125,9 @@ export default function StaffingRequirementsCard() {
                   <tr key={row.id || i}>
                     {/* Role */}
                     <td className="border px-2 py-1">
-                      <select
+                      <Select
+                        id={`role_${i}`}
+                        label="Role"
                         value={row.role}
                         onChange={(e) =>
                           setRows((prev) =>
@@ -129,37 +136,43 @@ export default function StaffingRequirementsCard() {
                             )
                           )
                         }
-                        className="input w-full"
+                        className="!m-0 !p-1"
                       >
                         <option value="">-- Select Role --</option>
                         <option value="RN">RN</option>
                         <option value="LPN">LPN</option>
                         <option value="CNA">CNA</option>
                         <option value="Clerk">Clerk</option>
-                      </select>
+                      </Select>
                     </td>
 
                     {/* Required FTE */}
                     <td className="border px-2 py-1">
-                      <input
+                      <Input
+                        id={`required_fte_${i}`}
+                        label="Required FTE"
                         type="number"
-                        min="0"
-                        step="0.1"
+                        min={0}
+                        step={0.1}
                         value={row.required_fte}
                         onChange={(e) =>
                           setRows((prev) =>
                             prev.map((r, idx) =>
-                              idx === i ? { ...r, required_fte: Number(e.target.value) } : r
+                              idx === i
+                                ? { ...r, required_fte: Number(e.target.value) }
+                                : r
                             )
                           )
                         }
-                        className="input w-24"
+                        className="!m-0 !p-1 w-24"
                       />
                     </td>
 
                     {/* Notes */}
                     <td className="border px-2 py-1">
-                      <input
+                      <Input
+                        id={`notes_${i}`}
+                        label="Notes"
                         type="text"
                         value={row.notes || ""}
                         onChange={(e) =>
@@ -169,24 +182,26 @@ export default function StaffingRequirementsCard() {
                             )
                           )
                         }
-                        className="input w-full"
+                        className="!m-0 !p-1"
                       />
                     </td>
 
                     {/* Actions */}
                     <td className="border px-2 py-1 text-center space-x-2">
-                      <button
+                      <Button
                         onClick={() => saveRow(row)}
-                        className="btn btn-sm btn-success"
+                        variant="primary"
+                        className="!px-2 !py-1 text-xs"
                       >
                         Save
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         onClick={() => removeRow(row.id)}
-                        className="btn btn-sm btn-danger"
+                        variant="ghost"
+                        className="!px-2 !py-1 text-xs text-red-600"
                       >
                         Remove
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))
@@ -195,6 +210,6 @@ export default function StaffingRequirementsCard() {
           </table>
         </div>
       )}
-    </div>
+    </Card>
   )
 }

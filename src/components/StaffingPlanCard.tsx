@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react"
 import { useApp } from "@/store/AppContext"
+import Card from "@/components/ui/Card"
+import Button from "@/components/ui/Button"
+import Input from "@/components/ui/Input"
 
 type PlanRow = {
   id?: number
@@ -78,20 +81,25 @@ export default function StaffingPlanCard() {
   }
 
   return (
-    <div className="card p-4">
+    <Card>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-lg font-semibold">Staffing Plan</h3>
-        <button
+        <Button
           onClick={() =>
             setRows((prev) => [
               ...prev,
-              { department: facilitySetup?.department || "", shift: "", start: 0, end: 0, plannedFTE: 0 },
+              {
+                department: facilitySetup?.department || "",
+                shift: "",
+                start: 0,
+                end: 0,
+                plannedFTE: 0,
+              },
             ])
           }
-          className="btn btn-primary"
         >
           + Add Plan
-        </button>
+        </Button>
       </div>
 
       {loading ? (
@@ -121,7 +129,9 @@ export default function StaffingPlanCard() {
                   <tr key={row.id || i}>
                     {/* Department */}
                     <td className="border px-2 py-1">
-                      <input
+                      <Input
+                        id={`department_${i}`}
+                        label="Department"
                         type="text"
                         value={row.department}
                         onChange={(e) =>
@@ -131,13 +141,15 @@ export default function StaffingPlanCard() {
                             )
                           )
                         }
-                        className="input w-full"
+                        className="!m-0 !p-1"
                       />
                     </td>
 
                     {/* Shift */}
                     <td className="border px-2 py-1">
-                      <input
+                      <Input
+                        id={`shift_${i}`}
+                        label="Shift"
                         type="text"
                         value={row.shift}
                         onChange={(e) =>
@@ -147,16 +159,18 @@ export default function StaffingPlanCard() {
                             )
                           )
                         }
-                        className="input w-full"
+                        className="!m-0 !p-1"
                       />
                     </td>
 
-                    {/* Start */}
+                    {/* Start Hour */}
                     <td className="border px-2 py-1">
-                      <input
+                      <Input
+                        id={`start_${i}`}
+                        label="Start Hour"
                         type="number"
-                        min="0"
-                        max="23"
+                        min={0}
+                        max={23}
                         value={row.start}
                         onChange={(e) =>
                           setRows((prev) =>
@@ -165,16 +179,18 @@ export default function StaffingPlanCard() {
                             )
                           )
                         }
-                        className="input w-20"
+                        className="!m-0 !p-1 w-20"
                       />
                     </td>
 
-                    {/* End */}
+                    {/* End Hour */}
                     <td className="border px-2 py-1">
-                      <input
+                      <Input
+                        id={`end_${i}`}
+                        label="End Hour"
                         type="number"
-                        min="0"
-                        max="23"
+                        min={0}
+                        max={23}
                         value={row.end}
                         onChange={(e) =>
                           setRows((prev) =>
@@ -183,42 +199,48 @@ export default function StaffingPlanCard() {
                             )
                           )
                         }
-                        className="input w-20"
+                        className="!m-0 !p-1 w-20"
                       />
                     </td>
 
                     {/* Planned FTE */}
                     <td className="border px-2 py-1">
-                      <input
+                      <Input
+                        id={`plannedFTE_${i}`}
+                        label="Planned FTE"
                         type="number"
-                        min="0"
-                        step="0.1"
+                        min={0}
+                        step={0.1}
                         value={row.plannedFTE}
                         onChange={(e) =>
                           setRows((prev) =>
                             prev.map((r, idx) =>
-                              idx === i ? { ...r, plannedFTE: Number(e.target.value) } : r
+                              idx === i
+                                ? { ...r, plannedFTE: Number(e.target.value) }
+                                : r
                             )
                           )
                         }
-                        className="input w-24"
+                        className="!m-0 !p-1 w-24"
                       />
                     </td>
 
                     {/* Actions */}
                     <td className="border px-2 py-1 text-center space-x-2">
-                      <button
+                      <Button
                         onClick={() => saveRow(row)}
-                        className="btn btn-sm btn-success"
+                        variant="primary"
+                        className="!px-2 !py-1 text-xs"
                       >
                         Save
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         onClick={() => removeRow(row.id)}
-                        className="btn btn-sm btn-danger"
+                        variant="ghost"
+                        className="!px-2 !py-1 text-xs text-red-600"
                       >
                         Remove
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))
@@ -227,6 +249,6 @@ export default function StaffingPlanCard() {
           </table>
         </div>
       )}
-    </div>
+    </Card>
   )
 }

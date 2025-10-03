@@ -1,6 +1,12 @@
 import { useState } from "react"
 import { useApp } from "@/store/AppContext"
 
+// Reusable UI components
+import Card from "@/components/ui/Card"
+import Input from "@/components/ui/Input"
+import Select from "@/components/ui/Select"
+import Button from "@/components/ui/Button"
+
 export default function FacilityHeader() {
   const { setFacilitySetup, setToolType } = useApp()
 
@@ -16,92 +22,92 @@ export default function FacilityHeader() {
       return
     }
 
-    const toolType = department.toLowerCase().includes("ed") ? "ED" : "IP"
+    // Auto-derive tool type from department
+    const toolType =
+      department.toLowerCase().includes("ed") ||
+      department.toLowerCase().includes("emergency")
+        ? "ED"
+        : "IP"
+
     setToolType(toolType)
     setFacilitySetup({ facility, department, costCenter, bedCount, dateRange })
   }
 
   return (
-    <div className="card mb-6">
+    <Card className="mb-6">
       <h1 className="text-2xl font-bold mb-4 text-gray-800">HIRA Staffing Tool</h1>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Facility */}
-        <div>
-          <label className="block text-sm font-medium text-gray-600 mb-1">Facility</label>
-          <input
-            type="text"
-            value={facility}
-            onChange={(e) => setFacility(e.target.value)}
-            className="input w-full border rounded-lg px-3 py-2"
-            placeholder="Facility name"
-          />
-        </div>
+        <Input
+          id="facility"
+          label="Facility"
+          type="text"
+          value={facility}
+          onChange={(e) => setFacility(e.target.value)}
+          placeholder="Facility name"
+        />
 
         {/* Department */}
-        <div>
-          <label className="block text-sm font-medium text-gray-600 mb-1">Department</label>
-          <select
-            value={department}
-            onChange={(e) => setDepartment(e.target.value)}
-            className="input w-full border rounded-lg px-3 py-2"
-          >
-            <option value="">-- Select Department --</option>
-            <option value="IP - Inpatient">Inpatient (IP)</option>
-            <option value="ED - Emergency">Emergency (ED)</option>
-          </select>
-        </div>
+        <Select
+          id="department"
+          label="Department"
+          value={department}
+          onChange={(e) => setDepartment(e.target.value)}
+        >
+          <option value="">-- Select Department --</option>
+          <option value="Emergency Department">Emergency Department</option>
+          <option value="ICU">ICU</option>
+          <option value="Med/Surg">Med/Surg</option>
+          <option value="Pediatrics">Pediatrics</option>
+          <option value="Oncology">Oncology</option>
+          <option value="Labor & Delivery">Labor & Delivery</option>
+        </Select>
 
         {/* Cost Center */}
-        <div>
-          <label className="block text-sm font-medium text-gray-600 mb-1">Cost Center</label>
-          <input
-            type="text"
-            value={costCenter}
-            onChange={(e) => setCostCenter(e.target.value)}
-            className="input w-full border rounded-lg px-3 py-2"
-            placeholder="e.g. CC1234"
-          />
-        </div>
+        <Input
+          id="costCenter"
+          label="Cost Center"
+          type="text"
+          value={costCenter}
+          onChange={(e) => setCostCenter(e.target.value)}
+          placeholder="e.g. CC1234"
+        />
 
         {/* Bed Count */}
-        <div>
-          <label className="block text-sm font-medium text-gray-600 mb-1">Bed Count</label>
-          <input
-            type="number"
-            value={bedCount}
-            onChange={(e) => setBedCount(Number(e.target.value))}
-            className="input w-full border rounded-lg px-3 py-2"
-          />
-        </div>
+        <Input
+          id="bedCount"
+          label="Bed Count"
+          type="number"
+          value={bedCount}
+          onChange={(e) => setBedCount(Number(e.target.value))}
+          placeholder="Number of beds"
+        />
 
         {/* Start Date */}
-        <div>
-          <label className="block text-sm font-medium text-gray-600 mb-1">Start Date</label>
-          <input
-            type="date"
-            value={dateRange.start}
-            onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
-            className="input w-full border rounded-lg px-3 py-2"
-          />
-        </div>
+        <Input
+          id="startDate"
+          label="Start Date"
+          type="date"
+          value={dateRange.start}
+          onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
+        />
 
         {/* End Date */}
-        <div>
-          <label className="block text-sm font-medium text-gray-600 mb-1">End Date</label>
-          <input
-            type="date"
-            value={dateRange.end}
-            onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
-            className="input w-full border rounded-lg px-3 py-2"
-          />
-        </div>
+        <Input
+          id="endDate"
+          label="End Date"
+          type="date"
+          value={dateRange.end}
+          onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+        />
       </div>
 
       <div className="mt-4 flex justify-end">
-        <button onClick={handleSubmit} className="btn">
+        <Button onClick={handleSubmit} variant="primary">
           Refresh Data
-        </button>
+        </Button>
       </div>
-    </div>
+    </Card>
   )
 }
