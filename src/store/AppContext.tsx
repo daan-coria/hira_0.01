@@ -1,4 +1,10 @@
-import { createContext, useContext, useReducer, ReactNode } from "react"
+import {
+  createContext,
+  useContext,
+  useReducer,
+  ReactNode,
+  useEffect,
+} from "react"
 
 // ---- Types ----
 type FacilitySetup = {
@@ -17,8 +23,12 @@ type AppState = {
 type Action =
   | { type: "SET_FACILITY_SETUP"; payload: FacilitySetup }
   | { type: "SET_TOOL_TYPE"; payload: "IP" | "ED" }
+  | { type: "LOAD_STATE"; payload: AppState }
 
 const initialState: AppState = {}
+
+// ---- Namespaced key based on environment ----
+const STORAGE_KEY = `hira_app_state_${import.meta.env.MODE || "dev"}`
 
 // ---- Reducer ----
 function appReducer(state: AppState, action: Action): AppState {
@@ -27,6 +37,8 @@ function appReducer(state: AppState, action: Action): AppState {
       return { ...state, facilitySetup: action.payload }
     case "SET_TOOL_TYPE":
       return { ...state, toolType: action.payload }
+    case "LOAD_STATE":
+      return { ...state, ...action.payload }
     default:
       return state
   }
@@ -37,14 +49,28 @@ const AppContext = createContext<{
   state: AppState
   setFacilitySetup: (setup: FacilitySetup) => void
   setToolType: (tool: "IP" | "ED") => void
-}>({
-  state: initialState,
-  setFacilitySetup: () => {},
-  setToolType: () => {},
-})
+}>(null as any)
 
+// ---- Provider ----
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, initialState)
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    if (stored) {
+      try {
+        dispatch({ type: "LOAD_STATE", payload: JSON.parse(stored) })
+      } catch (err) {
+        console.error("Failed to parse saved state", err)
+      }
+    }
+  }, [])
+
+  // Persist to localStorage whenever state changes
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+  }, [state])
 
   const setFacilitySetup = (setup: FacilitySetup) =>
     dispatch({ type: "SET_FACILITY_SETUP", payload: setup })
@@ -59,5 +85,5 @@ export function AppProvider({ children }: { children: ReactNode }) {
   )
 }
 
-// Hook
+// ---- Hook ----
 export const useApp = () => useContext(AppContext)

@@ -16,19 +16,26 @@ export default function ToolPage() {
   if (!facilitySetup) {
     return (
       <div className="p-6 text-center text-gray-500">
-        Please complete Facility Setup first.
+        ⚠️ Please complete Facility Setup first.
       </div>
     )
   }
 
   return (
-    <div className="space-y-10">
-      <h2 className="text-2xl font-semibold text-gray-800">
-        {toolType === "IP"
-          ? "Inpatient Staffing Tool"
-          : "Emergency Department Staffing Tool"}
-      </h2>
+    <div className="space-y-12">
+      {/* Page Title */}
+      <header>
+        <h2 className="text-2xl font-bold text-gray-800">
+          {toolType === "IP"
+            ? "Inpatient Staffing Tool"
+            : "Emergency Department Staffing Tool"}
+        </h2>
+        <p className="text-gray-500 mt-1 text-sm">
+          Configure resources, shifts, and staffing settings below.
+        </p>
+      </header>
 
+      {/* Inputs */}
       <section id="resources">
         <ResourceInputCard />
       </section>
@@ -41,12 +48,14 @@ export default function ToolPage() {
         <StaffingConfigCard />
       </section>
 
+      {/* IP-only module */}
       {toolType === "IP" && (
         <section id="requirements">
           <StaffingRequirementsCard />
         </section>
       )}
 
+      {/* Outputs */}
       <section id="plan">
         <StaffingPlanCard />
       </section>

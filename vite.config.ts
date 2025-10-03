@@ -1,20 +1,25 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import path from 'path'
+import { defineConfig, loadEnv } from "vite"
+import react from "@vitejs/plugin-react"
+import path from "path"
 
 // https://vitejs.dev/config/
-export default defineConfig({
-  plugins: [react()],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, 'src'),
+export default defineConfig(({ mode }) => {
+  // Load env vars for the current mode (dev, prod, etc.)
+  const env = loadEnv(mode, process.cwd(), "")
+
+  return {
+    plugins: [react()],
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "./src"),
+      },
     },
-  },
-  css: {
-    postcss: './postcss.config.js', // ensure Tailwind/PostCSS config is used
-  },
-  server: {
-    port: 5173,
-    open: true, // auto open browser
-  },
+    server: {
+      port: 5173,
+    },
+    define: {
+      // Make env vars accessible in your app
+      __APP_ENV__: JSON.stringify(env.APP_ENV || mode),
+    },
+  }
 })
