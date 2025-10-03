@@ -2,11 +2,11 @@ import { useState, useEffect } from "react"
 import { useApp } from "@/store/AppContext"
 
 type PositionControlRow = {
-  id?: number
+  id: number
   role: string
   budgeted_fte: number
   filled_fte: number
-  open_fte?: number // calculated = budgeted - filled
+  open_fte: number // calculated = budgeted - filled
 }
 
 export default function PositionControlCard() {

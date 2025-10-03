@@ -2,12 +2,12 @@ import { useState, useEffect } from "react"
 import { useApp } from "@/store/AppContext"
 
 type GapSummaryRow = {
-  id?: number
+  id: number
   department: string
   shift: string
   available_fte: number
   required_fte: number
-  gap?: number
+  gap: number
 }
 
 export default function GapSummaryCard() {
