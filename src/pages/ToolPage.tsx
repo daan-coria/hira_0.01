@@ -48,15 +48,18 @@ export default function ToolPage() {
         <StaffingConfigCard />
       </section>
 
-      {/* Step 5: Resource Availability */}
-      <section id="availability">
-        <AvailabilityConfigCard />
-      </section>
+      {/* Steps 5 & 6 (IP Only): Resource Availability + Census Override */}
+      {toolType === "IP" && (
+        <>
+          <section id="availability">
+            <AvailabilityConfigCard />
+          </section>
 
-      {/* Step 6: Census Override */}
-      <section id="census-override">
-        <CensusOverrideCard />
-      </section>
+          <section id="census-override">
+            <CensusOverrideCard />
+          </section>
+        </>
+      )}
 
       {/* Step 4b (IP only): Staffing Requirements */}
       {toolType === "IP" && (

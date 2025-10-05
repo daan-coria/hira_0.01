@@ -14,14 +14,14 @@ type CensusRow = {
 
 export default function CensusOverrideCard() {
   const { state } = useApp()
-  const { facilitySetup } = state
+  const { facilitySetup, toolType } = state
 
   const [rows, setRows] = useState<CensusRow[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (facilitySetup) fetchCensus()
-  }, [facilitySetup])
+    if (facilitySetup && toolType === "IP") fetchCensus()
+  }, [facilitySetup, toolType])
 
   const fetchCensus = async () => {
     try {
@@ -48,8 +48,13 @@ export default function CensusOverrideCard() {
   }
 
   const saveRow = async (row: CensusRow) => {
+    if (!facilitySetup) return
+    if (!row.date || !row.shift) {
+      alert("Please fill in both Date and Shift before saving.")
+      return
+    }
+
     try {
-      if (!facilitySetup) return
       const method = row.id ? "PUT" : "POST"
       const url = row.id
         ? `/api/census-override/${row.id}`
@@ -67,10 +72,22 @@ export default function CensusOverrideCard() {
     }
   }
 
+  const removeRow = async (id?: number) => {
+    if (!facilitySetup || !id) return
+    try {
+      await fetch(`/api/census-override/${id}`, { method: "DELETE" })
+      await fetchCensus()
+    } catch (err) {
+      console.error("Failed to delete census row", err)
+    }
+  }
+
+  if (toolType !== "IP") return null
+
   return (
     <Card>
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-lg font-semibold">Census Override</h3>
+        <h3 className="text-lg font-semibold">Census Override (IP Only)</h3>
         <Button
           onClick={() =>
             setRows((prev) => [
@@ -92,9 +109,9 @@ export default function CensusOverrideCard() {
               <tr>
                 <th className="px-3 py-2 border">Date</th>
                 <th className="px-3 py-2 border">Shift</th>
-                <th className="px-3 py-2 border">Census Value</th>
-                <th className="px-3 py-2 border">Adjusted Value</th>
-                <th className="px-3 py-2 border">Actions</th>
+                <th className="px-3 py-2 border text-right">Census Value</th>
+                <th className="px-3 py-2 border text-right">Adjusted Value</th>
+                <th className="px-3 py-2 border text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -123,6 +140,7 @@ export default function CensusOverrideCard() {
                         className="!m-0 !p-1"
                       />
                     </td>
+
                     <td className="border px-2 py-1">
                       <Input
                         id={`shift_${i}`}
@@ -139,7 +157,8 @@ export default function CensusOverrideCard() {
                         className="!m-0 !p-1"
                       />
                     </td>
-                    <td className="border px-2 py-1">
+
+                    <td className="border px-2 py-1 text-right">
                       <Input
                         id={`census_${i}`}
                         label=""
@@ -155,10 +174,11 @@ export default function CensusOverrideCard() {
                             )
                           )
                         }
-                        className="!m-0 !p-1 w-24"
+                        className="!m-0 !p-1 w-24 text-right"
                       />
                     </td>
-                    <td className="border px-2 py-1">
+
+                    <td className="border px-2 py-1 text-right">
                       <Input
                         id={`adj_${i}`}
                         label=""
@@ -174,9 +194,10 @@ export default function CensusOverrideCard() {
                             )
                           )
                         }
-                        className="!m-0 !p-1 w-24"
+                        className="!m-0 !p-1 w-24 text-right"
                       />
                     </td>
+
                     <td className="border px-2 py-1 text-center space-x-2">
                       <Button
                         onClick={() => saveRow(row)}
@@ -185,6 +206,15 @@ export default function CensusOverrideCard() {
                       >
                         Save
                       </Button>
+                      {row.id && (
+                        <Button
+                          onClick={() => removeRow(row.id)}
+                          variant="ghost"
+                          className="!px-2 !py-1 text-xs text-red-600"
+                        >
+                          Remove
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 ))
