@@ -1,13 +1,17 @@
 import { useApp } from "@/store/AppContext"
 
-// Modules
+// Core Modules
 import ResourceInputCard from "@/components/ResourceInputCard"
 import ShiftConfigCard from "@/components/ShiftConfigCard"
 import StaffingConfigCard from "@/components/StaffingConfigCard"
+import StaffingRequirementsCard from "@/components/StaffingRequirementsCard"
 import StaffingPlanCard from "@/components/StaffingPlanCard"
 import PositionControlCard from "@/components/PositionControlCard"
 import GapSummaryCard from "@/components/GapSummaryCard"
-import StaffingRequirementsCard from "@/components/StaffingRequirementsCard"
+
+// New Modules (Step 5 & 6)
+import AvailabilityConfigCard from "@/components/AvailabilityConfigCard"
+import CensusOverrideCard from "@/components/CensusOverrideCard"
 
 export default function ToolPage() {
   const { state } = useApp()
@@ -16,54 +20,62 @@ export default function ToolPage() {
   if (!facilitySetup) {
     return (
       <div className="p-6 text-center text-gray-500">
-        ⚠️ Please complete Facility Setup first.
+        Please complete Facility Setup first.
       </div>
     )
   }
 
   return (
-    <div className="space-y-12">
-      {/* Page Title */}
-      <header>
-        <h2 className="text-2xl font-bold text-gray-800">
-          {toolType === "IP"
-            ? "Inpatient Staffing Tool"
-            : "Emergency Department Staffing Tool"}
-        </h2>
-        <p className="text-gray-500 mt-1 text-sm">
-          Configure resources, shifts, and staffing settings below.
-        </p>
-      </header>
+    <div className="space-y-10">
+      <h2 className="text-2xl font-semibold text-gray-800">
+        {toolType === "IP"
+          ? "Inpatient Staffing Tool"
+          : "Emergency Department Staffing Tool"}
+      </h2>
 
-      {/* Inputs */}
+      {/* Step 1 & 2: Resource + Data Context */}
       <section id="resources">
         <ResourceInputCard />
       </section>
 
+      {/* Step 3: Shift Configuration */}
       <section id="shifts">
         <ShiftConfigCard />
       </section>
 
+      {/* Step 4: Staffing Ratios / Config */}
       <section id="staffing-config">
         <StaffingConfigCard />
       </section>
 
-      {/* IP-only module */}
+      {/* Step 5: Resource Availability */}
+      <section id="availability">
+        <AvailabilityConfigCard />
+      </section>
+
+      {/* Step 6: Census Override */}
+      <section id="census-override">
+        <CensusOverrideCard />
+      </section>
+
+      {/* Step 4b (IP only): Staffing Requirements */}
       {toolType === "IP" && (
         <section id="requirements">
           <StaffingRequirementsCard />
         </section>
       )}
 
-      {/* Outputs */}
+      {/* Step 7: Staffing Plan */}
       <section id="plan">
         <StaffingPlanCard />
       </section>
 
+      {/* Position Control */}
       <section id="position">
         <PositionControlCard />
       </section>
 
+      {/* Gap Summary */}
       <section id="gap">
         <GapSummaryCard />
       </section>
