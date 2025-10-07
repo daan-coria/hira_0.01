@@ -1,0 +1,4 @@
+[
+  { "facilityName": "HIRA General Hospital", "beds": 120, "type": "Inpatient", "region": "Southwest" },
+  { "facilityName": "HIRA Emergency Center", "beds": 35, "type": "ED", "region": "Southwest" }
+]

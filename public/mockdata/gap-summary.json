@@ -1,0 +1,5 @@
+[
+  { "unit": "ICU", "requiredFTE": 23.0, "actualFTE": 20.5, "gap": -2.5 },
+  { "unit": "ER", "requiredFTE": 18.5, "actualFTE": 17.0, "gap": -1.5 },
+  { "unit": "Med/Surg", "requiredFTE": 30.0, "actualFTE": 29.8, "gap": -0.2 }
+]

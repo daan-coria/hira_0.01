@@ -1,0 +1,5 @@
+[
+  { "unit": "ICU", "role": "RN", "shift": "Day", "required": 12, "actual": 11, "variance": -1 },
+  { "unit": "ICU", "role": "RN", "shift": "Night", "required": 10, "actual": 9, "variance": -1 },
+  { "unit": "ER", "role": "LVN", "shift": "Night", "required": 6, "actual": 6, "variance": 0 }
+]

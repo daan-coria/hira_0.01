@@ -1,0 +1,5 @@
+[
+  { "positionID": "RN-101", "unit": "ICU", "status": "Filled", "fte": 1.0 },
+  { "positionID": "CNA-230", "unit": "ER", "status": "Vacant", "fte": 0.8 },
+  { "positionID": "LVN-412", "unit": "Med/Surg", "status": "Filled", "fte": 1.0 }
+]

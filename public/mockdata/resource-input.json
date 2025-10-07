@@ -1,0 +1,5 @@
+[
+  { "role": "RN", "unit": "ICU", "fte": 15.2, "avgRate": 42.5, "payType": "Hourly" },
+  { "role": "LVN", "unit": "ICU", "fte": 6.5, "avgRate": 31.0, "payType": "Hourly" },
+  { "role": "CNA", "unit": "ICU", "fte": 8.0, "avgRate": 20.8, "payType": "Hourly" }
+]
