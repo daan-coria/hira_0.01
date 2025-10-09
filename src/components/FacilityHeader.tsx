@@ -7,7 +7,11 @@ import Input from "@/components/ui/Input"
 import Select from "@/components/ui/Select"
 import Button from "@/components/ui/Button"
 
-export default function FacilityHeader() {
+type FacilityHeaderProps = {
+  onSetupComplete?: () => void
+}
+
+export default function FacilityHeader({ onSetupComplete }: FacilityHeaderProps) {
   const { setFacilitySetup, setToolType } = useApp()
 
   const [facility, setFacility] = useState("")
@@ -18,7 +22,7 @@ export default function FacilityHeader() {
 
   const handleSubmit = () => {
     if (!facility || !department || !costCenter || !dateRange.start || !dateRange.end) {
-      alert("Please complete all fields")
+      alert("Please complete all fields before continuing.")
       return
     }
 
@@ -29,8 +33,12 @@ export default function FacilityHeader() {
         ? "ED"
         : "IP"
 
+    // Save to global state
     setToolType(toolType)
     setFacilitySetup({ facility, department, costCenter, bedCount, dateRange })
+
+    // ✅ Trigger navigation after setup
+    if (onSetupComplete) onSetupComplete()
   }
 
   return (

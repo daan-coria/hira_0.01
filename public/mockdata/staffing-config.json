@@ -1,0 +1,50 @@
+[
+  {
+    "unit": "Emergency Department",
+    "shift": "Day",
+    "role": "Registered Nurse (RN)",
+    "targetRatio": 1.2,
+    "hoursPerShift": 12,
+    "coverageHours": 24
+  },
+  {
+    "unit": "Emergency Department",
+    "shift": "Night",
+    "role": "Registered Nurse (RN)",
+    "targetRatio": 1.5,
+    "hoursPerShift": 12,
+    "coverageHours": 24
+  },
+  {
+    "unit": "ICU",
+    "shift": "Day",
+    "role": "Registered Nurse (RN)",
+    "targetRatio": 1.0,
+    "hoursPerShift": 12,
+    "coverageHours": 24
+  },
+  {
+    "unit": "ICU",
+    "shift": "Night",
+    "role": "Registered Nurse (RN)",
+    "targetRatio": 1.0,
+    "hoursPerShift": 12,
+    "coverageHours": 24
+  },
+  {
+    "unit": "Med/Surg",
+    "shift": "Day",
+    "role": "Registered Nurse (RN)",
+    "targetRatio": 1.5,
+    "hoursPerShift": 12,
+    "coverageHours": 24
+  },
+  {
+    "unit": "Med/Surg",
+    "shift": "Night",
+    "role": "Registered Nurse (RN)",
+    "targetRatio": 2.0,
+    "hoursPerShift": 12,
+    "coverageHours": 24
+  }
+]

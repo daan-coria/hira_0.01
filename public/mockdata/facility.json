@@ -1,4 +1,32 @@
 [
-  { "facilityName": "HIRA General Hospital", "beds": 120, "type": "Inpatient", "region": "Southwest" },
-  { "facilityName": "HIRA Emergency Center", "beds": 35, "type": "ED", "region": "Southwest" }
+  {
+    "facility": "HIRA General Hospital",
+    "department": "Emergency Department",
+    "costCenter": "CC1001",
+    "bedCount": 42,
+    "dateRange": {
+      "start": "2025-10-01",
+      "end": "2025-10-31"
+    }
+  },
+  {
+    "facility": "HIRA General Hospital",
+    "department": "ICU",
+    "costCenter": "CC2001",
+    "bedCount": 20,
+    "dateRange": {
+      "start": "2025-10-01",
+      "end": "2025-10-31"
+    }
+  },
+  {
+    "facility": "HIRA General Hospital",
+    "department": "Med/Surg",
+    "costCenter": "CC3001",
+    "bedCount": 35,
+    "dateRange": {
+      "start": "2025-10-01",
+      "end": "2025-10-31"
+    }
+  }
 ]

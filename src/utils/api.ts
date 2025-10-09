@@ -1,14 +1,15 @@
-export async function apiFetch(endpoint: string, options?: RequestInit) {
-  const useMock = import.meta.env.VITE_USE_MOCK === "true"
+export async function apiFetch(endpoint: string) {
+  const url = `${window.location.origin}/mockdata/${endpoint.replace(/^\/+/, '')}`
+  console.log("🌍 Fetching absolute URL:", url)
 
-  // remove /api/ prefix if using mock
-  const mockPath = endpoint.replace(/^\/api\//, "/mockdata/") + ".json"
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`Fetch failed: ${url}`)
 
-  const url = useMock ? mockPath : endpoint
-
-  const res = await fetch(url, options)
-  if (!res.ok) throw new Error(`Failed to load ${url}`)
-  return res.json()
+  const text = await res.text()
+  try {
+    return JSON.parse(text)
+  } catch (e) {
+    console.error(`❌ Invalid JSON in ${url}:`, text.slice(0, 120))
+    throw e
+  }
 }
-
-

@@ -1,38 +1,65 @@
-// src/services/hiraApi.ts
 import { apiFetch } from "@/utils/api"
 
-// (Optional) light types so TS helps you
-export type GapRow = { unit: string; requiredFTE: number; actualFTE: number; gap: number }
+const useMock = true
 
 export const hiraApi = {
-  getFacility() {
-    return apiFetch("/api/facility") as Promise<any[]>
+  async getFacility() {
+    return useMock
+      ? await apiFetch("facility.json")
+      : await apiFetch("api/facility")
   },
-  getResourceInput() {
-    return apiFetch("/api/resource-input") as Promise<any[]>
+
+  async getResourceInput() {
+    return useMock
+      ? await apiFetch("resource-input.json")
+      : await apiFetch("api/resource-input")
   },
-  getStaffingConfiguration() {
-    return apiFetch("/api/staffing-configuration") as Promise<any[]>
+
+  async getStaffingConfiguration() {
+    return useMock
+      ? await apiFetch("staffing-config.json")
+      : await apiFetch("api/staffing-config")
   },
-  getShiftConfigs() {
-    return apiFetch("/api/shift-configs") as Promise<any[]>
+
+  async getShiftConfigs() {
+    return useMock
+      ? await apiFetch("shift-config.json")
+      : await apiFetch("api/shift-config")
   },
-  getAvailability() {
-    return apiFetch("/api/availability") as Promise<any[]>
+
+  async getAvailability() {
+    return useMock
+      ? await apiFetch("availability-config.json")
+      : await apiFetch("api/availability-config")
   },
-  getCensus() {
-    return apiFetch("/api/census") as Promise<any[]>
+
+  async getCensus() {
+    return useMock
+      ? await apiFetch("census.json")
+      : await apiFetch("api/census")
   },
-  getStaffingRequirements() {
-    return apiFetch("/api/staffing-requirements") as Promise<any[]>
+
+  async getStaffingRequirements() {
+    return useMock
+      ? await apiFetch("staffing-requirements.json")
+      : await apiFetch("api/staffing-requirements")
   },
-  getStaffingPlan() {
-    return apiFetch("/api/staffing-plan") as Promise<any[]>
+
+  async getStaffingPlan() {
+    return useMock
+      ? await apiFetch("staffing-plan.json")
+      : await apiFetch("api/staffing-plan")
   },
-  getGapSummary() {
-    return apiFetch("/api/gap-summary") as Promise<GapRow[]>
+
+  async getGapSummary() {
+    return useMock
+      ? await apiFetch("gap-summary.json")
+      : await apiFetch("api/gap-summary")
   },
-  getPositionControl() {
-    return apiFetch("/api/position-control") as Promise<any[]>
-  },
+
+  async getPositionControl() {
+    return useMock
+      ? await apiFetch("position-control.json")
+      : await apiFetch("api/position-control")
+  }
 }

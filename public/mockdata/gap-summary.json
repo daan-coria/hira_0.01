@@ -1,5 +1,26 @@
 [
-  { "unit": "ICU", "requiredFTE": 23.0, "actualFTE": 20.5, "gap": -2.5 },
-  { "unit": "ER", "requiredFTE": 18.5, "actualFTE": 17.0, "gap": -1.5 },
-  { "unit": "Med/Surg", "requiredFTE": 30.0, "actualFTE": 29.8, "gap": -0.2 }
+  {
+    "unit": "Emergency Department",
+    "requiredFTE": 42,
+    "actualFTE": 40,
+    "gapFTE": -2,
+    "overUnder": "Understaffed",
+    "percentGap": -4.8
+  },
+  {
+    "unit": "ICU",
+    "requiredFTE": 20,
+    "actualFTE": 19,
+    "gapFTE": -1,
+    "overUnder": "Understaffed",
+    "percentGap": -5
+  },
+  {
+    "unit": "Med/Surg",
+    "requiredFTE": 36,
+    "actualFTE": 37,
+    "gapFTE": 1,
+    "overUnder": "Overstaffed",
+    "percentGap": 2.8
+  }
 ]

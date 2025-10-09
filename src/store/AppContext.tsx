@@ -1,4 +1,5 @@
-import {hiraApi} from "@/services/hiraApi"
+console.log("💡 Mock mode:", import.meta.env.VITE_USE_MOCK)
+
 
 import {
   createContext,
@@ -6,7 +7,9 @@ import {
   useReducer,
   ReactNode,
   useEffect,
+  useState,
 } from "react"
+import { hiraApi } from "@/services/hiraApi"
 
 // ---- Types ----
 type FacilitySetup = {
@@ -22,12 +25,42 @@ type AppState = {
   toolType?: "IP" | "ED"
 }
 
+// ---- Extra state for data loading ----
+type DataState = {
+  facility: any[]
+  resourceInput: any[]
+  staffingConfig: any[]
+  shiftConfig: any[]
+  availabilityConfig: any[]
+  census: any[]
+  staffingRequirements: any[]
+  staffingPlan: any[]
+  gapSummary: any[]
+  positionControl: any[]
+  loading: boolean
+  error?: string
+}
+
+// ---- Actions ----
 type Action =
   | { type: "SET_FACILITY_SETUP"; payload: FacilitySetup }
   | { type: "SET_TOOL_TYPE"; payload: "IP" | "ED" }
   | { type: "LOAD_STATE"; payload: AppState }
 
 const initialState: AppState = {}
+const initialData: DataState = {
+  facility: [],
+  resourceInput: [],
+  staffingConfig: [],
+  shiftConfig: [],
+  availabilityConfig: [],
+  census: [],
+  staffingRequirements: [],
+  staffingPlan: [],
+  gapSummary: [],
+  positionControl: [],
+  loading: true,
+}
 
 // ---- Namespaced key based on environment ----
 const STORAGE_KEY = `hira_app_state_${import.meta.env.MODE || "dev"}`
@@ -49,13 +82,16 @@ function appReducer(state: AppState, action: Action): AppState {
 // ---- Context ----
 const AppContext = createContext<{
   state: AppState
+  data: DataState
   setFacilitySetup: (setup: FacilitySetup) => void
   setToolType: (tool: "IP" | "ED") => void
+  reloadData: () => Promise<void>
 }>(null as any)
 
 // ---- Provider ----
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, initialState)
+  const [data, setData] = useState<DataState>(initialData)
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -74,6 +110,60 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
   }, [state])
 
+  const reloadData = async () => {
+    try {
+      setData((d) => ({ ...d, loading: true }))
+      const [
+        facility,
+        resourceInput,
+        staffingConfig,
+        shiftConfigs,
+        availability,
+        census,
+        staffingRequirements,
+        staffingPlan,
+        gapSummary,
+        positionControl,
+      ] = await Promise.all([
+        hiraApi.getFacility(),
+        hiraApi.getResourceInput(),
+        hiraApi.getStaffingConfiguration(),
+        hiraApi.getShiftConfigs(),
+        hiraApi.getAvailability(),
+        hiraApi.getCensus(),
+        hiraApi.getStaffingRequirements(),
+        hiraApi.getStaffingPlan(),
+        hiraApi.getGapSummary(),
+        hiraApi.getPositionControl(),
+      ])
+      setData({
+        facility,
+        resourceInput,
+        staffingConfig,
+        shiftConfig: shiftConfigs,
+        availabilityConfig: availability,
+        census,
+        staffingRequirements,
+        staffingPlan,
+        gapSummary,
+        positionControl,
+        loading: false,
+      })
+    } catch (err: any) {
+      console.error("Data load failed:", err)
+      setData((d) => ({
+        ...d,
+        loading: false,
+        error: err.message || "Load failed",
+      }))
+    }
+  }
+
+
+  useEffect(() => {
+    reloadData()
+  }, [])
+
   const setFacilitySetup = (setup: FacilitySetup) =>
     dispatch({ type: "SET_FACILITY_SETUP", payload: setup })
 
@@ -81,7 +171,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     dispatch({ type: "SET_TOOL_TYPE", payload: tool })
 
   return (
-    <AppContext.Provider value={{ state, setFacilitySetup, setToolType }}>
+    <AppContext.Provider
+      value={{ state, data, setFacilitySetup, setToolType, reloadData }}
+    >
       {children}
     </AppContext.Provider>
   )

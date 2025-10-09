@@ -1,0 +1,50 @@
+[
+  {
+    "unit": "Emergency Department",
+    "shiftLabel": "Day",
+    "startHour": 7,
+    "endHour": 19,
+    "shiftLengthHours": 12,
+    "notes": "Standard 12-hour day shift"
+  },
+  {
+    "unit": "Emergency Department",
+    "shiftLabel": "Night",
+    "startHour": 19,
+    "endHour": 7,
+    "shiftLengthHours": 12,
+    "notes": "Standard 12-hour night shift"
+  },
+  {
+    "unit": "ICU",
+    "shiftLabel": "Day",
+    "startHour": 6,
+    "endHour": 18,
+    "shiftLengthHours": 12,
+    "notes": "ICU early start for coverage overlap"
+  },
+  {
+    "unit": "ICU",
+    "shiftLabel": "Night",
+    "startHour": 18,
+    "endHour": 6,
+    "shiftLengthHours": 12,
+    "notes": "ICU night shift"
+  },
+  {
+    "unit": "Med/Surg",
+    "shiftLabel": "Day",
+    "startHour": 7,
+    "endHour": 19,
+    "shiftLengthHours": 12,
+    "notes": "Standard med/surg day shift"
+  },
+  {
+    "unit": "Med/Surg",
+    "shiftLabel": "Night",
+    "startHour": 19,
+    "endHour": 7,
+    "shiftLengthHours": 12,
+    "notes": "Standard med/surg night shift"
+  }
+]

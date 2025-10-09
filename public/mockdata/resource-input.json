@@ -1,5 +1,37 @@
 [
-  { "role": "RN", "unit": "ICU", "fte": 15.2, "avgRate": 42.5, "payType": "Hourly" },
-  { "role": "LVN", "unit": "ICU", "fte": 6.5, "avgRate": 31.0, "payType": "Hourly" },
-  { "role": "CNA", "unit": "ICU", "fte": 8.0, "avgRate": 20.8, "payType": "Hourly" }
+  {
+    "role": "Registered Nurse (RN)",
+    "shift": "Day",
+    "availableFTE": 28,
+    "requiredFTE": 30,
+    "variance": -2
+  },
+  {
+    "role": "Registered Nurse (RN)",
+    "shift": "Night",
+    "availableFTE": 22,
+    "requiredFTE": 20,
+    "variance": 2
+  },
+  {
+    "role": "Licensed Vocational Nurse (LVN)",
+    "shift": "Day",
+    "availableFTE": 10,
+    "requiredFTE": 12,
+    "variance": -2
+  },
+  {
+    "role": "Certified Nursing Assistant (CNA)",
+    "shift": "Day",
+    "availableFTE": 15,
+    "requiredFTE": 15,
+    "variance": 0
+  },
+  {
+    "role": "Certified Nursing Assistant (CNA)",
+    "shift": "Night",
+    "availableFTE": 13,
+    "requiredFTE": 12,
+    "variance": 1
+  }
 ]

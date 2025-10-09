@@ -1,5 +1,0 @@
-[
-  { "unit": "ICU", "day": "Monday", "availableFTE": 20 },
-  { "unit": "ICU", "day": "Tuesday", "availableFTE": 22 },
-  { "unit": "ER", "day": "Monday", "availableFTE": 18 }
-]

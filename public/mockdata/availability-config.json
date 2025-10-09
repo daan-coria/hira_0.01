@@ -1,0 +1,62 @@
+[
+  {
+    "unit": "Emergency Department",
+    "role": "Registered Nurse (RN)",
+    "dayOfWeek": "Monday",
+    "availableFTE": 25
+  },
+  {
+    "unit": "Emergency Department",
+    "role": "Registered Nurse (RN)",
+    "dayOfWeek": "Tuesday",
+    "availableFTE": 26
+  },
+  {
+    "unit": "Emergency Department",
+    "role": "Registered Nurse (RN)",
+    "dayOfWeek": "Wednesday",
+    "availableFTE": 25
+  },
+  {
+    "unit": "Emergency Department",
+    "role": "Registered Nurse (RN)",
+    "dayOfWeek": "Thursday",
+    "availableFTE": 24
+  },
+  {
+    "unit": "Emergency Department",
+    "role": "Registered Nurse (RN)",
+    "dayOfWeek": "Friday",
+    "availableFTE": 27
+  },
+  {
+    "unit": "ICU",
+    "role": "Registered Nurse (RN)",
+    "dayOfWeek": "Monday",
+    "availableFTE": 12
+  },
+  {
+    "unit": "ICU",
+    "role": "Registered Nurse (RN)",
+    "dayOfWeek": "Tuesday",
+    "availableFTE": 11
+  },
+  {
+    "unit": "ICU",
+    "role": "Registered Nurse (RN)",
+    "dayOfWeek": "Wednesday",
+    "availableFTE": 13
+  },
+  {
+    "unit": "ICU",
+    "role": "Registered Nurse (RN)",
+    "dayOfWeek": "Thursday",
+    "availableFTE": 12
+  },
+  {
+    "unit": "ICU",
+    "role": "Registered Nurse (RN)",
+    "dayOfWeek": "Friday",
+    "availableFTE": 12
+  }
+]
