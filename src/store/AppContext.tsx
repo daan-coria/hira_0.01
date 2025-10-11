@@ -1,18 +1,19 @@
 console.log("💡 Mock mode:", import.meta.env.VITE_USE_MOCK)
 
-
 import {
   createContext,
   useContext,
   useReducer,
-  ReactNode,
-  useEffect,
   useState,
+  useEffect,
+  ReactNode,
 } from "react"
-import { hiraApi } from "@/services/hiraApi"
+import { hiraApi } from "@/services/hiraApi" // ✅ make sure alias is correct for your structure
 
-// ---- Types ----
-type FacilitySetup = {
+// ---------------------------------------------
+// TYPES
+// ---------------------------------------------
+export type FacilitySetup = {
   facility: string
   department: string
   costCenter: string
@@ -20,164 +21,184 @@ type FacilitySetup = {
   dateRange: { start: string; end: string }
 }
 
-type AppState = {
-  facilitySetup?: FacilitySetup
-  toolType?: "IP" | "ED"
+export type AppState = {
+  facilitySetup: FacilitySetup | null
+  toolType: "IP"
 }
 
-// ---- Extra state for data loading ----
-type DataState = {
-  facility: any[]
+export type DataState = {
   resourceInput: any[]
-  staffingConfig: any[]
   shiftConfig: any[]
+  staffingConfig: any[]
   availabilityConfig: any[]
-  census: any[]
-  staffingRequirements: any[]
-  staffingPlan: any[]
+  censusOverride: any[]
   gapSummary: any[]
-  positionControl: any[]
   loading: boolean
   error?: string
 }
 
-// ---- Actions ----
-type Action =
-  | { type: "SET_FACILITY_SETUP"; payload: FacilitySetup }
-  | { type: "SET_TOOL_TYPE"; payload: "IP" | "ED" }
-  | { type: "LOAD_STATE"; payload: AppState }
+// ---------------------------------------------
+// INITIAL STATE
+// ---------------------------------------------
+const initialState: AppState = {
+  facilitySetup: null,
+  toolType: "IP",
+}
 
-const initialState: AppState = {}
 const initialData: DataState = {
-  facility: [],
   resourceInput: [],
-  staffingConfig: [],
   shiftConfig: [],
+  staffingConfig: [],
   availabilityConfig: [],
-  census: [],
-  staffingRequirements: [],
-  staffingPlan: [],
+  censusOverride: [],
   gapSummary: [],
-  positionControl: [],
   loading: true,
 }
 
-// ---- Namespaced key based on environment ----
-const STORAGE_KEY = `hira_app_state_${import.meta.env.MODE || "dev"}`
+// ---------------------------------------------
+// REDUCER + ACTIONS
+// ---------------------------------------------
+type Action =
+  | { type: "SET_FACILITY_SETUP"; payload: FacilitySetup | null }
+  | { type: "SET_TOOL_TYPE"; payload: "IP" }
 
-// ---- Reducer ----
 function appReducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case "SET_FACILITY_SETUP":
       return { ...state, facilitySetup: action.payload }
     case "SET_TOOL_TYPE":
       return { ...state, toolType: action.payload }
-    case "LOAD_STATE":
-      return { ...state, ...action.payload }
     default:
       return state
   }
 }
 
-// ---- Context ----
-const AppContext = createContext<{
+// ---------------------------------------------
+// CONTEXT
+// ---------------------------------------------
+type AppContextType = {
   state: AppState
   data: DataState
-  setFacilitySetup: (setup: FacilitySetup) => void
-  setToolType: (tool: "IP" | "ED") => void
+  setFacilitySetup: (setup: FacilitySetup | null) => void
+  setToolType: (type: "IP") => void
   reloadData: () => Promise<void>
-}>(null as any)
+  updateData: (key: keyof DataState, value: any[]) => void // ✅ NEW
+}
 
-// ---- Provider ----
+const AppContext = createContext<AppContextType>(null as any)
+
+// ---------------------------------------------
+// PROVIDER
+// ---------------------------------------------
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, initialState)
   const [data, setData] = useState<DataState>(initialData)
 
+  const STORAGE_KEY = `hira_ip_state_${import.meta.env.MODE}`
+
   // Load from localStorage on mount
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (saved) {
       try {
-        dispatch({ type: "LOAD_STATE", payload: JSON.parse(stored) })
+        const parsed = JSON.parse(saved)
+        if (parsed.facilitySetup) {
+          dispatch({ type: "SET_FACILITY_SETUP", payload: parsed.facilitySetup })
+        }
       } catch (err) {
-        console.error("Failed to parse saved state", err)
+        console.error("⚠️ Failed to load saved setup:", err)
       }
     }
   }, [])
 
-  // Persist to localStorage whenever state changes
+  // Save setup to localStorage
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
   }, [state])
 
+  // ---------------------------------------------
+  // Data Loader (Mock or API)
+  // ---------------------------------------------
   const reloadData = async () => {
     try {
-      setData((d) => ({ ...d, loading: true }))
+      setData((prev) => ({ ...prev, loading: true, error: undefined }))
+
       const [
-        facility,
         resourceInput,
+        shiftConfig,
         staffingConfig,
-        shiftConfigs,
-        availability,
-        census,
-        staffingRequirements,
-        staffingPlan,
+        availabilityConfig,
+        censusOverride,
         gapSummary,
-        positionControl,
       ] = await Promise.all([
-        hiraApi.getFacility(),
         hiraApi.getResourceInput(),
-        hiraApi.getStaffingConfiguration(),
         hiraApi.getShiftConfigs(),
+        hiraApi.getStaffingConfiguration(),
         hiraApi.getAvailability(),
-        hiraApi.getCensus(),
-        hiraApi.getStaffingRequirements(),
-        hiraApi.getStaffingPlan(),
+        hiraApi.getCensusOverride(),
         hiraApi.getGapSummary(),
-        hiraApi.getPositionControl(),
       ])
+
       setData({
-        facility,
         resourceInput,
+        shiftConfig,
         staffingConfig,
-        shiftConfig: shiftConfigs,
-        availabilityConfig: availability,
-        census,
-        staffingRequirements,
-        staffingPlan,
+        availabilityConfig,
+        censusOverride,
         gapSummary,
-        positionControl,
         loading: false,
       })
     } catch (err: any) {
-      console.error("Data load failed:", err)
-      setData((d) => ({
-        ...d,
+      console.error("❌ Data load failed:", err)
+      setData((prev) => ({
+        ...prev,
         loading: false,
-        error: err.message || "Load failed",
+        error: err.message || "Data load failed",
       }))
     }
   }
 
+  // ✅ Allow any card to update its slice of data
+  const updateData = (key: keyof DataState, value: any[]) => {
+    setData((prev) => ({
+      ...prev,
+      [key]: value,
+    }))
+  }
 
+  // Auto-load on mount
   useEffect(() => {
     reloadData()
   }, [])
 
-  const setFacilitySetup = (setup: FacilitySetup) =>
+  const setFacilitySetup = (setup: FacilitySetup | null) =>
     dispatch({ type: "SET_FACILITY_SETUP", payload: setup })
 
-  const setToolType = (tool: "IP" | "ED") =>
-    dispatch({ type: "SET_TOOL_TYPE", payload: tool })
+  const setToolType = (type: "IP") =>
+    dispatch({ type: "SET_TOOL_TYPE", payload: type })
 
   return (
     <AppContext.Provider
-      value={{ state, data, setFacilitySetup, setToolType, reloadData }}
+      value={{
+        state,
+        data,
+        setFacilitySetup,
+        setToolType,
+        reloadData,
+        updateData, // ✅ exposed here
+      }}
     >
       {children}
     </AppContext.Provider>
   )
 }
 
-// ---- Hook ----
-export const useApp = () => useContext(AppContext)
+// ---------------------------------------------
+// HOOK
+// ---------------------------------------------
+export const useApp = () => {
+  const context = useContext(AppContext)
+  if (!context)
+    throw new Error("useApp must be used inside an AppProvider")
+  return context
+}

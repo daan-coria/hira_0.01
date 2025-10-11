@@ -1,87 +1,138 @@
+import { useState } from "react"
 import { useApp } from "@/store/AppContext"
+import { useNavigate } from "react-router-dom"
 
-// Core Modules
+// Step Components
+import FacilityHeader from "@/components/FacilityHeader"
 import ResourceInputCard from "@/components/ResourceInputCard"
 import ShiftConfigCard from "@/components/ShiftConfigCard"
 import StaffingConfigCard from "@/components/StaffingConfigCard"
-import StaffingRequirementsCard from "@/components/StaffingRequirementsCard"
-import StaffingPlanCard from "@/components/StaffingPlanCard"
-import PositionControlCard from "@/components/PositionControlCard"
-import GapSummaryCard from "@/components/GapSummaryCard"
-
-// New Modules (Step 5 & 6)
 import AvailabilityConfigCard from "@/components/AvailabilityConfigCard"
 import CensusOverrideCard from "@/components/CensusOverrideCard"
+import GapSummaryCard from "@/components/GapSummaryCard"
+
+// UI Components
+import Card from "@/components/ui/Card"
+import Button from "@/components/ui/Button"
 
 export default function ToolPage() {
-  const { state } = useApp()
-  const { facilitySetup, toolType } = state
+  const navigate = useNavigate()
+  const { state, setFacilitySetup, setToolType, reloadData, data } = useApp()
+  const [currentStep, setCurrentStep] = useState(0)
 
-  if (!facilitySetup) {
-    return (
-      <div className="p-6 text-center text-gray-500">
-        Please complete Facility Setup first.
-      </div>
-    )
+  const totalSteps = 7
+  const progressPercent = ((currentStep + 1) / totalSteps) * 100
+
+  const handleNext = () => {
+    if (currentStep < totalSteps - 1) setCurrentStep((s) => s + 1)
   }
 
+  const handlePrev = () => {
+    if (currentStep > 0) setCurrentStep((s) => s - 1)
+  }
+
+  const handleReset = () => {
+    const confirmReset = window.confirm(
+      "Are you sure you want to reset the wizard and start over? All progress will be lost."
+    )
+    if (!confirmReset) return
+
+    // Reset the setup and tool type
+    setFacilitySetup({} as any)
+    setToolType("IP")
+    setCurrentStep(0)
+    navigate("/setup")
+  }
+
+  // -------------------------------
+  // Step Renderer
+  // -------------------------------
+  const renderStep = () => {
+    switch (currentStep) {
+      case 0:
+        return (
+          <Card className="p-4">
+            <p className="text-gray-700 mb-3">
+              Complete facility setup to begin using the HIRA IP Tool.
+            </p>
+            <Button
+              variant="primary"
+              onClick={handleNext}
+              disabled={!state.facilitySetup}
+            >
+              Continue to Step 2
+            </Button>
+          </Card>
+        )
+      case 1:
+        return <ResourceInputCard onNext={handleNext} onPrev={handlePrev} />
+      case 2:
+        return <ShiftConfigCard onNext={handleNext} onPrev={handlePrev} />
+      case 3:
+        return <StaffingConfigCard onNext={handleNext} onPrev={handlePrev} />
+      case 4:
+        return <AvailabilityConfigCard onNext={handleNext} onPrev={handlePrev} />
+      case 5:
+        return <CensusOverrideCard onNext={handleNext} onPrev={handlePrev} />
+      case 6:
+        return <GapSummaryCard onPrev={handlePrev} onReset={handleReset} />
+      default:
+        return null
+    }
+  }
+
+  // -------------------------------
+  // Layout
+  // -------------------------------
   return (
-    <div className="space-y-10">
-      <h2 className="text-2xl font-semibold text-gray-800">
-        {toolType === "IP"
-          ? "Inpatient Staffing Tool"
-          : "Emergency Department Staffing Tool"}
-      </h2>
+    <div className="space-y-8 p-6 max-w-6xl mx-auto">
+      {/* Facility Header - always visible */}
+      <FacilityHeader />
 
-      {/* Step 1 & 2: Resource + Data Context */}
-      <section id="resources">
-        <ResourceInputCard />
-      </section>
+      {/* Step Header + Progress */}
+      <div className="w-full" aria-label="Progress Section">
+        <div className="flex justify-between items-center mb-1">
+          <h2 className="text-lg font-semibold text-gray-800">
+            Step {currentStep + 1} of {totalSteps} —{" "}
+            {[
+              "Facility Setup",
+              "Resource Input",
+              "Shift Configuration",
+              "Staffing Configuration",
+              "Availability Configuration",
+              "Census Override",
+              "Gap Summary",
+            ][currentStep]}
+          </h2>
+          <span className="text-sm text-gray-600">
+            {Math.round(progressPercent)}%
+          </span>
+        </div>
 
-      {/* Step 3: Shift Configuration */}
-      <section id="shifts">
-        <ShiftConfigCard />
-      </section>
+        {/* Native Progress element for accessibility */}
+        <progress
+          className="w-full h-3 accent-green-500 rounded"
+          value={currentStep + 1}
+          max={totalSteps}
+          aria-label="Wizard progress"
+        />
+      </div>
 
-      {/* Step 4: Staffing Ratios / Config */}
-      <section id="staffing-config">
-        <StaffingConfigCard />
-      </section>
-
-      {/* Steps 5 & 6 (IP Only): Resource Availability + Census Override */}
-      {toolType === "IP" && (
-        <>
-          <section id="availability">
-            <AvailabilityConfigCard />
-          </section>
-
-          <section id="census-override">
-            <CensusOverrideCard />
-          </section>
-        </>
+      {/* Step Content */}
+      {data.loading ? (
+        <p className="text-gray-500 text-center mt-10">
+          Loading data, please wait...
+        </p>
+      ) : (
+        <div>{renderStep()}</div>
       )}
 
-      {/* Step 4b (IP only): Staffing Requirements */}
-      {toolType === "IP" && (
-        <section id="requirements">
-          <StaffingRequirementsCard />
-        </section>
-      )}
-
-      {/* Step 7: Staffing Plan */}
-      <section id="plan">
-        <StaffingPlanCard />
-      </section>
-
-      {/* Position Control */}
-      <section id="position">
-        <PositionControlCard />
-      </section>
-
-      {/* Gap Summary */}
-      <section id="gap">
-        <GapSummaryCard />
-      </section>
+      {/* Manual Reload Option (for debugging local JSON updates) */}
+      <div className="text-center">
+        <Button variant="ghost" onClick={reloadData}>
+          🔁 Reload Mock Data
+        </Button>
+      </div>
     </div>
   )
 }

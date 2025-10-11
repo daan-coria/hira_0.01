@@ -1,134 +1,191 @@
 import { useEffect, useState } from "react"
 import { useApp } from "@/store/AppContext"
 import Card from "@/components/ui/Card"
+import Button from "@/components/ui/Button"
 
+// Result row type
 type GapSummaryRow = {
   id?: number
-  department: string
-  shift: string
-  available_fte: number
-  required_fte: number
-  gap: number
+  unit: string
+  requiredFTE: number
+  actualFTE: number
+  gapFTE: number
+  overUnder: string
+  percentGap: number
 }
 
-export default function GapSummaryCard() {
-  const { state } = useApp()
-  const { facilitySetup } = state
+type Props = {
+  onPrev?: () => void
+  onReset?: () => void
+}
 
+export default function GapSummaryCard({ onPrev, onReset }: Props) {
+  const { data } = useApp()
   const [rows, setRows] = useState<GapSummaryRow[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
-  // Environment-aware base path
-  const baseURL =
-    import.meta.env.MODE === "development"
-      ? "/mockdata"
-      : "/api"
-
+  // --------------------------------------------------
+  // ⚙️ Recalculate whenever inputs change
+  // --------------------------------------------------
   useEffect(() => {
-    if (facilitySetup) {
-      fetchGaps()
+    calculateGapSummary()
+  }, [
+    data.resourceInput,
+    data.staffingConfig,
+    data.availabilityConfig,
+    data.censusOverride,
+  ])
+
+  const calculateGapSummary = () => {
+    if (
+      data.resourceInput.length === 0 ||
+      data.staffingConfig.length === 0 ||
+      data.censusOverride.length === 0
+    ) {
+      setRows([])
+      return
     }
-  }, [facilitySetup])
 
-  const fetchGaps = async () => {
-    try {
-      if (!facilitySetup) return
-      setLoading(true)
-      setError(null)
+    // ---- 1. Determine Average Census ----
+    const censusValues = data.censusOverride
+      .map((r: any) => Number(r.census))
+      .filter((n) => !isNaN(n))
+    const avgCensus =
+      censusValues.length > 0
+        ? censusValues.reduce((a, b) => a + b, 0) / censusValues.length
+        : 0
 
-      let url = ""
-      if (baseURL === "/mockdata") {
-        url = `${baseURL}/gap-summary.json`
-      } else {
-        const query = new URLSearchParams({
-          facility: facilitySetup.facility,
-          department: facilitySetup.department,
-          costCenter: facilitySetup.costCenter,
-          bedCount: String(facilitySetup.bedCount),
-          start: facilitySetup.dateRange.start,
-          end: facilitySetup.dateRange.end,
-        })
-        url = `${baseURL}/gap-summary?${query.toString()}`
+    // ---- 2. Build StaffingConfig map ----
+    const configMap: Record<
+      string,
+      { mode: string; maxRatio: number; include: boolean; directCare: number }
+    > = {}
+    data.staffingConfig.forEach((r: any) => {
+      configMap[r.role] = {
+        mode: r.ratio_mode,
+        maxRatio: Number(r.max_ratio) || 0,
+        include: Boolean(r.include_in_ratio),
+        directCare: Number(r.direct_care_percent) || 100,
       }
+    })
 
-      const res = await fetch(url)
-      if (!res.ok) throw new Error("Failed to load gap summary")
+    // ---- 3. Aggregate Actual FTE by Role ----
+    const actualFTE: Record<string, number> = {}
+    data.resourceInput.forEach((r: any) => {
+      const role = r.position
+      const fte = Number(r.unit_fte) || 0
+      const conf = configMap[role]
+      const direct = conf ? conf.directCare / 100 : 1
+      actualFTE[role] = (actualFTE[role] || 0) + fte * direct
+    })
 
-      const data = await res.json()
-      setRows(data)
-    } catch (err: any) {
-      console.error("Failed to load gap summary", err)
-      setError(err.message || "Failed to load gap summary")
-    } finally {
-      setLoading(false)
-    }
+    // ---- 4. Calculate Required FTE per Role ----
+    const requiredFTE: Record<string, number> = {}
+    Object.entries(configMap).forEach(([role, cfg]) => {
+      if (cfg.mode === "Fixed") {
+        requiredFTE[role] = cfg.maxRatio
+      } else if (cfg.include && cfg.maxRatio > 0) {
+        requiredFTE[role] = avgCensus / cfg.maxRatio
+      } else {
+        requiredFTE[role] = 0
+      }
+    })
+
+    // ---- 5. Compose Summary Rows ----
+    const roles = Array.from(
+      new Set([
+        ...Object.keys(requiredFTE),
+        ...Object.keys(actualFTE),
+      ])
+    )
+
+    const summary = roles.map((role, i) => {
+      const req = requiredFTE[role] || 0
+      const act = actualFTE[role] || 0
+      const gap = act - req
+      const overUnder =
+        gap > 0
+          ? "Overstaffed"
+          : gap < 0
+          ? "Understaffed"
+          : "Balanced"
+      const pct = req === 0 ? 0 : (gap / req) * 100
+      return {
+        id: i + 1,
+        unit: role,
+        requiredFTE: req,
+        actualFTE: act,
+        gapFTE: gap,
+        overUnder,
+        percentGap: pct,
+      }
+    })
+
+    setRows(summary)
   }
 
+  // --------------------------------------------------
+  // 🧮 Render
+  // --------------------------------------------------
   return (
-    <Card>
-      <h3 className="text-lg font-semibold mb-3">Gap Summary</h3>
+    <Card className="p-4 space-y-4">
+      <h3 className="text-lg font-semibold text-gray-800">
+        Gap Summary
+      </h3>
 
-      {error && (
-        <p className="text-red-600 bg-red-50 px-3 py-1 rounded mb-2">
-          {error}
+      {rows.length === 0 ? (
+        <p className="text-gray-500">
+          Not enough data. Please complete previous steps.
         </p>
-      )}
-
-      {loading ? (
-        <p className="text-gray-500">Loading gap summary...</p>
-      ) : rows.length === 0 ? (
-        <p className="text-gray-500">No gap data available.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full border border-gray-200 text-sm rounded-lg overflow-hidden">
             <thead className="bg-gray-100 text-gray-700">
               <tr>
-                <th scope="col" className="px-3 py-2 border text-left">
-                  Department
-                </th>
-                <th scope="col" className="px-3 py-2 border text-left">
-                  Shift
-                </th>
-                <th scope="col" className="px-3 py-2 border text-right">
-                  Available FTE
-                </th>
-                <th scope="col" className="px-3 py-2 border text-right">
-                  Required FTE
-                </th>
-                <th scope="col" className="px-3 py-2 border text-right">
-                  Gap
-                </th>
+                <th className="px-3 py-2 border text-left">Role</th>
+                <th className="px-3 py-2 border text-right">Required FTE</th>
+                <th className="px-3 py-2 border text-right">Actual FTE</th>
+                <th className="px-3 py-2 border text-right">Gap FTE</th>
+                <th className="px-3 py-2 border text-center">Over/Under</th>
+                <th className="px-3 py-2 border text-right">% Gap</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((row, i) => (
+              {rows.map((r) => (
                 <tr
-                  key={row.id || i}
+                  key={r.id}
                   className="odd:bg-white even:bg-gray-50 hover:bg-gray-100 transition-colors"
                 >
-                  <td className="border px-2 py-1">{row.department || "—"}</td>
-                  <td className="border px-2 py-1">{row.shift || "—"}</td>
+                  <td className="border px-2 py-1">{r.unit}</td>
                   <td className="border px-2 py-1 text-right">
-                    {typeof row.available_fte === "number"
-                      ? row.available_fte.toFixed(1)
-                      : "0.0"}
+                    {r.requiredFTE.toFixed(2)}
                   </td>
                   <td className="border px-2 py-1 text-right">
-                    {typeof row.required_fte === "number"
-                      ? row.required_fte.toFixed(1)
-                      : "0.0"}
+                    {r.actualFTE.toFixed(2)}
                   </td>
                   <td
                     className={`border px-2 py-1 text-right font-semibold ${
-                      (row.gap ?? 0) < 0
+                      r.gapFTE < 0
                         ? "text-red-600"
-                        : (row.gap ?? 0) > 0
+                        : r.gapFTE > 0
                         ? "text-green-600"
                         : "text-gray-700"
                     }`}
                   >
-                    {typeof row.gap === "number" ? row.gap.toFixed(1) : "0.0"}
+                    {r.gapFTE.toFixed(2)}
+                  </td>
+                  <td className="border px-2 py-1 text-center">
+                    {r.overUnder}
+                  </td>
+                  <td
+                    className={`border px-2 py-1 text-right font-medium ${
+                      r.percentGap < 0
+                        ? "text-red-600"
+                        : r.percentGap > 0
+                        ? "text-green-600"
+                        : "text-gray-700"
+                    }`}
+                  >
+                    {r.percentGap.toFixed(1)}%
                   </td>
                 </tr>
               ))}
@@ -136,6 +193,16 @@ export default function GapSummaryCard() {
           </table>
         </div>
       )}
+
+      {/* Navigation */}
+      <div className="flex justify-between mt-6">
+        <Button variant="ghost" onClick={onPrev}>
+          ← Previous
+        </Button>
+        <Button variant="primary" onClick={onReset}>
+          🔄 Reset Wizard
+        </Button>
+      </div>
     </Card>
   )
 }

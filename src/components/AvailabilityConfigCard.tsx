@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useApp } from "@/store/AppContext"
 import Card from "@/components/ui/Card"
 import Button from "@/components/ui/Button"
-import Select from "@/components/ui/Select"
 import Input from "@/components/ui/Input"
+import Select from "@/components/ui/Select"
 
 type AvailabilityRow = {
   id?: number
@@ -14,158 +14,121 @@ type AvailabilityRow = {
   available_shifts: number
 }
 
-export default function AvailabilityConfigCard() {
-  const { state } = useApp()
-  const { facilitySetup } = state
+type Props = {
+  onNext?: () => void
+  onPrev?: () => void
+}
+
+export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
+  const { data, updateData } = useApp()
 
   const [rows, setRows] = useState<AvailabilityRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Auto switch between mock and real API
-  const baseURL =
-    import.meta.env.MODE === "development" ? "/mockdata" : "/api"
-
+  // Load existing data or map from resourceInput
   useEffect(() => {
-    if (facilitySetup) fetchAvailability()
-  }, [facilitySetup])
-
-  const fetchAvailability = async () => {
     try {
-      if (!facilitySetup) return
       setLoading(true)
       setError(null)
 
-      let url = ""
-      if (baseURL === "/mockdata") {
-        url = `${baseURL}/availability-config.json`
+      if (data.availabilityConfig.length > 0) {
+        // If already edited before, load from global
+        setRows(data.availabilityConfig)
+      } else if (data.resourceInput.length > 0) {
+        // Map staff names from ResourceInput
+        const mapped = data.resourceInput.map((r, i) => ({
+          id: i + 1,
+          staff_name: `${r.first_name} ${r.last_name}`.trim(),
+          weekend_group: r.weekend_group || "",
+          pto_days: 0,
+          loa_days: 0,
+          available_shifts: 10,
+        }))
+        setRows(mapped)
+        updateData("availabilityConfig", mapped)
       } else {
-        const query = new URLSearchParams({
-          facility: facilitySetup.facility,
-          department: facilitySetup.department,
-          costCenter: facilitySetup.costCenter,
-          bedCount: String(facilitySetup.bedCount),
-          start: facilitySetup.dateRange.start,
-          end: facilitySetup.dateRange.end,
-        })
-        url = `${baseURL}/availability-config?${query.toString()}`
+        setRows([])
       }
-
-      const res = await fetch(url)
-      if (!res.ok) throw new Error("Failed to fetch availability data")
-      const data = await res.json()
-      setRows(data)
     } catch (err: any) {
-      console.error("Failed to load availability data", err)
-      setError(err.message || "Failed to load availability data")
+      console.error("Failed to load availability config", err)
+      setError(err.message || "Failed to load availability config")
     } finally {
       setLoading(false)
     }
+  }, [data.resourceInput])
+
+  // Save local + global
+  const saveRow = (row: AvailabilityRow) => {
+    const updated = row.id
+      ? rows.map((r) => (r.id === row.id ? row : r))
+      : [...rows, { ...row, id: Date.now() }]
+    setRows(updated)
+    updateData("availabilityConfig", updated)
   }
 
-  const saveRow = async (row: AvailabilityRow) => {
-    try {
-      if (!facilitySetup) return
-      setError(null)
-
-      if (baseURL === "/mockdata") {
-        // local-only save
-        setRows((prev) =>
-          row.id
-            ? prev.map((r) => (r.id === row.id ? row : r))
-            : [...prev, { ...row, id: Date.now() }]
-        )
-        return
-      }
-
-      const method = row.id ? "PUT" : "POST"
-      const url = row.id
-        ? `${baseURL}/availability-config/${row.id}`
-        : `${baseURL}/availability-config`
-
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...row, ...facilitySetup }),
-      })
-
-      if (!res.ok) throw new Error("Failed to save availability row")
-      await fetchAvailability()
-    } catch (err: any) {
-      console.error("Failed to save availability row", err)
-      setError(err.message || "Failed to save availability row")
-    }
+  const removeRow = (id?: number) => {
+    if (!id) return
+    const updated = rows.filter((r) => r.id !== id)
+    setRows(updated)
+    updateData("availabilityConfig", updated)
   }
 
-  const removeRow = async (id?: number) => {
-    try {
-      if (!facilitySetup || !id) return
-      setError(null)
-
-      if (baseURL === "/mockdata") {
-        // local-only delete
-        setRows((prev) => prev.filter((r) => r.id !== id))
-        return
-      }
-
-      const res = await fetch(`${baseURL}/availability-config/${id}`, { method: "DELETE" })
-      if (!res.ok) throw new Error("Failed to delete availability row")
-
-      await fetchAvailability()
-    } catch (err: any) {
-      console.error("Failed to delete availability row", err)
-      setError(err.message || "Failed to delete availability row")
-    }
+  // Add new staff manually
+  const addRow = () => {
+    const updated = [
+      ...rows,
+      {
+        id: Date.now(),
+        staff_name: "",
+        weekend_group: "",
+        pto_days: 0,
+        loa_days: 0,
+        available_shifts: 0,
+      },
+    ]
+    setRows(updated)
+    updateData("availabilityConfig", updated)
   }
 
   return (
-    <Card>
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-lg font-semibold">Resource Availability</h3>
-        <Button
-          onClick={() =>
-            setRows((prev) => [
-              ...prev,
-              {
-                staff_name: "",
-                weekend_group: "",
-                pto_days: 0,
-                loa_days: 0,
-                available_shifts: 0,
-              },
-            ])
-          }
-        >
-          + Add Resource
-        </Button>
+    <Card className="p-4 space-y-4">
+      <div className="flex justify-between items-center mb-2">
+        <h3 className="text-lg font-semibold text-gray-800">
+          Resource Availability
+        </h3>
+        <Button onClick={addRow}>+ Add Resource</Button>
       </div>
 
       {error && (
-        <p className="text-red-600 bg-red-50 px-3 py-1 rounded mb-2">
-          {error}
-        </p>
+        <p className="text-red-600 bg-red-50 px-3 py-1 rounded">{error}</p>
       )}
 
       {loading ? (
-        <p className="text-gray-500">Loading availability...</p>
+        <p className="text-gray-500">Loading availability data...</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full border border-gray-200 text-sm">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-3 py-2 border">Staff Name</th>
-                <th className="px-3 py-2 border">Weekend Group</th>
-                <th className="px-3 py-2 border">PTO Days</th>
-                <th className="px-3 py-2 border">LOA Days</th>
-                <th className="px-3 py-2 border">Available Shifts</th>
-                <th className="px-3 py-2 border">Actions</th>
+                <th className="px-3 py-2 border text-left">Staff Name</th>
+                <th className="px-3 py-2 border text-center">Weekend Group</th>
+                <th className="px-3 py-2 border text-center">PTO Days</th>
+                <th className="px-3 py-2 border text-center">LOA Days</th>
+                <th className="px-3 py-2 border text-center">
+                  Available Shifts
+                </th>
+                <th className="px-3 py-2 border text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-4 text-gray-500">
-                    No availability data yet.
+                  <td
+                    colSpan={6}
+                    className="text-center py-4 text-gray-500"
+                  >
+                    No staff listed. Please add or return to Resource Input.
                   </td>
                 </tr>
               ) : (
@@ -174,37 +137,37 @@ export default function AvailabilityConfigCard() {
                     {/* Staff Name */}
                     <td className="border px-2 py-1">
                       <Input
-                        id={`staff_${i}`}
+                        id={`staff_name_${i}`}
                         label=""
                         value={row.staff_name}
-                        onChange={(e) =>
-                          setRows((prev) =>
-                            prev.map((r, idx) =>
-                              idx === i
-                                ? { ...r, staff_name: e.target.value }
-                                : r
-                            )
+                        onChange={(e) => {
+                          const updated = rows.map((r, idx) =>
+                            idx === i
+                              ? { ...r, staff_name: e.target.value }
+                              : r
                           )
-                        }
+                          setRows(updated)
+                          updateData("availabilityConfig", updated)
+                        }}
                         className="!m-0 !p-1"
                       />
                     </td>
 
                     {/* Weekend Group */}
-                    <td className="border px-2 py-1">
+                    <td className="border px-2 py-1 text-center">
                       <Select
                         id={`weekend_${i}`}
                         label=""
                         value={row.weekend_group}
-                        onChange={(e) =>
-                          setRows((prev) =>
-                            prev.map((r, idx) =>
-                              idx === i
-                                ? { ...r, weekend_group: e.target.value }
-                                : r
-                            )
+                        onChange={(e) => {
+                          const updated = rows.map((r, idx) =>
+                            idx === i
+                              ? { ...r, weekend_group: e.target.value }
+                              : r
                           )
-                        }
+                          setRows(updated)
+                          updateData("availabilityConfig", updated)
+                        }}
                         className="!m-0 !p-1"
                       >
                         <option value="">--</option>
@@ -216,68 +179,68 @@ export default function AvailabilityConfigCard() {
                     </td>
 
                     {/* PTO Days */}
-                    <td className="border px-2 py-1">
+                    <td className="border px-2 py-1 text-center">
                       <Input
                         id={`pto_${i}`}
                         label=""
                         type="number"
-                        min={0}
+                        min="0"
                         value={row.pto_days}
-                        onChange={(e) =>
-                          setRows((prev) =>
-                            prev.map((r, idx) =>
-                              idx === i
-                                ? { ...r, pto_days: Number(e.target.value) }
-                                : r
-                            )
+                        onChange={(e) => {
+                          const updated = rows.map((r, idx) =>
+                            idx === i
+                              ? { ...r, pto_days: Number(e.target.value) }
+                              : r
                           )
-                        }
-                        className="!m-0 !p-1 w-20"
+                          setRows(updated)
+                          updateData("availabilityConfig", updated)
+                        }}
+                        className="!m-0 !p-1 w-16 text-center"
                       />
                     </td>
 
                     {/* LOA Days */}
-                    <td className="border px-2 py-1">
+                    <td className="border px-2 py-1 text-center">
                       <Input
                         id={`loa_${i}`}
                         label=""
                         type="number"
-                        min={0}
+                        min="0"
                         value={row.loa_days}
-                        onChange={(e) =>
-                          setRows((prev) =>
-                            prev.map((r, idx) =>
-                              idx === i
-                                ? { ...r, loa_days: Number(e.target.value) }
-                                : r
-                            )
+                        onChange={(e) => {
+                          const updated = rows.map((r, idx) =>
+                            idx === i
+                              ? { ...r, loa_days: Number(e.target.value) }
+                              : r
                           )
-                        }
-                        className="!m-0 !p-1 w-20"
+                          setRows(updated)
+                          updateData("availabilityConfig", updated)
+                        }}
+                        className="!m-0 !p-1 w-16 text-center"
                       />
                     </td>
 
                     {/* Available Shifts */}
-                    <td className="border px-2 py-1">
+                    <td className="border px-2 py-1 text-center">
                       <Input
                         id={`avail_${i}`}
                         label=""
                         type="number"
-                        min={0}
+                        min="0"
                         value={row.available_shifts}
-                        onChange={(e) =>
-                          setRows((prev) =>
-                            prev.map((r, idx) =>
-                              idx === i
-                                ? {
-                                    ...r,
-                                    available_shifts: Number(e.target.value),
-                                  }
-                                : r
-                            )
+                        onChange={(e) => {
+                          const updated = rows.map((r, idx) =>
+                            idx === i
+                              ? {
+                                  ...r,
+                                  available_shifts: Number(e.target.value),
+                                }
+                              : r
                           )
-                        }
-                        className="!m-0 !p-1 w-20"
+                          setRows(updated)
+                          updateData("availabilityConfig", updated)
+                        }}
+                        className="!m-0 !p-1 w-16 text-center"
                       />
                     </td>
 
@@ -305,6 +268,16 @@ export default function AvailabilityConfigCard() {
           </table>
         </div>
       )}
+
+      {/* Navigation */}
+      <div className="flex justify-between mt-6">
+        <Button variant="ghost" onClick={onPrev}>
+          ← Previous
+        </Button>
+        <Button variant="primary" onClick={onNext}>
+          Next →
+        </Button>
+      </div>
     </Card>
   )
 }

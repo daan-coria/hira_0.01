@@ -1,251 +1,187 @@
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useApp } from "@/store/AppContext"
 import Card from "@/components/ui/Card"
 import Button from "@/components/ui/Button"
 import Input from "@/components/ui/Input"
 
-type CensusRow = {
+type CensusOverrideRow = {
   id?: number
   date: string
-  shift: string
-  census_value: number
-  adjusted_value: number
+  hour: string
+  census: number
 }
 
-export default function CensusOverrideCard() {
-  const { state } = useApp()
-  const { facilitySetup, toolType } = state
+type Props = {
+  onNext?: () => void
+  onPrev?: () => void
+}
 
-  const [rows, setRows] = useState<CensusRow[]>([])
+export default function CensusOverrideCard({ onNext, onPrev }: Props) {
+  const { data, updateData } = useApp()
+
+  const [rows, setRows] = useState<CensusOverrideRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Automatically switch between mock JSON and real API
   const baseURL =
-    import.meta.env.MODE === "development"
-      ? "/mockdata"
-      : "/api"
+    import.meta.env.MODE === "development" ? "/mockdata" : "/api"
 
+  // Load from global context or mock JSON
   useEffect(() => {
-    if (facilitySetup && toolType === "IP") fetchCensus()
-  }, [facilitySetup, toolType])
+    if (data.censusOverride.length > 0) {
+      setRows(data.censusOverride)
+      setLoading(false)
+    } else {
+      fetchCensusOverrides()
+    }
+  }, [])
 
-  const fetchCensus = async () => {
+  const fetchCensusOverrides = async () => {
     try {
-      if (!facilitySetup) return
       setLoading(true)
       setError(null)
 
-      let url = ""
-      if (baseURL === "/mockdata") {
-        url = `${baseURL}/census-override.json`
-      } else {
-        const query = new URLSearchParams({
-          facility: facilitySetup.facility,
-          department: facilitySetup.department,
-          costCenter: facilitySetup.costCenter,
-          bedCount: String(facilitySetup.bedCount),
-          start: facilitySetup.dateRange.start,
-          end: facilitySetup.dateRange.end,
-        })
-        url = `${baseURL}/census-override?${query.toString()}`
-      }
-
+      const url = `${baseURL}/census-override.json`
       const res = await fetch(url)
-      if (!res.ok) throw new Error("Failed to fetch census data")
+      if (!res.ok) throw new Error("Failed to load census override data")
 
-      const data = await res.json()
-      setRows(data)
+      const json = await res.json()
+      setRows(json)
+      updateData("censusOverride", json)
     } catch (err: any) {
-      console.error("Failed to load census data", err)
-      setError(err.message || "Failed to load census data")
+      console.error("Failed to load census override", err)
+      setError(err.message || "Failed to load census override")
     } finally {
       setLoading(false)
     }
   }
 
-  const saveRow = async (row: CensusRow) => {
-    if (!facilitySetup) return
-    if (!row.date || !row.shift) {
-      alert("Please fill in both Date and Shift before saving.")
-      return
-    }
-
-    try {
-      setError(null)
-
-      if (baseURL === "/mockdata") {
-        // Local-only mock save
-        setRows((prev) =>
-          row.id
-            ? prev.map((r) => (r.id === row.id ? row : r))
-            : [...prev, { ...row, id: Date.now() }]
-        )
-        return
-      }
-
-      const method = row.id ? "PUT" : "POST"
-      const url = row.id
-        ? `${baseURL}/census-override/${row.id}`
-        : `${baseURL}/census-override`
-
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...row, ...facilitySetup }),
-      })
-
-      if (!res.ok) throw new Error("Failed to save census row")
-      await fetchCensus()
-    } catch (err: any) {
-      console.error("Failed to save census row", err)
-      setError(err.message || "Failed to save census row")
-    }
+  const saveRow = (row: CensusOverrideRow) => {
+    const updated = row.id
+      ? rows.map((r) => (r.id === row.id ? row : r))
+      : [...rows, { ...row, id: Date.now() }]
+    setRows(updated)
+    updateData("censusOverride", updated)
   }
 
-  const removeRow = async (id?: number) => {
-    if (!facilitySetup || !id) return
-    try {
-      setError(null)
-
-      if (baseURL === "/mockdata") {
-        // Local-only mock delete
-        setRows((prev) => prev.filter((r) => r.id !== id))
-        return
-      }
-
-      const res = await fetch(`${baseURL}/census-override/${id}`, { method: "DELETE" })
-      if (!res.ok) throw new Error("Failed to delete census row")
-
-      await fetchCensus()
-    } catch (err: any) {
-      console.error("Failed to delete census row", err)
-      setError(err.message || "Failed to delete census row")
-    }
+  const removeRow = (id?: number) => {
+    if (!id) return
+    const updated = rows.filter((r) => r.id !== id)
+    setRows(updated)
+    updateData("censusOverride", updated)
   }
 
-  if (toolType !== "IP") return null
+  const addRow = () => {
+    const updated = [
+      ...rows,
+      { id: Date.now(), date: "", hour: "", census: 0 },
+    ]
+    setRows(updated)
+    updateData("censusOverride", updated)
+  }
 
   return (
-    <Card>
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-lg font-semibold">Census Override (IP Only)</h3>
-        <Button
-          onClick={() =>
-            setRows((prev) => [
-              ...prev,
-              { date: "", shift: "", census_value: 0, adjusted_value: 0 },
-            ])
-          }
-        >
-          + Add Record
-        </Button>
+    <Card className="p-4 space-y-4">
+      <div className="flex justify-between items-center mb-2">
+        <h3 className="text-lg font-semibold text-gray-800">
+          Census Override
+        </h3>
+        <Button onClick={addRow}>+ Add Record</Button>
       </div>
 
       {error && (
-        <p className="text-red-600 bg-red-50 px-3 py-1 rounded mb-2">
-          {error}
-        </p>
+        <p className="text-red-600 bg-red-50 px-3 py-1 rounded">{error}</p>
       )}
 
       {loading ? (
-        <p className="text-gray-500">Loading census data...</p>
+        <p className="text-gray-500">Loading census override data...</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full border border-gray-200 text-sm">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-3 py-2 border">Date</th>
-                <th className="px-3 py-2 border">Shift</th>
-                <th className="px-3 py-2 border text-right">Census Value</th>
-                <th className="px-3 py-2 border text-right">Adjusted Value</th>
+                <th className="px-3 py-2 border">Hour</th>
+                <th className="px-3 py-2 border text-right">Census</th>
                 <th className="px-3 py-2 border text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-4 text-gray-500">
-                    No census data found.
+                  <td
+                    colSpan={4}
+                    className="text-center py-4 text-gray-500"
+                  >
+                    No census override data yet.
                   </td>
                 </tr>
               ) : (
                 rows.map((row, i) => (
                   <tr key={row.id || i}>
+                    {/* Date */}
                     <td className="border px-2 py-1">
                       <Input
                         id={`date_${i}`}
                         label=""
                         type="date"
                         value={row.date}
-                        onChange={(e) =>
-                          setRows((prev) =>
-                            prev.map((r, idx) =>
-                              idx === i ? { ...r, date: e.target.value } : r
-                            )
+                        onChange={(e) => {
+                          const updated = rows.map((r, idx) =>
+                            idx === i
+                              ? { ...r, date: e.target.value }
+                              : r
                           )
-                        }
+                          setRows(updated)
+                          updateData("censusOverride", updated)
+                        }}
                         className="!m-0 !p-1"
                       />
                     </td>
 
+                    {/* Hour */}
                     <td className="border px-2 py-1">
                       <Input
-                        id={`shift_${i}`}
+                        id={`hour_${i}`}
                         label=""
                         type="text"
-                        value={row.shift}
-                        onChange={(e) =>
-                          setRows((prev) =>
-                            prev.map((r, idx) =>
-                              idx === i ? { ...r, shift: e.target.value } : r
-                            )
+                        placeholder="e.g. 07:00"
+                        value={row.hour}
+                        onChange={(e) => {
+                          const updated = rows.map((r, idx) =>
+                            idx === i
+                              ? { ...r, hour: e.target.value }
+                              : r
                           )
-                        }
+                          setRows(updated)
+                          updateData("censusOverride", updated)
+                        }}
                         className="!m-0 !p-1"
                       />
                     </td>
 
+                    {/* Census */}
                     <td className="border px-2 py-1 text-right">
                       <Input
                         id={`census_${i}`}
                         label=""
                         type="number"
-                        min={0}
-                        value={row.census_value}
-                        onChange={(e) =>
-                          setRows((prev) =>
-                            prev.map((r, idx) =>
-                              idx === i
-                                ? { ...r, census_value: Number(e.target.value) }
-                                : r
-                            )
+                        min="0"
+                        value={row.census}
+                        onChange={(e) => {
+                          const updated = rows.map((r, idx) =>
+                            idx === i
+                              ? { ...r, census: Number(e.target.value) }
+                              : r
                           )
-                        }
-                        className="!m-0 !p-1 w-24 text-right"
+                          setRows(updated)
+                          updateData("censusOverride", updated)
+                        }}
+                        className="!m-0 !p-1 w-20 text-right"
                       />
                     </td>
 
-                    <td className="border px-2 py-1 text-right">
-                      <Input
-                        id={`adj_${i}`}
-                        label=""
-                        type="number"
-                        min={0}
-                        value={row.adjusted_value}
-                        onChange={(e) =>
-                          setRows((prev) =>
-                            prev.map((r, idx) =>
-                              idx === i
-                                ? { ...r, adjusted_value: Number(e.target.value) }
-                                : r
-                            )
-                          )
-                        }
-                        className="!m-0 !p-1 w-24 text-right"
-                      />
-                    </td>
-
+                    {/* Actions */}
                     <td className="border px-2 py-1 text-center space-x-2">
                       <Button
                         onClick={() => saveRow(row)}
@@ -254,15 +190,13 @@ export default function CensusOverrideCard() {
                       >
                         Save
                       </Button>
-                      {row.id && (
-                        <Button
-                          onClick={() => removeRow(row.id)}
-                          variant="ghost"
-                          className="!px-2 !py-1 text-xs text-red-600"
-                        >
-                          Remove
-                        </Button>
-                      )}
+                      <Button
+                        onClick={() => removeRow(row.id)}
+                        variant="ghost"
+                        className="!px-2 !py-1 text-xs text-red-600"
+                      >
+                        Remove
+                      </Button>
                     </td>
                   </tr>
                 ))
@@ -271,6 +205,16 @@ export default function CensusOverrideCard() {
           </table>
         </div>
       )}
+
+      {/* Navigation */}
+      <div className="flex justify-between mt-6">
+        <Button variant="ghost" onClick={onPrev}>
+          ← Previous
+        </Button>
+        <Button variant="primary" onClick={onNext}>
+          Next →
+        </Button>
+      </div>
     </Card>
   )
 }

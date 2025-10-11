@@ -1,50 +1,42 @@
 [
   {
-    "unit": "Emergency Department",
-    "shiftName": "Day",
-    "startHour": 7,
-    "endHour": 19,
-    "shiftLengthHours": 12,
-    "notes": "Standard 12-hour day shift"
+    "id": 1,
+    "role": "RN",
+    "shift_label": "Day",
+    "start_hour": 7,
+    "end_hour": 19,
+    "hours_per_shift": 12
   },
   {
-    "unit": "Emergency Department",
-    "shiftName": "Night",
-    "startHour": 19,
-    "endHour": 7,
-    "shiftLengthHours": 12,
-    "notes": "Standard 12-hour night shift"
+    "id": 2,
+    "role": "RN",
+    "shift_label": "Night",
+    "start_hour": 19,
+    "end_hour": 7,
+    "hours_per_shift": 12
   },
   {
-    "unit": "ICU",
-    "shiftName": "Day",
-    "startHour": 6,
-    "endHour": 18,
-    "shiftLengthHours": 12,
-    "notes": "ICU early start for coverage overlap"
+    "id": 3,
+    "role": "LPN",
+    "shift_label": "Day",
+    "start_hour": 7,
+    "end_hour": 19,
+    "hours_per_shift": 12
   },
   {
-    "unit": "ICU",
-    "shiftName": "Night",
-    "startHour": 18,
-    "endHour": 6,
-    "shiftLengthHours": 12,
-    "notes": "ICU night shift"
+    "id": 4,
+    "role": "CNA",
+    "shift_label": "Night",
+    "start_hour": 19,
+    "end_hour": 7,
+    "hours_per_shift": 12
   },
   {
-    "unit": "Med/Surg",
-    "shiftName": "Day",
-    "startHour": 7,
-    "endHour": 19,
-    "shiftLengthHours": 12,
-    "notes": "Standard med/surg day shift"
-  },
-  {
-    "unit": "Med/Surg",
-    "shiftName": "Night",
-    "startHour": 19,
-    "endHour": 7,
-    "shiftLengthHours": 12,
-    "notes": "Standard med/surg night shift"
+    "id": 5,
+    "role": "Clerk",
+    "shift_label": "Day",
+    "start_hour": 8,
+    "end_hour": 16,
+    "hours_per_shift": 8
   }
 ]

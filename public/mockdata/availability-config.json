@@ -1,62 +1,42 @@
 [
   {
-    "unit": "Emergency Department",
-    "role": "Registered Nurse (RN)",
-    "dayOfWeek": "Monday",
-    "availableFTE": 25
+    "id": 1,
+    "staff_name": "Emily Nguyen",
+    "weekend_group": "A",
+    "pto_days": 2,
+    "loa_days": 0,
+    "available_shifts": 10
   },
   {
-    "unit": "Emergency Department",
-    "role": "Registered Nurse (RN)",
-    "dayOfWeek": "Tuesday",
-    "availableFTE": 26
+    "id": 2,
+    "staff_name": "Michael Lopez",
+    "weekend_group": "B",
+    "pto_days": 1,
+    "loa_days": 0,
+    "available_shifts": 11
   },
   {
-    "unit": "Emergency Department",
-    "role": "Registered Nurse (RN)",
-    "dayOfWeek": "Wednesday",
-    "availableFTE": 25
+    "id": 3,
+    "staff_name": "Sarah Johnson",
+    "weekend_group": "A",
+    "pto_days": 0,
+    "loa_days": 3,
+    "available_shifts": 9
   },
   {
-    "unit": "Emergency Department",
-    "role": "Registered Nurse (RN)",
-    "dayOfWeek": "Thursday",
-    "availableFTE": 24
+    "id": 4,
+    "staff_name": "David Martinez",
+    "weekend_group": "C",
+    "pto_days": 0,
+    "loa_days": 0,
+    "available_shifts": 12
   },
   {
-    "unit": "Emergency Department",
-    "role": "Registered Nurse (RN)",
-    "dayOfWeek": "Friday",
-    "availableFTE": 27
-  },
-  {
-    "unit": "ICU",
-    "role": "Registered Nurse (RN)",
-    "dayOfWeek": "Monday",
-    "availableFTE": 12
-  },
-  {
-    "unit": "ICU",
-    "role": "Registered Nurse (RN)",
-    "dayOfWeek": "Tuesday",
-    "availableFTE": 11
-  },
-  {
-    "unit": "ICU",
-    "role": "Registered Nurse (RN)",
-    "dayOfWeek": "Wednesday",
-    "availableFTE": 13
-  },
-  {
-    "unit": "ICU",
-    "role": "Registered Nurse (RN)",
-    "dayOfWeek": "Thursday",
-    "availableFTE": 12
-  },
-  {
-    "unit": "ICU",
-    "role": "Registered Nurse (RN)",
-    "dayOfWeek": "Friday",
-    "availableFTE": 12
+    "id": 5,
+    "staff_name": "Olivia Green",
+    "weekend_group": "WC",
+    "pto_days": 2,
+    "loa_days": 1,
+    "available_shifts": 8
   }
 ]

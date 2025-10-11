@@ -4,8 +4,6 @@ import Card from "@/components/ui/Card"
 import Button from "@/components/ui/Button"
 import Input from "@/components/ui/Input"
 import Select from "@/components/ui/Select"
-import Loading from "@/components/ui/Loading"
-import ErrorBanner from "@/components/ui/ErrorBanner"
 
 type StaffingConfigRow = {
   id?: number
@@ -17,7 +15,12 @@ type StaffingConfigRow = {
   category: string
 }
 
-export default function StaffingConfigCard() {
+type Props = {
+  onNext?: () => void
+  onPrev?: () => void
+}
+
+export default function StaffingConfigCard({ onNext, onPrev }: Props) {
   const { state } = useApp()
   const { facilitySetup } = state
 
@@ -25,16 +28,11 @@ export default function StaffingConfigCard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Automatically switch between mock and real API
   const baseURL =
-    import.meta.env.MODE === "development"
-      ? "/mockdata"
-      : "/api"
+    import.meta.env.MODE === "development" ? "/mockdata" : "/api"
 
   useEffect(() => {
-    if (facilitySetup) {
-      fetchConfigs()
-    }
+    if (facilitySetup) fetchConfigs()
   }, [facilitySetup])
 
   const fetchConfigs = async () => {
@@ -43,93 +41,39 @@ export default function StaffingConfigCard() {
       setLoading(true)
       setError(null)
 
-      let url = ""
-      if (baseURL === "/mockdata") {
-        url = `${baseURL}/staffing-config.json`
-      } else {
-        const query = new URLSearchParams({
-          facility: facilitySetup.facility,
-          department: facilitySetup.department,
-          costCenter: facilitySetup.costCenter,
-          bedCount: String(facilitySetup.bedCount),
-          start: facilitySetup.dateRange.start,
-          end: facilitySetup.dateRange.end,
-        })
-        url = `${baseURL}/staffing-config?${query.toString()}`
-      }
-
+      const url = `${baseURL}/staffing-config.json`
       const res = await fetch(url)
       if (!res.ok) throw new Error("Failed to load staffing configuration")
 
       const data = await res.json()
       setRows(data)
     } catch (err: any) {
-      console.error("Failed to load staffing configuration", err)
+      console.error("Failed to load staffing config", err)
       setError(err.message || "Failed to load staffing configuration")
     } finally {
       setLoading(false)
     }
   }
 
-  const saveRow = async (row: StaffingConfigRow) => {
-    try {
-      if (!facilitySetup) return
-      setError(null)
-
-      if (baseURL === "/mockdata") {
-        // Mock mode: update local state only
-        setRows((prev) =>
-          row.id
-            ? prev.map((r) => (r.id === row.id ? row : r))
-            : [...prev, { ...row, id: Date.now() }]
-        )
-        return
-      }
-
-      const method = row.id ? "PUT" : "POST"
-      const url = row.id
-        ? `${baseURL}/staffing-config/${row.id}`
-        : `${baseURL}/staffing-config`
-
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...row, ...facilitySetup }),
-      })
-
-      if (!res.ok) throw new Error("Failed to save staffing configuration")
-      await fetchConfigs()
-    } catch (err: any) {
-      console.error("Failed to save staffing config row", err)
-      setError(err.message || "Failed to save staffing configuration")
-    }
+  const saveRow = (row: StaffingConfigRow) => {
+    setRows((prev) =>
+      row.id
+        ? prev.map((r) => (r.id === row.id ? row : r))
+        : [...prev, { ...row, id: Date.now() }]
+    )
   }
 
-  const removeRow = async (id?: number) => {
-    try {
-      if (!facilitySetup || !id) return
-      setError(null)
-
-      if (baseURL === "/mockdata") {
-        // Mock mode: remove from local state
-        setRows((prev) => prev.filter((r) => r.id !== id))
-        return
-      }
-
-      const res = await fetch(`${baseURL}/staffing-config/${id}`, { method: "DELETE" })
-      if (!res.ok) throw new Error("Failed to delete staffing configuration")
-
-      await fetchConfigs()
-    } catch (err: any) {
-      console.error("Failed to delete staffing config row", err)
-      setError(err.message || "Failed to delete staffing configuration")
-    }
+  const removeRow = (id?: number) => {
+    if (!id) return
+    setRows((prev) => prev.filter((r) => r.id !== id))
   }
 
   return (
-    <Card>
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-lg font-semibold">Staffing Configuration</h3>
+    <Card className="p-4 space-y-4">
+      <div className="flex justify-between items-center mb-2">
+        <h3 className="text-lg font-semibold text-gray-800">
+          Staffing Configuration
+        </h3>
         <Button
           onClick={() =>
             setRows((prev) => [
@@ -149,21 +93,24 @@ export default function StaffingConfigCard() {
         </Button>
       </div>
 
-      {error && <ErrorBanner message={error} />}
+      {error && (
+        <p className="text-red-600 bg-red-50 px-3 py-1 rounded">{error}</p>
+      )}
+
       {loading ? (
-        <Loading message="Loading staffing configuration..." />
+        <p className="text-gray-500">Loading staffing configuration...</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full border border-gray-200 text-sm">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-3 py-2 border">Role</th>
-                <th className="px-3 py-2 border">Ratio / Fixed</th>
-                <th className="px-3 py-2 border">Max Ratio</th>
-                <th className="px-3 py-2 border">Include in Ratio</th>
-                <th className="px-3 py-2 border">Direct Care %</th>
+                <th className="px-3 py-2 border">Ratio Mode</th>
+                <th className="px-3 py-2 border text-right">Max Ratio</th>
+                <th className="px-3 py-2 border text-center">Include in Ratio</th>
+                <th className="px-3 py-2 border text-right">Direct Care %</th>
                 <th className="px-3 py-2 border">Category</th>
-                <th className="px-3 py-2 border">Actions</th>
+                <th className="px-3 py-2 border text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -199,17 +146,21 @@ export default function StaffingConfigCard() {
                       </Select>
                     </td>
 
-                    {/* Ratio / Fixed */}
+                    {/* Ratio Mode */}
                     <td className="border px-2 py-1">
                       <Select
-                        id={`ratio_${i}`}
+                        id={`ratio_mode_${i}`}
                         label=""
                         value={row.ratio_mode}
                         onChange={(e) =>
                           setRows((prev) =>
                             prev.map((r, idx) =>
                               idx === i
-                                ? { ...r, ratio_mode: e.target.value as "Ratio" | "Fixed" }
+                                ? {
+                                    ...r,
+                                    ratio_mode:
+                                      e.target.value as "Ratio" | "Fixed",
+                                  }
                                 : r
                             )
                           )
@@ -222,7 +173,7 @@ export default function StaffingConfigCard() {
                     </td>
 
                     {/* Max Ratio */}
-                    <td className="border px-2 py-1">
+                    <td className="border px-2 py-1 text-right">
                       <Input
                         id={`max_ratio_${i}`}
                         label=""
@@ -233,40 +184,40 @@ export default function StaffingConfigCard() {
                         onChange={(e) =>
                           setRows((prev) =>
                             prev.map((r, idx) =>
-                              idx === i ? { ...r, max_ratio: Number(e.target.value) } : r
+                              idx === i
+                                ? { ...r, max_ratio: Number(e.target.value) }
+                                : r
                             )
                           )
                         }
-                        className="!m-0 !p-1 w-20"
+                        className="!m-0 !p-1 w-20 text-right"
                       />
                     </td>
 
                     {/* Include in Ratio */}
                     <td className="border px-2 py-1 text-center">
-                      <div className="flex justify-center items-center">
-                        <input
-                          id={`include_${i}`}
-                          type="checkbox"
-                          checked={row.include_in_ratio}
-                          onChange={(e) =>
-                            setRows((prev) =>
-                              prev.map((r, idx) =>
-                                idx === i
-                                  ? { ...r, include_in_ratio: e.target.checked }
-                                  : r
-                              )
+                      <input
+                        id={`include_${i}`}
+                        type="checkbox"
+                        checked={row.include_in_ratio}
+                        onChange={(e) =>
+                          setRows((prev) =>
+                            prev.map((r, idx) =>
+                              idx === i
+                                ? { ...r, include_in_ratio: e.target.checked }
+                                : r
                             )
-                          }
-                          className="h-4 w-4 text-brand-600 focus:ring-brand-500 border-gray-300 rounded"
-                          aria-label="Include in Ratio"
-                        />
-                      </div>
+                          )
+                        }
+                        className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                        aria-label={`Include ${row.role || "role"} in ratio`}  // ✅ Accessibility fix
+                      />
                     </td>
 
                     {/* Direct Care % */}
-                    <td className="border px-2 py-1">
+                    <td className="border px-2 py-1 text-right">
                       <Input
-                        id={`direct_${i}`}
+                        id={`direct_care_${i}`}
                         label=""
                         type="number"
                         min={0}
@@ -276,12 +227,15 @@ export default function StaffingConfigCard() {
                           setRows((prev) =>
                             prev.map((r, idx) =>
                               idx === i
-                                ? { ...r, direct_care_percent: Number(e.target.value) }
+                                ? {
+                                    ...r,
+                                    direct_care_percent: Number(e.target.value),
+                                  }
                                 : r
                             )
                           )
                         }
-                        className="!m-0 !p-1 w-20"
+                        className="!m-0 !p-1 w-20 text-right"
                       />
                     </td>
 
@@ -331,6 +285,16 @@ export default function StaffingConfigCard() {
           </table>
         </div>
       )}
+
+      {/* Navigation */}
+      <div className="flex justify-between mt-6">
+        <Button variant="ghost" onClick={onPrev}>
+          ← Previous
+        </Button>
+        <Button variant="primary" onClick={onNext}>
+          Next →
+        </Button>
+      </div>
     </Card>
   )
 }

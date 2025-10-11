@@ -1,68 +1,38 @@
 [
   {
-    "unit": "Emergency Department",
-    "shift": "Day",
-    "role": "Registered Nurse (RN)",
-    "targetRatio": 1.2,
-    "hoursPerShift": 12,
-    "coverageHours": 24,
-    "coverageType": "Direct Care",
-    "minStaff": 2,
-    "maxStaff": 6
+    "id": 1,
+    "role": "RN",
+    "ratio_mode": "Ratio",
+    "max_ratio": 4.0,
+    "include_in_ratio": true,
+    "direct_care_percent": 100,
+    "category": "Nursing"
   },
   {
-    "unit": "Emergency Department",
-    "shift": "Night",
-    "role": "Registered Nurse (RN)",
-    "targetRatio": 1.5,
-    "hoursPerShift": 12,
-    "coverageHours": 24,
-    "coverageType": "Direct Care",
-    "minStaff": 2,
-    "maxStaff": 6
+    "id": 2,
+    "role": "LPN",
+    "ratio_mode": "Ratio",
+    "max_ratio": 6.0,
+    "include_in_ratio": true,
+    "direct_care_percent": 80,
+    "category": "Nursing"
   },
   {
-    "unit": "ICU",
-    "shift": "Day",
-    "role": "Registered Nurse (RN)",
-    "targetRatio": 1.0,
-    "hoursPerShift": 12,
-    "coverageHours": 24,
-    "coverageType": "Critical Care",
-    "minStaff": 3,
-    "maxStaff": 8
+    "id": 3,
+    "role": "CNA",
+    "ratio_mode": "Ratio",
+    "max_ratio": 8.0,
+    "include_in_ratio": true,
+    "direct_care_percent": 90,
+    "category": "Support"
   },
   {
-    "unit": "ICU",
-    "shift": "Night",
-    "role": "Registered Nurse (RN)",
-    "targetRatio": 1.0,
-    "hoursPerShift": 12,
-    "coverageHours": 24,
-    "coverageType": "Critical Care",
-    "minStaff": 3,
-    "maxStaff": 8
-  },
-  {
-    "unit": "Med/Surg",
-    "shift": "Day",
-    "role": "Registered Nurse (RN)",
-    "targetRatio": 1.5,
-    "hoursPerShift": 12,
-    "coverageHours": 24,
-    "coverageType": "Direct Care",
-    "minStaff": 2,
-    "maxStaff": 6
-  },
-  {
-    "unit": "Med/Surg",
-    "shift": "Night",
-    "role": "Registered Nurse (RN)",
-    "targetRatio": 2.0,
-    "hoursPerShift": 12,
-    "coverageHours": 24,
-    "coverageType": "Direct Care",
-    "minStaff": 2,
-    "maxStaff": 6
+    "id": 4,
+    "role": "Clerk",
+    "ratio_mode": "Fixed",
+    "max_ratio": 1.0,
+    "include_in_ratio": false,
+    "direct_care_percent": 0,
+    "category": "Other"
   }
 ]

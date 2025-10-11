@@ -1,47 +1,52 @@
 [
   {
-    "unit": "Emergency Department",
-    "role": "Registered Nurse (RN)",
-    "shift": "Day",
-    "weekendGroup": "A",
-    "availableFTE": 28,
-    "requiredFTE": 30,
-    "variance": -2
+    "id": 1,
+    "first_name": "Emily",
+    "last_name": "Nguyen",
+    "position": "RN",
+    "unit_fte": 1.0,
+    "availability": "Day",
+    "weekend_group": "A",
+    "vacancy_status": "Filled"
   },
   {
-    "unit": "Emergency Department",
-    "role": "Registered Nurse (RN)",
-    "shift": "Night",
-    "weekendGroup": "B",
-    "availableFTE": 22,
-    "requiredFTE": 20,
-    "variance": 2
+    "id": 2,
+    "first_name": "Michael",
+    "last_name": "Lopez",
+    "position": "RN",
+    "unit_fte": 0.9,
+    "availability": "Night",
+    "weekend_group": "B",
+    "vacancy_status": "Filled"
   },
   {
-    "unit": "ICU",
-    "role": "Licensed Vocational Nurse (LVN)",
-    "shift": "Day",
-    "weekendGroup": "A",
-    "availableFTE": 10,
-    "requiredFTE": 12,
-    "variance": -2
+    "id": 3,
+    "first_name": "Sarah",
+    "last_name": "Johnson",
+    "position": "CNA",
+    "unit_fte": 0.8,
+    "availability": "Day",
+    "weekend_group": "A",
+    "vacancy_status": "Vacant"
   },
   {
-    "unit": "Med/Surg",
-    "role": "Certified Nursing Assistant (CNA)",
-    "shift": "Day",
-    "weekendGroup": "A",
-    "availableFTE": 15,
-    "requiredFTE": 15,
-    "variance": 0
+    "id": 4,
+    "first_name": "David",
+    "last_name": "Martinez",
+    "position": "LPN",
+    "unit_fte": 1.0,
+    "availability": "Night",
+    "weekend_group": "C",
+    "vacancy_status": "Filled"
   },
   {
-    "unit": "Med/Surg",
-    "role": "Certified Nursing Assistant (CNA)",
-    "shift": "Night",
-    "weekendGroup": "B",
-    "availableFTE": 13,
-    "requiredFTE": 12,
-    "variance": 1
+    "id": 5,
+    "first_name": "Olivia",
+    "last_name": "Green",
+    "position": "Clerk",
+    "unit_fte": 0.5,
+    "availability": "Day",
+    "weekend_group": "WC",
+    "vacancy_status": "Filled"
   }
 ]

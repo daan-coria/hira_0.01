@@ -4,17 +4,22 @@ import Card from "@/components/ui/Card"
 import Button from "@/components/ui/Button"
 import Input from "@/components/ui/Input"
 import Select from "@/components/ui/Select"
-import Loading from "@/components/ui/Loading"
-import ErrorBanner from "@/components/ui/ErrorBanner"
 
 type ShiftConfigRow = {
   id?: number
   role: string
-  shift: string
-  hours: number
+  shift_label: string
+  start_hour: number
+  end_hour: number
+  hours_per_shift: number
 }
 
-export default function ShiftConfigCard() {
+type Props = {
+  onNext?: () => void
+  onPrev?: () => void
+}
+
+export default function ShiftConfigCard({ onNext, onPrev }: Props) {
   const { state } = useApp()
   const { facilitySetup } = state
 
@@ -22,16 +27,11 @@ export default function ShiftConfigCard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Automatically switch between mock JSON and real API
   const baseURL =
-    import.meta.env.MODE === "development"
-      ? "/mockdata"
-      : "/api"
+    import.meta.env.MODE === "development" ? "/mockdata" : "/api"
 
   useEffect(() => {
-    if (facilitySetup) {
-      fetchShiftConfigs()
-    }
+    if (facilitySetup) fetchShiftConfigs()
   }, [facilitySetup])
 
   const fetchShiftConfigs = async () => {
@@ -40,21 +40,7 @@ export default function ShiftConfigCard() {
       setLoading(true)
       setError(null)
 
-      let url = ""
-      if (baseURL === "/mockdata") {
-        url = `${baseURL}/shift-config.json`
-      } else {
-        const query = new URLSearchParams({
-          facility: facilitySetup.facility,
-          department: facilitySetup.department,
-          costCenter: facilitySetup.costCenter,
-          bedCount: String(facilitySetup.bedCount),
-          start: facilitySetup.dateRange.start,
-          end: facilitySetup.dateRange.end,
-        })
-        url = `${baseURL}/shift-config?${query.toString()}`
-      }
-
+      const url = `${baseURL}/shift-config.json`
       const res = await fetch(url)
       if (!res.ok) throw new Error("Failed to load shift configurations")
 
@@ -68,92 +54,66 @@ export default function ShiftConfigCard() {
     }
   }
 
-  const saveRow = async (row: ShiftConfigRow) => {
-    try {
-      if (!facilitySetup) return
-      setError(null)
-
-      if (baseURL === "/mockdata") {
-        // local mock mode
-        setRows((prev) =>
-          row.id
-            ? prev.map((r) => (r.id === row.id ? row : r))
-            : [...prev, { ...row, id: Date.now() }]
-        )
-        return
-      }
-
-      const method = row.id ? "PUT" : "POST"
-      const url = row.id
-        ? `${baseURL}/shift-config/${row.id}`
-        : `${baseURL}/shift-config`
-
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...row, ...facilitySetup }),
-      })
-
-      if (!res.ok) throw new Error("Failed to save shift configuration")
-      await fetchShiftConfigs()
-    } catch (err: any) {
-      console.error("Failed to save shift row", err)
-      setError(err.message || "Failed to save shift configuration")
-    }
+  const saveRow = (row: ShiftConfigRow) => {
+    setRows((prev) =>
+      row.id
+        ? prev.map((r) => (r.id === row.id ? row : r))
+        : [...prev, { ...row, id: Date.now() }]
+    )
   }
 
-  const removeRow = async (id?: number) => {
-    try {
-      if (!facilitySetup || !id) return
-      setError(null)
-
-      if (baseURL === "/mockdata") {
-        // local mock mode
-        setRows((prev) => prev.filter((r) => r.id !== id))
-        return
-      }
-
-      const res = await fetch(`${baseURL}/shift-config/${id}`, { method: "DELETE" })
-      if (!res.ok) throw new Error("Failed to delete shift configuration")
-
-      await fetchShiftConfigs()
-    } catch (err: any) {
-      console.error("Failed to delete shift row", err)
-      setError(err.message || "Failed to delete shift configuration")
-    }
+  const removeRow = (id?: number) => {
+    if (!id) return
+    setRows((prev) => prev.filter((r) => r.id !== id))
   }
 
   return (
-    <Card>
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-lg font-semibold">Shift Configuration</h3>
+    <Card className="p-4 space-y-4">
+      <div className="flex justify-between items-center mb-2">
+        <h3 className="text-lg font-semibold text-gray-800">
+          Shift Configuration
+        </h3>
         <Button
           onClick={() =>
-            setRows((prev) => [...prev, { role: "", shift: "", hours: 8 }])
+            setRows((prev) => [
+              ...prev,
+              {
+                role: "",
+                shift_label: "",
+                start_hour: 7,
+                end_hour: 19,
+                hours_per_shift: 12,
+              },
+            ])
           }
         >
           + Add Shift
         </Button>
       </div>
 
-      {error && <ErrorBanner message={error} />}
+      {error && (
+        <p className="text-red-600 bg-red-50 px-3 py-1 rounded">{error}</p>
+      )}
+
       {loading ? (
-        <Loading message="Loading shift configurations..." />
+        <p className="text-gray-500">Loading shift configurations...</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full border border-gray-200 text-sm">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-3 py-2 border">Role</th>
-                <th className="px-3 py-2 border">Shift</th>
-                <th className="px-3 py-2 border">Hours</th>
-                <th className="px-3 py-2 border">Actions</th>
+                <th className="px-3 py-2 border">Shift Label</th>
+                <th className="px-3 py-2 border text-right">Start Hour</th>
+                <th className="px-3 py-2 border text-right">End Hour</th>
+                <th className="px-3 py-2 border text-right">Hours / Shift</th>
+                <th className="px-3 py-2 border text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="text-center py-4 text-gray-500">
+                  <td colSpan={6} className="text-center py-4 text-gray-500">
                     No shifts defined yet.
                   </td>
                 </tr>
@@ -169,7 +129,9 @@ export default function ShiftConfigCard() {
                         onChange={(e) =>
                           setRows((prev) =>
                             prev.map((r, idx) =>
-                              idx === i ? { ...r, role: e.target.value } : r
+                              idx === i
+                                ? { ...r, role: e.target.value }
+                                : r
                             )
                           )
                         }
@@ -183,17 +145,19 @@ export default function ShiftConfigCard() {
                       </Select>
                     </td>
 
-                    {/* Shift */}
+                    {/* Shift Label */}
                     <td className="border px-2 py-1">
                       <Input
-                        id={`shift_${i}`}
+                        id={`shift_label_${i}`}
                         label=""
                         type="text"
-                        value={row.shift}
+                        value={row.shift_label}
                         onChange={(e) =>
                           setRows((prev) =>
                             prev.map((r, idx) =>
-                              idx === i ? { ...r, shift: e.target.value } : r
+                              idx === i
+                                ? { ...r, shift_label: e.target.value }
+                                : r
                             )
                           )
                         }
@@ -201,25 +165,78 @@ export default function ShiftConfigCard() {
                       />
                     </td>
 
-                    {/* Hours */}
-                    <td className="border px-2 py-1">
+                    {/* Start Hour */}
+                    <td className="border px-2 py-1 text-right">
                       <Input
-                        id={`hours_${i}`}
+                        id={`start_hour_${i}`}
                         label=""
                         type="number"
-                        min={1}
-                        step={1}
-                        value={row.hours}
+                        min={0}
+                        max={23}
+                        value={row.start_hour}
                         onChange={(e) =>
                           setRows((prev) =>
                             prev.map((r, idx) =>
                               idx === i
-                                ? { ...r, hours: Number(e.target.value) }
+                                ? {
+                                    ...r,
+                                    start_hour: Number(e.target.value),
+                                  }
                                 : r
                             )
                           )
                         }
-                        className="!m-0 !p-1 w-20"
+                        className="!m-0 !p-1 w-20 text-right"
+                      />
+                    </td>
+
+                    {/* End Hour */}
+                    <td className="border px-2 py-1 text-right">
+                      <Input
+                        id={`end_hour_${i}`}
+                        label=""
+                        type="number"
+                        min={0}
+                        max={23}
+                        value={row.end_hour}
+                        onChange={(e) =>
+                          setRows((prev) =>
+                            prev.map((r, idx) =>
+                              idx === i
+                                ? {
+                                    ...r,
+                                    end_hour: Number(e.target.value),
+                                  }
+                                : r
+                            )
+                          )
+                        }
+                        className="!m-0 !p-1 w-20 text-right"
+                      />
+                    </td>
+
+                    {/* Hours per Shift */}
+                    <td className="border px-2 py-1 text-right">
+                      <Input
+                        id={`hours_per_shift_${i}`}
+                        label=""
+                        type="number"
+                        min={1}
+                        max={24}
+                        value={row.hours_per_shift}
+                        onChange={(e) =>
+                          setRows((prev) =>
+                            prev.map((r, idx) =>
+                              idx === i
+                                ? {
+                                    ...r,
+                                    hours_per_shift: Number(e.target.value),
+                                  }
+                                : r
+                            )
+                          )
+                        }
+                        className="!m-0 !p-1 w-20 text-right"
                       />
                     </td>
 
@@ -247,6 +264,16 @@ export default function ShiftConfigCard() {
           </table>
         </div>
       )}
+
+      {/* Navigation */}
+      <div className="flex justify-between mt-6">
+        <Button variant="ghost" onClick={onPrev}>
+          ← Previous
+        </Button>
+        <Button variant="primary" onClick={onNext}>
+          Next →
+        </Button>
+      </div>
     </Card>
   )
 }

@@ -4,8 +4,6 @@ import Card from "@/components/ui/Card"
 import Button from "@/components/ui/Button"
 import Input from "@/components/ui/Input"
 import Select from "@/components/ui/Select"
-import Loading from "@/components/ui/Loading"
-import ErrorBanner from "@/components/ui/ErrorBanner"
 
 type ResourceRow = {
   id?: number
@@ -14,26 +12,35 @@ type ResourceRow = {
   position: string
   unit_fte: number
   availability: string
-  weekend_assignment: string
+  weekend_group: string
   vacancy_status: string
 }
 
-export default function ResourceInputCard() {
-  const { state } = useApp()
+type Props = {
+  onNext?: () => void
+  onPrev?: () => void
+}
+
+export default function ResourceInputCard({ onNext, onPrev }: Props) {
+  const { state, data, updateData } = useApp()
   const { facilitySetup } = state
 
   const [rows, setRows] = useState<ResourceRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Base URL automatically switches between mock data (dev) and real API (prod)
   const baseURL =
-    import.meta.env.MODE === "development"
-      ? "/mockdata"
-      : "/api"
+    import.meta.env.MODE === "development" ? "/mockdata" : "/api"
 
+  // --------------------------------------------
+  // INITIAL LOAD
+  // --------------------------------------------
   useEffect(() => {
-    if (facilitySetup) {
+    if (data.resourceInput.length > 0) {
+      // Use context cache if already loaded
+      setRows(data.resourceInput)
+      setLoading(false)
+    } else if (facilitySetup) {
       fetchResources()
     }
   }, [facilitySetup])
@@ -44,28 +51,13 @@ export default function ResourceInputCard() {
       setLoading(true)
       setError(null)
 
-      let url = ""
-      if (baseURL === "/mockdata") {
-        // Local mock file
-        url = `${baseURL}/resource-input.json`
-      } else {
-        // Real API mode
-        const query = new URLSearchParams({
-          facility: facilitySetup.facility,
-          department: facilitySetup.department,
-          costCenter: facilitySetup.costCenter,
-          bedCount: String(facilitySetup.bedCount),
-          start: facilitySetup.dateRange.start,
-          end: facilitySetup.dateRange.end,
-        })
-        url = `${baseURL}/resource-input?${query.toString()}`
-      }
-
+      const url = `${baseURL}/resource-input.json`
       const res = await fetch(url)
-      if (!res.ok) throw new Error("Failed to fetch resource input data")
+      if (!res.ok) throw new Error("Failed to load resource input")
 
-      const data = await res.json()
-      setRows(data)
+      const json = await res.json()
+      setRows(json)
+      updateData("resourceInput", json) // ✅ store globally
     } catch (err: any) {
       console.error("Failed to load resource input", err)
       setError(err.message || "Failed to load resource input")
@@ -74,88 +66,64 @@ export default function ResourceInputCard() {
     }
   }
 
-  const saveRow = async (row: ResourceRow) => {
-    try {
-      if (!facilitySetup) return
-      setError(null)
-
-      // In dev (mock) mode, just update state locally
-      if (baseURL === "/mockdata") {
-        setRows((prev) =>
-          row.id
-            ? prev.map((r) => (r.id === row.id ? row : r))
-            : [...prev, { ...row, id: Date.now() }]
-        )
-        return
-      }
-
-      const method = row.id ? "PUT" : "POST"
-      const url = row.id
-        ? `${baseURL}/resource-input/${row.id}`
-        : `${baseURL}/resource-input`
-
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...row, ...facilitySetup }),
-      })
-
-      if (!res.ok) throw new Error("Failed to save resource row")
-      await fetchResources()
-    } catch (err: any) {
-      console.error("Failed to save resource row", err)
-      setError(err.message || "Failed to save resource row")
-    }
+  // --------------------------------------------
+  // SAVE + REMOVE HANDLERS (sync with context)
+  // --------------------------------------------
+  const saveRow = (row: ResourceRow) => {
+    const updated = row.id
+      ? rows.map((r) => (r.id === row.id ? row : r))
+      : [...rows, { ...row, id: Date.now() }]
+    setRows(updated)
+    updateData("resourceInput", updated) // ✅ live sync
   }
 
-  const removeRow = async (id?: number) => {
-    try {
-      if (!facilitySetup || !id) return
-      setError(null)
-
-      // In dev (mock) mode, remove locally
-      if (baseURL === "/mockdata") {
-        setRows((prev) => prev.filter((r) => r.id !== id))
-        return
-      }
-
-      const res = await fetch(`${baseURL}/resource-input/${id}`, { method: "DELETE" })
-      if (!res.ok) throw new Error("Failed to delete resource row")
-
-      await fetchResources()
-    } catch (err: any) {
-      console.error("Failed to delete resource row", err)
-      setError(err.message || "Failed to delete resource row")
-    }
+  const removeRow = (id?: number) => {
+    if (!id) return
+    const updated = rows.filter((r) => r.id !== id)
+    setRows(updated)
+    updateData("resourceInput", updated) // ✅ live sync
   }
 
+  // --------------------------------------------
+  // RENDER
+  // --------------------------------------------
   return (
-    <Card>
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-lg font-semibold">Resource Input</h3>
+    <Card className="p-4 space-y-4">
+      <div className="flex justify-between items-center mb-2">
+        <h3 className="text-lg font-semibold text-gray-800">
+          Resource Input
+        </h3>
         <Button
           onClick={() =>
-            setRows((prev) => [
-              ...prev,
-              {
-                first_name: "",
-                last_name: "",
-                position: "",
-                unit_fte: 1.0,
-                availability: "Day",
-                weekend_assignment: "",
-                vacancy_status: "Filled",
-              },
-            ])
+            setRows((prev) => {
+              const updated = [
+                ...prev,
+                {
+                  first_name: "",
+                  last_name: "",
+                  position: "",
+                  unit_fte: 1.0,
+                  availability: "Day",
+                  weekend_group: "",
+                  vacancy_status: "Filled",
+                  id: Date.now(),
+                },
+              ]
+              updateData("resourceInput", updated)
+              return updated
+            })
           }
         >
           + Add Resource
         </Button>
       </div>
 
-      {error && <ErrorBanner message={error} />}
+      {error && (
+        <p className="text-red-600 bg-red-50 px-3 py-1 rounded">{error}</p>
+      )}
+
       {loading ? (
-        <Loading message="Loading resources..." />
+        <p className="text-gray-500">Loading resources...</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full border border-gray-200 text-sm">
@@ -164,11 +132,11 @@ export default function ResourceInputCard() {
                 <th className="px-3 py-2 border">First Name</th>
                 <th className="px-3 py-2 border">Last Name</th>
                 <th className="px-3 py-2 border">Position</th>
-                <th className="px-3 py-2 border">Unit FTE</th>
+                <th className="px-3 py-2 border text-right">Unit FTE</th>
                 <th className="px-3 py-2 border">Availability</th>
                 <th className="px-3 py-2 border">Weekend Group</th>
                 <th className="px-3 py-2 border">Vacancy Status</th>
-                <th className="px-3 py-2 border">Actions</th>
+                <th className="px-3 py-2 border text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -186,15 +154,16 @@ export default function ResourceInputCard() {
                       <Input
                         id={`first_name_${i}`}
                         label=""
-                        type="text"
                         value={row.first_name}
-                        onChange={(e) =>
-                          setRows((prev) =>
-                            prev.map((r, idx) =>
-                              idx === i ? { ...r, first_name: e.target.value } : r
-                            )
+                        onChange={(e) => {
+                          const updated = rows.map((r, idx) =>
+                            idx === i
+                              ? { ...r, first_name: e.target.value }
+                              : r
                           )
-                        }
+                          setRows(updated)
+                          updateData("resourceInput", updated)
+                        }}
                         className="!m-0 !p-1"
                       />
                     </td>
@@ -204,15 +173,16 @@ export default function ResourceInputCard() {
                       <Input
                         id={`last_name_${i}`}
                         label=""
-                        type="text"
                         value={row.last_name}
-                        onChange={(e) =>
-                          setRows((prev) =>
-                            prev.map((r, idx) =>
-                              idx === i ? { ...r, last_name: e.target.value } : r
-                            )
+                        onChange={(e) => {
+                          const updated = rows.map((r, idx) =>
+                            idx === i
+                              ? { ...r, last_name: e.target.value }
+                              : r
                           )
-                        }
+                          setRows(updated)
+                          updateData("resourceInput", updated)
+                        }}
                         className="!m-0 !p-1"
                       />
                     </td>
@@ -223,13 +193,15 @@ export default function ResourceInputCard() {
                         id={`position_${i}`}
                         label=""
                         value={row.position}
-                        onChange={(e) =>
-                          setRows((prev) =>
-                            prev.map((r, idx) =>
-                              idx === i ? { ...r, position: e.target.value } : r
-                            )
+                        onChange={(e) => {
+                          const updated = rows.map((r, idx) =>
+                            idx === i
+                              ? { ...r, position: e.target.value }
+                              : r
                           )
-                        }
+                          setRows(updated)
+                          updateData("resourceInput", updated)
+                        }}
                         className="!m-0 !p-1"
                       >
                         <option value="">-- Select --</option>
@@ -241,24 +213,24 @@ export default function ResourceInputCard() {
                     </td>
 
                     {/* Unit FTE */}
-                    <td className="border px-2 py-1">
+                    <td className="border px-2 py-1 text-right">
                       <Input
-                        id={`fte_${i}`}
+                        id={`unit_fte_${i}`}
                         label=""
                         type="number"
                         step="0.1"
                         min="0"
                         value={row.unit_fte}
-                        onChange={(e) =>
-                          setRows((prev) =>
-                            prev.map((r, idx) =>
-                              idx === i
-                                ? { ...r, unit_fte: Number(e.target.value) }
-                                : r
-                            )
+                        onChange={(e) => {
+                          const updated = rows.map((r, idx) =>
+                            idx === i
+                              ? { ...r, unit_fte: Number(e.target.value) }
+                              : r
                           )
-                        }
-                        className="!m-0 !p-1 w-20"
+                          setRows(updated)
+                          updateData("resourceInput", updated)
+                        }}
+                        className="!m-0 !p-1 w-20 text-right"
                       />
                     </td>
 
@@ -268,13 +240,15 @@ export default function ResourceInputCard() {
                         id={`availability_${i}`}
                         label=""
                         value={row.availability}
-                        onChange={(e) =>
-                          setRows((prev) =>
-                            prev.map((r, idx) =>
-                              idx === i ? { ...r, availability: e.target.value } : r
-                            )
+                        onChange={(e) => {
+                          const updated = rows.map((r, idx) =>
+                            idx === i
+                              ? { ...r, availability: e.target.value }
+                              : r
                           )
-                        }
+                          setRows(updated)
+                          updateData("resourceInput", updated)
+                        }}
                         className="!m-0 !p-1"
                       >
                         <option value="Day">Day</option>
@@ -285,18 +259,18 @@ export default function ResourceInputCard() {
                     {/* Weekend Group */}
                     <td className="border px-2 py-1">
                       <Select
-                        id={`weekend_${i}`}
+                        id={`weekend_group_${i}`}
                         label=""
-                        value={row.weekend_assignment}
-                        onChange={(e) =>
-                          setRows((prev) =>
-                            prev.map((r, idx) =>
-                              idx === i
-                                ? { ...r, weekend_assignment: e.target.value }
-                                : r
-                            )
+                        value={row.weekend_group}
+                        onChange={(e) => {
+                          const updated = rows.map((r, idx) =>
+                            idx === i
+                              ? { ...r, weekend_group: e.target.value }
+                              : r
                           )
-                        }
+                          setRows(updated)
+                          updateData("resourceInput", updated)
+                        }}
                         className="!m-0 !p-1"
                       >
                         <option value="">--</option>
@@ -313,15 +287,15 @@ export default function ResourceInputCard() {
                         id={`vacancy_${i}`}
                         label=""
                         value={row.vacancy_status}
-                        onChange={(e) =>
-                          setRows((prev) =>
-                            prev.map((r, idx) =>
-                              idx === i
-                                ? { ...r, vacancy_status: e.target.value }
-                                : r
-                            )
+                        onChange={(e) => {
+                          const updated = rows.map((r, idx) =>
+                            idx === i
+                              ? { ...r, vacancy_status: e.target.value }
+                              : r
                           )
-                        }
+                          setRows(updated)
+                          updateData("resourceInput", updated)
+                        }}
                         className="!m-0 !p-1"
                       >
                         <option value="Filled">Filled</option>
@@ -354,6 +328,16 @@ export default function ResourceInputCard() {
           </table>
         </div>
       )}
+
+      {/* Navigation Buttons */}
+      <div className="flex justify-between mt-6">
+        <Button variant="ghost" onClick={onPrev}>
+          ← Previous
+        </Button>
+        <Button variant="primary" onClick={onNext}>
+          Next →
+        </Button>
+      </div>
     </Card>
   )
 }

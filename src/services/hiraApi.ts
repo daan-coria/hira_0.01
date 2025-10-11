@@ -1,65 +1,48 @@
 import { apiFetch } from "@/utils/api"
 
+// Toggle between mock data (local JSONs) and real API endpoints
 const useMock = true
 
 export const hiraApi = {
-  async getFacility() {
-    return useMock
-      ? await apiFetch("facility.json")
-      : await apiFetch("api/facility")
-  },
-
+  // STEP 2: Resource Input
   async getResourceInput() {
     return useMock
       ? await apiFetch("resource-input.json")
       : await apiFetch("api/resource-input")
   },
 
-  async getStaffingConfiguration() {
-    return useMock
-      ? await apiFetch("staffing-config.json")
-      : await apiFetch("api/staffing-config")
-  },
-
+  // STEP 3: Shift Configuration
   async getShiftConfigs() {
     return useMock
       ? await apiFetch("shift-config.json")
       : await apiFetch("api/shift-config")
   },
 
+  // STEP 4: Staffing Configuration
+  async getStaffingConfiguration() {
+    return useMock
+      ? await apiFetch("staffing-config.json")
+      : await apiFetch("api/staffing-config")
+  },
+
+  // STEP 5: Availability Configuration
   async getAvailability() {
     return useMock
       ? await apiFetch("availability-config.json")
       : await apiFetch("api/availability-config")
   },
 
-  async getCensus() {
+  // STEP 6: Census Override
+  async getCensusOverride() {
     return useMock
-      ? await apiFetch("census.json")
-      : await apiFetch("api/census")
+      ? await apiFetch("census-override.json")
+      : await apiFetch("api/census-override")
   },
 
-  async getStaffingRequirements() {
-    return useMock
-      ? await apiFetch("staffing-requirements.json")
-      : await apiFetch("api/staffing-requirements")
-  },
-
-  async getStaffingPlan() {
-    return useMock
-      ? await apiFetch("staffing-plan.json")
-      : await apiFetch("api/staffing-plan")
-  },
-
+  // STEP 7: Gap Summary
   async getGapSummary() {
     return useMock
       ? await apiFetch("gap-summary.json")
       : await apiFetch("api/gap-summary")
-  },
-
-  async getPositionControl() {
-    return useMock
-      ? await apiFetch("position-control.json")
-      : await apiFetch("api/position-control")
   }
 }
