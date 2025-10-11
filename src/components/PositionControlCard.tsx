@@ -19,6 +19,13 @@ export default function PositionControlCard() {
 
   const [rows, setRows] = useState<PositionControlRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Environment-aware base path
+  const baseURL =
+    import.meta.env.MODE === "development"
+      ? "/mockdata"
+      : "/api"
 
   useEffect(() => {
     if (facilitySetup) {
@@ -30,21 +37,31 @@ export default function PositionControlCard() {
     try {
       if (!facilitySetup) return
       setLoading(true)
+      setError(null)
 
-      const query = new URLSearchParams({
-        facility: facilitySetup.facility,
-        department: facilitySetup.department,
-        costCenter: facilitySetup.costCenter,
-        bedCount: String(facilitySetup.bedCount),
-        start: facilitySetup.dateRange.start,
-        end: facilitySetup.dateRange.end,
-      })
+      let url = ""
+      if (baseURL === "/mockdata") {
+        url = `${baseURL}/position-control.json`
+      } else {
+        const query = new URLSearchParams({
+          facility: facilitySetup.facility,
+          department: facilitySetup.department,
+          costCenter: facilitySetup.costCenter,
+          bedCount: String(facilitySetup.bedCount),
+          start: facilitySetup.dateRange.start,
+          end: facilitySetup.dateRange.end,
+        })
+        url = `${baseURL}/position-control?${query.toString()}`
+      }
 
-      const res = await fetch(`/api/position-control?${query.toString()}`)
+      const res = await fetch(url)
+      if (!res.ok) throw new Error("Failed to load position control")
+
       const data = await res.json()
       setRows(data)
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to load position control", err)
+      setError(err.message || "Failed to load position control")
     } finally {
       setLoading(false)
     }
@@ -53,32 +70,55 @@ export default function PositionControlCard() {
   const saveRow = async (row: PositionControlRow) => {
     try {
       if (!facilitySetup) return
+      setError(null)
+
+      if (baseURL === "/mockdata") {
+        // Mock save — just update local state
+        setRows((prev) =>
+          row.id
+            ? prev.map((r) => (r.id === row.id ? row : r))
+            : [...prev, { ...row, id: Date.now() }]
+        )
+        return
+      }
+
       const method = row.id ? "PUT" : "POST"
       const url = row.id
-        ? `/api/position-control/${row.id}`
-        : "/api/position-control"
+        ? `${baseURL}/position-control/${row.id}`
+        : `${baseURL}/position-control`
 
-      await fetch(url, {
+      const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...row, ...facilitySetup }),
       })
 
+      if (!res.ok) throw new Error("Failed to save position row")
       await fetchPositions()
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to save position row", err)
+      setError(err.message || "Failed to save position row")
     }
   }
 
   const removeRow = async (id?: number) => {
     try {
-      if (!facilitySetup) return
-      if (id) {
-        await fetch(`/api/position-control/${id}`, { method: "DELETE" })
-        await fetchPositions()
+      if (!facilitySetup || !id) return
+      setError(null)
+
+      if (baseURL === "/mockdata") {
+        // Mock delete — remove from local state
+        setRows((prev) => prev.filter((r) => r.id !== id))
+        return
       }
-    } catch (err) {
+
+      const res = await fetch(`${baseURL}/position-control/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Failed to delete position row")
+
+      await fetchPositions()
+    } catch (err: any) {
       console.error("Failed to delete position row", err)
+      setError(err.message || "Failed to delete position row")
     }
   }
 
@@ -98,6 +138,12 @@ export default function PositionControlCard() {
         </Button>
       </div>
 
+      {error && (
+        <p className="text-red-600 bg-red-50 px-3 py-1 rounded mb-2">
+          {error}
+        </p>
+      )}
+
       {loading ? (
         <p className="text-gray-500">Loading position control...</p>
       ) : (
@@ -106,10 +152,10 @@ export default function PositionControlCard() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-3 py-2 border">Role</th>
-                <th className="px-3 py-2 border">Budgeted FTE</th>
-                <th className="px-3 py-2 border">Filled FTE</th>
-                <th className="px-3 py-2 border">Open FTE</th>
-                <th className="px-3 py-2 border">Actions</th>
+                <th className="px-3 py-2 border text-right">Budgeted FTE</th>
+                <th className="px-3 py-2 border text-right">Filled FTE</th>
+                <th className="px-3 py-2 border text-right">Open FTE</th>
+                <th className="px-3 py-2 border text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -123,7 +169,10 @@ export default function PositionControlCard() {
                 rows.map((row, i) => {
                   const openFTE = row.budgeted_fte - row.filled_fte
                   return (
-                    <tr key={row.id || i}>
+                    <tr
+                      key={row.id || i}
+                      className="odd:bg-white even:bg-gray-50 hover:bg-gray-100 transition-colors"
+                    >
                       {/* Role */}
                       <td className="border px-2 py-1">
                         <Select
@@ -148,7 +197,7 @@ export default function PositionControlCard() {
                       </td>
 
                       {/* Budgeted FTE */}
-                      <td className="border px-2 py-1">
+                      <td className="border px-2 py-1 text-right">
                         <Input
                           id={`budgeted_${i}`}
                           label="Budgeted FTE"
@@ -160,17 +209,20 @@ export default function PositionControlCard() {
                             setRows((prev) =>
                               prev.map((r, idx) =>
                                 idx === i
-                                  ? { ...r, budgeted_fte: Number(e.target.value) }
+                                  ? {
+                                      ...r,
+                                      budgeted_fte: Number(e.target.value),
+                                    }
                                   : r
                               )
                             )
                           }
-                          className="!m-0 !p-1 w-24"
+                          className="!m-0 !p-1 w-24 text-right"
                         />
                       </td>
 
                       {/* Filled FTE */}
-                      <td className="border px-2 py-1">
+                      <td className="border px-2 py-1 text-right">
                         <Input
                           id={`filled_${i}`}
                           label="Filled FTE"
@@ -182,22 +234,25 @@ export default function PositionControlCard() {
                             setRows((prev) =>
                               prev.map((r, idx) =>
                                 idx === i
-                                  ? { ...r, filled_fte: Number(e.target.value) }
+                                  ? {
+                                      ...r,
+                                      filled_fte: Number(e.target.value),
+                                    }
                                   : r
                               )
                             )
                           }
-                          className="!m-0 !p-1 w-24"
+                          className="!m-0 !p-1 w-24 text-right"
                         />
                       </td>
 
                       {/* Open FTE (calculated) */}
                       <td
-                        className={`border px-2 py-1 text-center font-semibold ${
+                        className={`border px-2 py-1 text-right font-semibold ${
                           openFTE > 0 ? "text-red-600" : "text-gray-700"
                         }`}
                       >
-                        {openFTE}
+                        {openFTE.toFixed(1)}
                       </td>
 
                       {/* Actions */}

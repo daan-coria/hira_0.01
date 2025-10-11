@@ -25,6 +25,12 @@ export default function StaffingConfigCard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Automatically switch between mock and real API
+  const baseURL =
+    import.meta.env.MODE === "development"
+      ? "/mockdata"
+      : "/api"
+
   useEffect(() => {
     if (facilitySetup) {
       fetchConfigs()
@@ -37,16 +43,22 @@ export default function StaffingConfigCard() {
       setLoading(true)
       setError(null)
 
-      const query = new URLSearchParams({
-        facility: facilitySetup.facility,
-        department: facilitySetup.department,
-        costCenter: facilitySetup.costCenter,
-        bedCount: String(facilitySetup.bedCount),
-        start: facilitySetup.dateRange.start,
-        end: facilitySetup.dateRange.end,
-      })
+      let url = ""
+      if (baseURL === "/mockdata") {
+        url = `${baseURL}/staffing-config.json`
+      } else {
+        const query = new URLSearchParams({
+          facility: facilitySetup.facility,
+          department: facilitySetup.department,
+          costCenter: facilitySetup.costCenter,
+          bedCount: String(facilitySetup.bedCount),
+          start: facilitySetup.dateRange.start,
+          end: facilitySetup.dateRange.end,
+        })
+        url = `${baseURL}/staffing-config?${query.toString()}`
+      }
 
-      const res = await fetch(`/api/staffing-config?${query.toString()}`)
+      const res = await fetch(url)
       if (!res.ok) throw new Error("Failed to load staffing configuration")
 
       const data = await res.json()
@@ -64,8 +76,20 @@ export default function StaffingConfigCard() {
       if (!facilitySetup) return
       setError(null)
 
+      if (baseURL === "/mockdata") {
+        // Mock mode: update local state only
+        setRows((prev) =>
+          row.id
+            ? prev.map((r) => (r.id === row.id ? row : r))
+            : [...prev, { ...row, id: Date.now() }]
+        )
+        return
+      }
+
       const method = row.id ? "PUT" : "POST"
-      const url = row.id ? `/api/staffing-config/${row.id}` : "/api/staffing-config"
+      const url = row.id
+        ? `${baseURL}/staffing-config/${row.id}`
+        : `${baseURL}/staffing-config`
 
       const res = await fetch(url, {
         method,
@@ -86,7 +110,13 @@ export default function StaffingConfigCard() {
       if (!facilitySetup || !id) return
       setError(null)
 
-      const res = await fetch(`/api/staffing-config/${id}`, { method: "DELETE" })
+      if (baseURL === "/mockdata") {
+        // Mock mode: remove from local state
+        setRows((prev) => prev.filter((r) => r.id !== id))
+        return
+      }
+
+      const res = await fetch(`${baseURL}/staffing-config/${id}`, { method: "DELETE" })
       if (!res.ok) throw new Error("Failed to delete staffing configuration")
 
       await fetchConfigs()
@@ -228,7 +258,7 @@ export default function StaffingConfigCard() {
                             )
                           }
                           className="h-4 w-4 text-brand-600 focus:ring-brand-500 border-gray-300 rounded"
-                          aria-label="Include in Ratio"   // ✅ accessibility fix
+                          aria-label="Include in Ratio"
                         />
                       </div>
                     </td>

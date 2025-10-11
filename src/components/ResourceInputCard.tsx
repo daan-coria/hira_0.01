@@ -20,11 +20,17 @@ type ResourceRow = {
 
 export default function ResourceInputCard() {
   const { state } = useApp()
+  const { facilitySetup } = state
+
   const [rows, setRows] = useState<ResourceRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const { facilitySetup } = state
+  // Base URL automatically switches between mock data (dev) and real API (prod)
+  const baseURL =
+    import.meta.env.MODE === "development"
+      ? "/mockdata"
+      : "/api"
 
   useEffect(() => {
     if (facilitySetup) {
@@ -38,17 +44,25 @@ export default function ResourceInputCard() {
       setLoading(true)
       setError(null)
 
-      const query = new URLSearchParams({
-        facility: facilitySetup.facility,
-        department: facilitySetup.department,
-        costCenter: facilitySetup.costCenter,
-        bedCount: String(facilitySetup.bedCount),
-        start: facilitySetup.dateRange.start,
-        end: facilitySetup.dateRange.end,
-      })
+      let url = ""
+      if (baseURL === "/mockdata") {
+        // Local mock file
+        url = `${baseURL}/resource-input.json`
+      } else {
+        // Real API mode
+        const query = new URLSearchParams({
+          facility: facilitySetup.facility,
+          department: facilitySetup.department,
+          costCenter: facilitySetup.costCenter,
+          bedCount: String(facilitySetup.bedCount),
+          start: facilitySetup.dateRange.start,
+          end: facilitySetup.dateRange.end,
+        })
+        url = `${baseURL}/resource-input?${query.toString()}`
+      }
 
-      const res = await fetch(`/api/resource-input?${query.toString()}`)
-      if (!res.ok) throw new Error("Failed to fetch resources")
+      const res = await fetch(url)
+      if (!res.ok) throw new Error("Failed to fetch resource input data")
 
       const data = await res.json()
       setRows(data)
@@ -65,8 +79,20 @@ export default function ResourceInputCard() {
       if (!facilitySetup) return
       setError(null)
 
+      // In dev (mock) mode, just update state locally
+      if (baseURL === "/mockdata") {
+        setRows((prev) =>
+          row.id
+            ? prev.map((r) => (r.id === row.id ? row : r))
+            : [...prev, { ...row, id: Date.now() }]
+        )
+        return
+      }
+
       const method = row.id ? "PUT" : "POST"
-      const url = row.id ? `/api/resource-input/${row.id}` : "/api/resource-input"
+      const url = row.id
+        ? `${baseURL}/resource-input/${row.id}`
+        : `${baseURL}/resource-input`
 
       const res = await fetch(url, {
         method,
@@ -87,7 +113,13 @@ export default function ResourceInputCard() {
       if (!facilitySetup || !id) return
       setError(null)
 
-      const res = await fetch(`/api/resource-input/${id}`, { method: "DELETE" })
+      // In dev (mock) mode, remove locally
+      if (baseURL === "/mockdata") {
+        setRows((prev) => prev.filter((r) => r.id !== id))
+        return
+      }
+
+      const res = await fetch(`${baseURL}/resource-input/${id}`, { method: "DELETE" })
       if (!res.ok) throw new Error("Failed to delete resource row")
 
       await fetchResources()
@@ -300,10 +332,18 @@ export default function ResourceInputCard() {
 
                     {/* Actions */}
                     <td className="border px-2 py-1 text-center space-x-2">
-                      <Button onClick={() => saveRow(row)} variant="primary" className="!px-2 !py-1 text-xs">
+                      <Button
+                        onClick={() => saveRow(row)}
+                        variant="primary"
+                        className="!px-2 !py-1 text-xs"
+                      >
                         Save
                       </Button>
-                      <Button onClick={() => removeRow(row.id)} variant="ghost" className="!px-2 !py-1 text-xs text-red-600">
+                      <Button
+                        onClick={() => removeRow(row.id)}
+                        variant="ghost"
+                        className="!px-2 !py-1 text-xs text-red-600"
+                      >
                         Remove
                       </Button>
                     </td>

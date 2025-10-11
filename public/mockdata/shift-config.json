@@ -1,7 +1,7 @@
 [
   {
     "unit": "Emergency Department",
-    "shiftLabel": "Day",
+    "shiftName": "Day",
     "startHour": 7,
     "endHour": 19,
     "shiftLengthHours": 12,
@@ -9,7 +9,7 @@
   },
   {
     "unit": "Emergency Department",
-    "shiftLabel": "Night",
+    "shiftName": "Night",
     "startHour": 19,
     "endHour": 7,
     "shiftLengthHours": 12,
@@ -17,7 +17,7 @@
   },
   {
     "unit": "ICU",
-    "shiftLabel": "Day",
+    "shiftName": "Day",
     "startHour": 6,
     "endHour": 18,
     "shiftLengthHours": 12,
@@ -25,7 +25,7 @@
   },
   {
     "unit": "ICU",
-    "shiftLabel": "Night",
+    "shiftName": "Night",
     "startHour": 18,
     "endHour": 6,
     "shiftLengthHours": 12,
@@ -33,7 +33,7 @@
   },
   {
     "unit": "Med/Surg",
-    "shiftLabel": "Day",
+    "shiftName": "Day",
     "startHour": 7,
     "endHour": 19,
     "shiftLengthHours": 12,
@@ -41,7 +41,7 @@
   },
   {
     "unit": "Med/Surg",
-    "shiftLabel": "Night",
+    "shiftName": "Night",
     "startHour": 19,
     "endHour": 7,
     "shiftLengthHours": 12,

@@ -18,6 +18,11 @@ export default function StaffingRequirementsCard() {
 
   const [rows, setRows] = useState<StaffingRequirementRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Base URL that switches between mock and API
+  const baseURL =
+    import.meta.env.MODE === "development" ? "/mockdata" : "/api"
 
   useEffect(() => {
     if (toolType === "IP" && facilitySetup) {
@@ -29,21 +34,31 @@ export default function StaffingRequirementsCard() {
     try {
       if (!facilitySetup) return
       setLoading(true)
+      setError(null)
 
-      const query = new URLSearchParams({
-        facility: facilitySetup.facility,
-        department: facilitySetup.department,
-        costCenter: facilitySetup.costCenter,
-        bedCount: String(facilitySetup.bedCount),
-        start: facilitySetup.dateRange.start,
-        end: facilitySetup.dateRange.end,
-      })
+      let url = ""
+      if (baseURL === "/mockdata") {
+        url = `${baseURL}/staffing-requirements.json`
+      } else {
+        const query = new URLSearchParams({
+          facility: facilitySetup.facility,
+          department: facilitySetup.department,
+          costCenter: facilitySetup.costCenter,
+          bedCount: String(facilitySetup.bedCount),
+          start: facilitySetup.dateRange.start,
+          end: facilitySetup.dateRange.end,
+        })
+        url = `${baseURL}/staffing-requirements?${query.toString()}`
+      }
 
-      const res = await fetch(`/api/staffing-requirements?${query.toString()}`)
+      const res = await fetch(url)
+      if (!res.ok) throw new Error("Failed to load staffing requirements")
+
       const data = await res.json()
       setRows(data)
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to load staffing requirements", err)
+      setError(err.message || "Failed to load staffing requirements")
     } finally {
       setLoading(false)
     }
@@ -52,32 +67,55 @@ export default function StaffingRequirementsCard() {
   const saveRow = async (row: StaffingRequirementRow) => {
     try {
       if (!facilitySetup) return
+      setError(null)
+
+      if (baseURL === "/mockdata") {
+        // Local mock save
+        setRows((prev) =>
+          row.id
+            ? prev.map((r) => (r.id === row.id ? row : r))
+            : [...prev, { ...row, id: Date.now() }]
+        )
+        return
+      }
+
       const method = row.id ? "PUT" : "POST"
       const url = row.id
-        ? `/api/staffing-requirements/${row.id}`
-        : "/api/staffing-requirements"
+        ? `${baseURL}/staffing-requirements/${row.id}`
+        : `${baseURL}/staffing-requirements`
 
-      await fetch(url, {
+      const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...row, ...facilitySetup }),
       })
 
+      if (!res.ok) throw new Error("Failed to save staffing requirement")
       await fetchRequirements()
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to save staffing requirement", err)
+      setError(err.message || "Failed to save staffing requirement")
     }
   }
 
   const removeRow = async (id?: number) => {
     try {
-      if (!facilitySetup) return
-      if (id) {
-        await fetch(`/api/staffing-requirements/${id}`, { method: "DELETE" })
-        await fetchRequirements()
+      if (!facilitySetup || !id) return
+      setError(null)
+
+      if (baseURL === "/mockdata") {
+        // Local mock delete
+        setRows((prev) => prev.filter((r) => r.id !== id))
+        return
       }
-    } catch (err) {
+
+      const res = await fetch(`${baseURL}/staffing-requirements/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Failed to delete staffing requirement")
+
+      await fetchRequirements()
+    } catch (err: any) {
       console.error("Failed to delete staffing requirement", err)
+      setError(err.message || "Failed to delete staffing requirement")
     }
   }
 
@@ -100,6 +138,12 @@ export default function StaffingRequirementsCard() {
         </Button>
       </div>
 
+      {error && (
+        <p className="text-red-600 bg-red-50 px-3 py-1 rounded mb-2">
+          {error}
+        </p>
+      )}
+
       {loading ? (
         <p className="text-gray-500">Loading staffing requirements...</p>
       ) : (
@@ -108,9 +152,9 @@ export default function StaffingRequirementsCard() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-3 py-2 border">Role</th>
-                <th className="px-3 py-2 border">Required FTE</th>
+                <th className="px-3 py-2 border text-right">Required FTE</th>
                 <th className="px-3 py-2 border">Notes</th>
-                <th className="px-3 py-2 border">Actions</th>
+                <th className="px-3 py-2 border text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -122,7 +166,10 @@ export default function StaffingRequirementsCard() {
                 </tr>
               ) : (
                 rows.map((row, i) => (
-                  <tr key={row.id || i}>
+                  <tr
+                    key={row.id || i}
+                    className="odd:bg-white even:bg-gray-50 hover:bg-gray-100 transition-colors"
+                  >
                     {/* Role */}
                     <td className="border px-2 py-1">
                       <Select
@@ -147,7 +194,7 @@ export default function StaffingRequirementsCard() {
                     </td>
 
                     {/* Required FTE */}
-                    <td className="border px-2 py-1">
+                    <td className="border px-2 py-1 text-right">
                       <Input
                         id={`required_fte_${i}`}
                         label="Required FTE"
@@ -164,7 +211,7 @@ export default function StaffingRequirementsCard() {
                             )
                           )
                         }
-                        className="!m-0 !p-1 w-24"
+                        className="!m-0 !p-1 w-24 text-right"
                       />
                     </td>
 

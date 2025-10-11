@@ -18,6 +18,13 @@ export default function CensusOverrideCard() {
 
   const [rows, setRows] = useState<CensusRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Automatically switch between mock JSON and real API
+  const baseURL =
+    import.meta.env.MODE === "development"
+      ? "/mockdata"
+      : "/api"
 
   useEffect(() => {
     if (facilitySetup && toolType === "IP") fetchCensus()
@@ -27,21 +34,31 @@ export default function CensusOverrideCard() {
     try {
       if (!facilitySetup) return
       setLoading(true)
+      setError(null)
 
-      const query = new URLSearchParams({
-        facility: facilitySetup.facility,
-        department: facilitySetup.department,
-        costCenter: facilitySetup.costCenter,
-        bedCount: String(facilitySetup.bedCount),
-        start: facilitySetup.dateRange.start,
-        end: facilitySetup.dateRange.end,
-      })
+      let url = ""
+      if (baseURL === "/mockdata") {
+        url = `${baseURL}/census-override.json`
+      } else {
+        const query = new URLSearchParams({
+          facility: facilitySetup.facility,
+          department: facilitySetup.department,
+          costCenter: facilitySetup.costCenter,
+          bedCount: String(facilitySetup.bedCount),
+          start: facilitySetup.dateRange.start,
+          end: facilitySetup.dateRange.end,
+        })
+        url = `${baseURL}/census-override?${query.toString()}`
+      }
 
-      const res = await fetch(`/api/census-override?${query.toString()}`)
+      const res = await fetch(url)
+      if (!res.ok) throw new Error("Failed to fetch census data")
+
       const data = await res.json()
       setRows(data)
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to load census data", err)
+      setError(err.message || "Failed to load census data")
     } finally {
       setLoading(false)
     }
@@ -55,30 +72,55 @@ export default function CensusOverrideCard() {
     }
 
     try {
+      setError(null)
+
+      if (baseURL === "/mockdata") {
+        // Local-only mock save
+        setRows((prev) =>
+          row.id
+            ? prev.map((r) => (r.id === row.id ? row : r))
+            : [...prev, { ...row, id: Date.now() }]
+        )
+        return
+      }
+
       const method = row.id ? "PUT" : "POST"
       const url = row.id
-        ? `/api/census-override/${row.id}`
-        : "/api/census-override"
+        ? `${baseURL}/census-override/${row.id}`
+        : `${baseURL}/census-override`
 
-      await fetch(url, {
+      const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...row, ...facilitySetup }),
       })
 
+      if (!res.ok) throw new Error("Failed to save census row")
       await fetchCensus()
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to save census row", err)
+      setError(err.message || "Failed to save census row")
     }
   }
 
   const removeRow = async (id?: number) => {
     if (!facilitySetup || !id) return
     try {
-      await fetch(`/api/census-override/${id}`, { method: "DELETE" })
+      setError(null)
+
+      if (baseURL === "/mockdata") {
+        // Local-only mock delete
+        setRows((prev) => prev.filter((r) => r.id !== id))
+        return
+      }
+
+      const res = await fetch(`${baseURL}/census-override/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Failed to delete census row")
+
       await fetchCensus()
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to delete census row", err)
+      setError(err.message || "Failed to delete census row")
     }
   }
 
@@ -99,6 +141,12 @@ export default function CensusOverrideCard() {
           + Add Record
         </Button>
       </div>
+
+      {error && (
+        <p className="text-red-600 bg-red-50 px-3 py-1 rounded mb-2">
+          {error}
+        </p>
+      )}
 
       {loading ? (
         <p className="text-gray-500">Loading census data...</p>

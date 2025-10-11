@@ -5,7 +5,10 @@
     "role": "Registered Nurse (RN)",
     "targetRatio": 1.2,
     "hoursPerShift": 12,
-    "coverageHours": 24
+    "coverageHours": 24,
+    "coverageType": "Direct Care",
+    "minStaff": 2,
+    "maxStaff": 6
   },
   {
     "unit": "Emergency Department",
@@ -13,7 +16,10 @@
     "role": "Registered Nurse (RN)",
     "targetRatio": 1.5,
     "hoursPerShift": 12,
-    "coverageHours": 24
+    "coverageHours": 24,
+    "coverageType": "Direct Care",
+    "minStaff": 2,
+    "maxStaff": 6
   },
   {
     "unit": "ICU",
@@ -21,7 +27,10 @@
     "role": "Registered Nurse (RN)",
     "targetRatio": 1.0,
     "hoursPerShift": 12,
-    "coverageHours": 24
+    "coverageHours": 24,
+    "coverageType": "Critical Care",
+    "minStaff": 3,
+    "maxStaff": 8
   },
   {
     "unit": "ICU",
@@ -29,7 +38,10 @@
     "role": "Registered Nurse (RN)",
     "targetRatio": 1.0,
     "hoursPerShift": 12,
-    "coverageHours": 24
+    "coverageHours": 24,
+    "coverageType": "Critical Care",
+    "minStaff": 3,
+    "maxStaff": 8
   },
   {
     "unit": "Med/Surg",
@@ -37,7 +49,10 @@
     "role": "Registered Nurse (RN)",
     "targetRatio": 1.5,
     "hoursPerShift": 12,
-    "coverageHours": 24
+    "coverageHours": 24,
+    "coverageType": "Direct Care",
+    "minStaff": 2,
+    "maxStaff": 6
   },
   {
     "unit": "Med/Surg",
@@ -45,6 +60,9 @@
     "role": "Registered Nurse (RN)",
     "targetRatio": 2.0,
     "hoursPerShift": 12,
-    "coverageHours": 24
+    "coverageHours": 24,
+    "coverageType": "Direct Care",
+    "minStaff": 2,
+    "maxStaff": 6
   }
 ]

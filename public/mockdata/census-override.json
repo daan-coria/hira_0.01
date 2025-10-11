@@ -1,0 +1,72 @@
+[
+  {
+    "id": 1,
+    "date": "2025-10-01",
+    "shift": "Day",
+    "census_value": 48,
+    "adjusted_value": 50
+  },
+  {
+    "id": 2,
+    "date": "2025-10-01",
+    "shift": "Night",
+    "census_value": 45,
+    "adjusted_value": 46
+  },
+  {
+    "id": 3,
+    "date": "2025-10-02",
+    "shift": "Day",
+    "census_value": 50,
+    "adjusted_value": 49
+  },
+  {
+    "id": 4,
+    "date": "2025-10-02",
+    "shift": "Night",
+    "census_value": 47,
+    "adjusted_value": 48
+  },
+  {
+    "id": 5,
+    "date": "2025-10-03",
+    "shift": "Day",
+    "census_value": 52,
+    "adjusted_value": 53
+  },
+  {
+    "id": 6,
+    "date": "2025-10-03",
+    "shift": "Night",
+    "census_value": 49,
+    "adjusted_value": 49
+  },
+  {
+    "id": 7,
+    "date": "2025-10-04",
+    "shift": "Day",
+    "census_value": 46,
+    "adjusted_value": 48
+  },
+  {
+    "id": 8,
+    "date": "2025-10-04",
+    "shift": "Night",
+    "census_value": 44,
+    "adjusted_value": 45
+  },
+  {
+    "id": 9,
+    "date": "2025-10-05",
+    "shift": "Day",
+    "census_value": 50,
+    "adjusted_value": 50
+  },
+  {
+    "id": 10,
+    "date": "2025-10-05",
+    "shift": "Night",
+    "census_value": 47,
+    "adjusted_value": 47
+  }
+]

@@ -1,26 +1,26 @@
 [
   {
-    "unit": "Emergency Department",
-    "requiredFTE": 42,
-    "actualFTE": 40,
-    "gapFTE": -2,
-    "overUnder": "Understaffed",
-    "percentGap": -4.8
+    "id": 1,
+    "department": "Emergency Department",
+    "shift": "Day",
+    "available_fte": 40,
+    "required_fte": 42,
+    "gap": -2
   },
   {
-    "unit": "ICU",
-    "requiredFTE": 20,
-    "actualFTE": 19,
-    "gapFTE": -1,
-    "overUnder": "Understaffed",
-    "percentGap": -5
+    "id": 2,
+    "department": "ICU",
+    "shift": "Day",
+    "available_fte": 19,
+    "required_fte": 20,
+    "gap": -1
   },
   {
-    "unit": "Med/Surg",
-    "requiredFTE": 36,
-    "actualFTE": 37,
-    "gapFTE": 1,
-    "overUnder": "Overstaffed",
-    "percentGap": 2.8
+    "id": 3,
+    "department": "Med/Surg",
+    "shift": "Day",
+    "available_fte": 37,
+    "required_fte": 36,
+    "gap": 1
   }
 ]

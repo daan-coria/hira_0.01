@@ -21,6 +21,7 @@
   // Make VS Code aware of your Tailwind config
   "tailwindCSS.experimental.configFile": "./tailwind.config.ts",
   "cSpell.words": [
+    "daanc",
     "HIRA",
     "mockdata"
   ]

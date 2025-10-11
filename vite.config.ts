@@ -7,14 +7,19 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    publicDir: "public",
+    server: {
+      port: 5173,
+      strictPort: true,
+      fs: {
+        allow: [path.resolve(__dirname)],
+      },
+      // 🚫 Remove proxy
+    },
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
       },
-    },
-    server: {
-      port: 5173,
-      strictPort: true,
     },
     define: {
       __APP_ENV__: JSON.stringify(env.APP_ENV || mode),

@@ -19,6 +19,13 @@ export default function StaffingPlanCard() {
 
   const [rows, setRows] = useState<PlanRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Environment-aware base path
+  const baseURL =
+    import.meta.env.MODE === "development"
+      ? "/mockdata"
+      : "/api"
 
   useEffect(() => {
     if (facilitySetup) {
@@ -30,21 +37,31 @@ export default function StaffingPlanCard() {
     try {
       if (!facilitySetup) return
       setLoading(true)
+      setError(null)
 
-      const query = new URLSearchParams({
-        facility: facilitySetup.facility,
-        department: facilitySetup.department,
-        costCenter: facilitySetup.costCenter,
-        bedCount: String(facilitySetup.bedCount),
-        start: facilitySetup.dateRange.start,
-        end: facilitySetup.dateRange.end,
-      })
+      let url = ""
+      if (baseURL === "/mockdata") {
+        url = `${baseURL}/staffing-plan.json`
+      } else {
+        const query = new URLSearchParams({
+          facility: facilitySetup.facility,
+          department: facilitySetup.department,
+          costCenter: facilitySetup.costCenter,
+          bedCount: String(facilitySetup.bedCount),
+          start: facilitySetup.dateRange.start,
+          end: facilitySetup.dateRange.end,
+        })
+        url = `${baseURL}/staffing-plan?${query.toString()}`
+      }
 
-      const res = await fetch(`/api/staffing-plan?${query.toString()}`)
+      const res = await fetch(url)
+      if (!res.ok) throw new Error("Failed to load staffing plan")
+
       const data = await res.json()
       setRows(data)
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to load staffing plan", err)
+      setError(err.message || "Failed to load staffing plan")
     } finally {
       setLoading(false)
     }
@@ -53,30 +70,55 @@ export default function StaffingPlanCard() {
   const saveRow = async (row: PlanRow) => {
     try {
       if (!facilitySetup) return
-      const method = row.id ? "PUT" : "POST"
-      const url = row.id ? `/api/staffing-plan/${row.id}` : "/api/staffing-plan"
+      setError(null)
 
-      await fetch(url, {
+      if (baseURL === "/mockdata") {
+        // Mock mode: update local state
+        setRows((prev) =>
+          row.id
+            ? prev.map((r) => (r.id === row.id ? row : r))
+            : [...prev, { ...row, id: Date.now() }]
+        )
+        return
+      }
+
+      const method = row.id ? "PUT" : "POST"
+      const url = row.id
+        ? `${baseURL}/staffing-plan/${row.id}`
+        : `${baseURL}/staffing-plan`
+
+      const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...row, ...facilitySetup }),
       })
 
+      if (!res.ok) throw new Error("Failed to save staffing plan record")
       await fetchPlan()
-    } catch (err) {
-      console.error("Failed to save plan row", err)
+    } catch (err: any) {
+      console.error("Failed to save staffing plan row", err)
+      setError(err.message || "Failed to save staffing plan record")
     }
   }
 
   const removeRow = async (id?: number) => {
     try {
-      if (!facilitySetup) return
-      if (id) {
-        await fetch(`/api/staffing-plan/${id}`, { method: "DELETE" })
-        await fetchPlan()
+      if (!facilitySetup || !id) return
+      setError(null)
+
+      if (baseURL === "/mockdata") {
+        // Mock mode: remove from local state
+        setRows((prev) => prev.filter((r) => r.id !== id))
+        return
       }
-    } catch (err) {
-      console.error("Failed to delete plan row", err)
+
+      const res = await fetch(`${baseURL}/staffing-plan/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Failed to delete staffing plan record")
+
+      await fetchPlan()
+    } catch (err: any) {
+      console.error("Failed to delete staffing plan row", err)
+      setError(err.message || "Failed to delete staffing plan record")
     }
   }
 
@@ -102,6 +144,12 @@ export default function StaffingPlanCard() {
         </Button>
       </div>
 
+      {error && (
+        <p className="text-red-600 bg-red-50 px-3 py-1 rounded mb-2">
+          {error}
+        </p>
+      )}
+
       {loading ? (
         <p className="text-gray-500">Loading staffing plan...</p>
       ) : (
@@ -111,10 +159,10 @@ export default function StaffingPlanCard() {
               <tr>
                 <th className="px-3 py-2 border">Department</th>
                 <th className="px-3 py-2 border">Shift</th>
-                <th className="px-3 py-2 border">Start Hour</th>
-                <th className="px-3 py-2 border">End Hour</th>
-                <th className="px-3 py-2 border">Planned FTE</th>
-                <th className="px-3 py-2 border">Actions</th>
+                <th className="px-3 py-2 border text-right">Start Hour</th>
+                <th className="px-3 py-2 border text-right">End Hour</th>
+                <th className="px-3 py-2 border text-right">Planned FTE</th>
+                <th className="px-3 py-2 border text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -126,7 +174,10 @@ export default function StaffingPlanCard() {
                 </tr>
               ) : (
                 rows.map((row, i) => (
-                  <tr key={row.id || i}>
+                  <tr
+                    key={row.id || i}
+                    className="odd:bg-white even:bg-gray-50 hover:bg-gray-100 transition-colors"
+                  >
                     {/* Department */}
                     <td className="border px-2 py-1">
                       <Input
@@ -137,7 +188,9 @@ export default function StaffingPlanCard() {
                         onChange={(e) =>
                           setRows((prev) =>
                             prev.map((r, idx) =>
-                              idx === i ? { ...r, department: e.target.value } : r
+                              idx === i
+                                ? { ...r, department: e.target.value }
+                                : r
                             )
                           )
                         }
@@ -164,7 +217,7 @@ export default function StaffingPlanCard() {
                     </td>
 
                     {/* Start Hour */}
-                    <td className="border px-2 py-1">
+                    <td className="border px-2 py-1 text-right">
                       <Input
                         id={`start_${i}`}
                         label="Start Hour"
@@ -175,16 +228,18 @@ export default function StaffingPlanCard() {
                         onChange={(e) =>
                           setRows((prev) =>
                             prev.map((r, idx) =>
-                              idx === i ? { ...r, start: Number(e.target.value) } : r
+                              idx === i
+                                ? { ...r, start: Number(e.target.value) }
+                                : r
                             )
                           )
                         }
-                        className="!m-0 !p-1 w-20"
+                        className="!m-0 !p-1 w-20 text-right"
                       />
                     </td>
 
                     {/* End Hour */}
-                    <td className="border px-2 py-1">
+                    <td className="border px-2 py-1 text-right">
                       <Input
                         id={`end_${i}`}
                         label="End Hour"
@@ -195,16 +250,18 @@ export default function StaffingPlanCard() {
                         onChange={(e) =>
                           setRows((prev) =>
                             prev.map((r, idx) =>
-                              idx === i ? { ...r, end: Number(e.target.value) } : r
+                              idx === i
+                                ? { ...r, end: Number(e.target.value) }
+                                : r
                             )
                           )
                         }
-                        className="!m-0 !p-1 w-20"
+                        className="!m-0 !p-1 w-20 text-right"
                       />
                     </td>
 
                     {/* Planned FTE */}
-                    <td className="border px-2 py-1">
+                    <td className="border px-2 py-1 text-right">
                       <Input
                         id={`plannedFTE_${i}`}
                         label="Planned FTE"
@@ -216,12 +273,15 @@ export default function StaffingPlanCard() {
                           setRows((prev) =>
                             prev.map((r, idx) =>
                               idx === i
-                                ? { ...r, plannedFTE: Number(e.target.value) }
+                                ? {
+                                    ...r,
+                                    plannedFTE: Number(e.target.value),
+                                  }
                                 : r
                             )
                           )
                         }
-                        className="!m-0 !p-1 w-24"
+                        className="!m-0 !p-1 w-24 text-right"
                       />
                     </td>
 

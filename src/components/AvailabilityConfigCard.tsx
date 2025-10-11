@@ -20,6 +20,11 @@ export default function AvailabilityConfigCard() {
 
   const [rows, setRows] = useState<AvailabilityRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Auto switch between mock and real API
+  const baseURL =
+    import.meta.env.MODE === "development" ? "/mockdata" : "/api"
 
   useEffect(() => {
     if (facilitySetup) fetchAvailability()
@@ -29,21 +34,30 @@ export default function AvailabilityConfigCard() {
     try {
       if (!facilitySetup) return
       setLoading(true)
+      setError(null)
 
-      const query = new URLSearchParams({
-        facility: facilitySetup.facility,
-        department: facilitySetup.department,
-        costCenter: facilitySetup.costCenter,
-        bedCount: String(facilitySetup.bedCount),
-        start: facilitySetup.dateRange.start,
-        end: facilitySetup.dateRange.end,
-      })
+      let url = ""
+      if (baseURL === "/mockdata") {
+        url = `${baseURL}/availability-config.json`
+      } else {
+        const query = new URLSearchParams({
+          facility: facilitySetup.facility,
+          department: facilitySetup.department,
+          costCenter: facilitySetup.costCenter,
+          bedCount: String(facilitySetup.bedCount),
+          start: facilitySetup.dateRange.start,
+          end: facilitySetup.dateRange.end,
+        })
+        url = `${baseURL}/availability-config?${query.toString()}`
+      }
 
-      const res = await fetch(`/api/availability-config?${query.toString()}`)
+      const res = await fetch(url)
+      if (!res.ok) throw new Error("Failed to fetch availability data")
       const data = await res.json()
       setRows(data)
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to load availability data", err)
+      setError(err.message || "Failed to load availability data")
     } finally {
       setLoading(false)
     }
@@ -52,32 +66,55 @@ export default function AvailabilityConfigCard() {
   const saveRow = async (row: AvailabilityRow) => {
     try {
       if (!facilitySetup) return
+      setError(null)
+
+      if (baseURL === "/mockdata") {
+        // local-only save
+        setRows((prev) =>
+          row.id
+            ? prev.map((r) => (r.id === row.id ? row : r))
+            : [...prev, { ...row, id: Date.now() }]
+        )
+        return
+      }
+
       const method = row.id ? "PUT" : "POST"
       const url = row.id
-        ? `/api/availability-config/${row.id}`
-        : "/api/availability-config"
+        ? `${baseURL}/availability-config/${row.id}`
+        : `${baseURL}/availability-config`
 
-      await fetch(url, {
+      const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...row, ...facilitySetup }),
       })
 
+      if (!res.ok) throw new Error("Failed to save availability row")
       await fetchAvailability()
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to save availability row", err)
+      setError(err.message || "Failed to save availability row")
     }
   }
 
   const removeRow = async (id?: number) => {
     try {
-      if (!facilitySetup) return
-      if (id) {
-        await fetch(`/api/availability-config/${id}`, { method: "DELETE" })
-        await fetchAvailability()
+      if (!facilitySetup || !id) return
+      setError(null)
+
+      if (baseURL === "/mockdata") {
+        // local-only delete
+        setRows((prev) => prev.filter((r) => r.id !== id))
+        return
       }
-    } catch (err) {
+
+      const res = await fetch(`${baseURL}/availability-config/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Failed to delete availability row")
+
+      await fetchAvailability()
+    } catch (err: any) {
       console.error("Failed to delete availability row", err)
+      setError(err.message || "Failed to delete availability row")
     }
   }
 
@@ -102,6 +139,12 @@ export default function AvailabilityConfigCard() {
           + Add Resource
         </Button>
       </div>
+
+      {error && (
+        <p className="text-red-600 bg-red-50 px-3 py-1 rounded mb-2">
+          {error}
+        </p>
+      )}
 
       {loading ? (
         <p className="text-gray-500">Loading availability...</p>
@@ -128,6 +171,7 @@ export default function AvailabilityConfigCard() {
               ) : (
                 rows.map((row, i) => (
                   <tr key={row.id || i}>
+                    {/* Staff Name */}
                     <td className="border px-2 py-1">
                       <Input
                         id={`staff_${i}`}
@@ -145,6 +189,8 @@ export default function AvailabilityConfigCard() {
                         className="!m-0 !p-1"
                       />
                     </td>
+
+                    {/* Weekend Group */}
                     <td className="border px-2 py-1">
                       <Select
                         id={`weekend_${i}`}
@@ -168,6 +214,8 @@ export default function AvailabilityConfigCard() {
                         <option value="WC">WC</option>
                       </Select>
                     </td>
+
+                    {/* PTO Days */}
                     <td className="border px-2 py-1">
                       <Input
                         id={`pto_${i}`}
@@ -187,6 +235,8 @@ export default function AvailabilityConfigCard() {
                         className="!m-0 !p-1 w-20"
                       />
                     </td>
+
+                    {/* LOA Days */}
                     <td className="border px-2 py-1">
                       <Input
                         id={`loa_${i}`}
@@ -206,6 +256,8 @@ export default function AvailabilityConfigCard() {
                         className="!m-0 !p-1 w-20"
                       />
                     </td>
+
+                    {/* Available Shifts */}
                     <td className="border px-2 py-1">
                       <Input
                         id={`avail_${i}`}
@@ -217,7 +269,10 @@ export default function AvailabilityConfigCard() {
                           setRows((prev) =>
                             prev.map((r, idx) =>
                               idx === i
-                                ? { ...r, available_shifts: Number(e.target.value) }
+                                ? {
+                                    ...r,
+                                    available_shifts: Number(e.target.value),
+                                  }
                                 : r
                             )
                           )
@@ -225,6 +280,8 @@ export default function AvailabilityConfigCard() {
                         className="!m-0 !p-1 w-20"
                       />
                     </td>
+
+                    {/* Actions */}
                     <td className="border px-2 py-1 text-center space-x-2">
                       <Button
                         onClick={() => saveRow(row)}

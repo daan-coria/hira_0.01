@@ -22,6 +22,12 @@ export default function ShiftConfigCard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Automatically switch between mock JSON and real API
+  const baseURL =
+    import.meta.env.MODE === "development"
+      ? "/mockdata"
+      : "/api"
+
   useEffect(() => {
     if (facilitySetup) {
       fetchShiftConfigs()
@@ -34,16 +40,22 @@ export default function ShiftConfigCard() {
       setLoading(true)
       setError(null)
 
-      const query = new URLSearchParams({
-        facility: facilitySetup.facility,
-        department: facilitySetup.department,
-        costCenter: facilitySetup.costCenter,
-        bedCount: String(facilitySetup.bedCount),
-        start: facilitySetup.dateRange.start,
-        end: facilitySetup.dateRange.end,
-      })
+      let url = ""
+      if (baseURL === "/mockdata") {
+        url = `${baseURL}/shift-config.json`
+      } else {
+        const query = new URLSearchParams({
+          facility: facilitySetup.facility,
+          department: facilitySetup.department,
+          costCenter: facilitySetup.costCenter,
+          bedCount: String(facilitySetup.bedCount),
+          start: facilitySetup.dateRange.start,
+          end: facilitySetup.dateRange.end,
+        })
+        url = `${baseURL}/shift-config?${query.toString()}`
+      }
 
-      const res = await fetch(`/api/shift-config?${query.toString()}`)
+      const res = await fetch(url)
       if (!res.ok) throw new Error("Failed to load shift configurations")
 
       const data = await res.json()
@@ -61,8 +73,20 @@ export default function ShiftConfigCard() {
       if (!facilitySetup) return
       setError(null)
 
+      if (baseURL === "/mockdata") {
+        // local mock mode
+        setRows((prev) =>
+          row.id
+            ? prev.map((r) => (r.id === row.id ? row : r))
+            : [...prev, { ...row, id: Date.now() }]
+        )
+        return
+      }
+
       const method = row.id ? "PUT" : "POST"
-      const url = row.id ? `/api/shift-config/${row.id}` : "/api/shift-config"
+      const url = row.id
+        ? `${baseURL}/shift-config/${row.id}`
+        : `${baseURL}/shift-config`
 
       const res = await fetch(url, {
         method,
@@ -83,7 +107,13 @@ export default function ShiftConfigCard() {
       if (!facilitySetup || !id) return
       setError(null)
 
-      const res = await fetch(`/api/shift-config/${id}`, { method: "DELETE" })
+      if (baseURL === "/mockdata") {
+        // local mock mode
+        setRows((prev) => prev.filter((r) => r.id !== id))
+        return
+      }
+
+      const res = await fetch(`${baseURL}/shift-config/${id}`, { method: "DELETE" })
       if (!res.ok) throw new Error("Failed to delete shift configuration")
 
       await fetchShiftConfigs()
@@ -183,7 +213,9 @@ export default function ShiftConfigCard() {
                         onChange={(e) =>
                           setRows((prev) =>
                             prev.map((r, idx) =>
-                              idx === i ? { ...r, hours: Number(e.target.value) } : r
+                              idx === i
+                                ? { ...r, hours: Number(e.target.value) }
+                                : r
                             )
                           )
                         }
