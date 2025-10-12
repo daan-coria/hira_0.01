@@ -1,7 +1,16 @@
 import { ReactNode } from "react"
 import clsx from "clsx"
 
-export default function Card({ children, className }: { children: ReactNode; className?: string }) {
+type CardProps = {
+  /** Optional title rendered as a header above children */
+  title?: string
+  /** Optional extra class names */
+  className?: string
+  /** Card content */
+  children: ReactNode
+}
+
+export default function Card({ title, className, children }: CardProps) {
   return (
     <div
       className={clsx(
@@ -9,6 +18,12 @@ export default function Card({ children, className }: { children: ReactNode; cla
         className
       )}
     >
+      {/* ✅ Render title if provided */}
+      {title && (
+        <h3 className="text-lg font-semibold text-gray-800 mb-3">
+          {title}
+        </h3>
+      )}
       {children}
     </div>
   )

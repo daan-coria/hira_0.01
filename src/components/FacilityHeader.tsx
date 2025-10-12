@@ -1,104 +1,163 @@
 import { useState } from "react"
+import Card from "@/components/ui/Card"
+import Button from "@/components/ui/Button"
+import Select from "@/components/ui/Select"
+import Input from "@/components/ui/Input"
 import { useApp } from "@/store/AppContext"
 
-// Reusable UI components
-import Card from "@/components/ui/Card"
-import Input from "@/components/ui/Input"
-import Select from "@/components/ui/Select"
-import Button from "@/components/ui/Button"
-
-type FacilityHeaderProps = {
+type Props = {
+  onNext?: () => void
   onSetupComplete?: () => void
 }
 
-export default function FacilityHeader({ onSetupComplete }: FacilityHeaderProps) {
-  const { setFacilitySetup, setToolType } = useApp()
+export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
+  const { updateFacilitySetup } = useApp()
 
-  const [facility, setFacility] = useState("")
-  const [department, setDepartment] = useState("")
-  const [costCenter, setCostCenter] = useState("")
-  const [bedCount, setBedCount] = useState<number>(0)
-  const [dateRange, setDateRange] = useState({ start: "", end: "" })
+  const [form, setForm] = useState({
+    facility: "",
+    department: "",
+    costCenter: "",
+    bedCount: "",
+    startDate: "",
+    endDate: "",
+  })
 
-  const handleSubmit = () => {
-    if (!facility || !department || !costCenter || !dateRange.start || !dateRange.end) {
-      alert("Please complete all fields before continuing.")
-      return
+  // Dropdown option sets
+  const facilityOptions = [
+    "General Hospital",
+    "Regional Medical Center",
+    "Valley Care Center",
+  ]
+
+  const costCenterOptions = ["CC1001", "CC2003", "CC3012", "CC4015"]
+
+  // ✅ Facility → Department dynamic mapping
+  const departmentMap: Record<string, string[]> = {
+    "General Hospital": ["ICU", "ER", "Med-Surg", "Pediatrics"],
+    "Regional Medical Center": [
+      "ICU",
+      "Telemetry",
+      "Oncology",
+      "Labor & Delivery",
+    ],
+    "Valley Care Center": ["Rehab", "Memory Care", "Skilled Nursing"],
+  }
+
+  // Derived departments based on selected facility
+  const departmentOptions =
+    departmentMap[form.facility] || ["(Select facility first)"]
+
+  const handleChange = (key: keyof typeof form, value: string) => {
+    // Reset department if facility changes
+    if (key === "facility") {
+      setForm((prev) => ({ ...prev, facility: value, department: "" }))
+    } else {
+      setForm((prev) => ({ ...prev, [key]: value }))
+    }
+  }
+
+  const handleContinue = () => {
+    const payload = {
+      facility: form.facility,
+      department: form.department,
+      costCenter: form.costCenter,
+      bedCount: Number(form.bedCount) || 0,
+      dateRange: {
+        start: form.startDate,
+        end: form.endDate,
+      },
     }
 
-    // Auto-derive tool type from department
-    const toolType =
-      department.toLowerCase().includes("ed") ||
-      department.toLowerCase().includes("emergency")
-        ? "ED"
-        : "IP"
+    updateFacilitySetup(payload)
 
-    // Save to global state
-    setToolType(toolType)
-    setFacilitySetup({ facility, department, costCenter, bedCount, dateRange })
-
-    // ✅ Trigger navigation after setup
+    // ✅ Trigger navigation callback(s)
+    if (onNext) onNext()
     if (onSetupComplete) onSetupComplete()
   }
 
   return (
-    <Card className="mb-6">
-      <h1 className="text-2xl font-bold mb-4 text-gray-800">HIRA Staffing Tool</h1>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <Card title="HIRA Staffing Tool">
+      <div className="grid grid-cols-3 gap-4">
         {/* Facility */}
-        <Input
+        <Select
           id="facility"
           label="Facility"
-          type="text"
-          value={facility}
-          onChange={(e) => setFacility(e.target.value)}
-          placeholder="Facility name"
-        />
+          value={form.facility}
+          onChange={(e) => handleChange("facility", e.target.value)}
+        >
+          <option value="">-- Select Facility --</option>
+          {facilityOptions.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </Select>
 
         {/* Department */}
         <Select
           id="department"
           label="Department"
-          value={department}
-          onChange={(e) => setDepartment(e.target.value)}
+          value={form.department}
+          onChange={(e) => handleChange("department", e.target.value)}
+          disabled={!form.facility}
         >
           <option value="">-- Select Department --</option>
-          <option value="Emergency Department">Emergency Department</option>
-          <option value="ICU">ICU</option>
-          <option value="Med/Surg">Med/Surg</option>
-          <option value="Pediatrics">Pediatrics</option>
-          <option value="Oncology">Oncology</option>
-          <option value="Labor & Delivery">Labor & Delivery</option>
+          {departmentOptions.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
         </Select>
 
         {/* Cost Center */}
-        <Input
+        <Select
           id="costCenter"
           label="Cost Center"
-          type="text"
-          value={costCenter}
-          onChange={(e) => setCostCenter(e.target.value)}
-          placeholder="e.g. CC1234"
-        />
+          value={form.costCenter}
+          onChange={(e) => handleChange("costCenter", e.target.value)}
+        >
+          <option value="">-- Select Cost Center --</option>
+          {costCenterOptions.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </Select>
 
-        {/* Bed Count */}
-        <Input
-          id="bedCount"
-          label="Bed Count"
-          type="number"
-          value={bedCount}
-          onChange={(e) => setBedCount(Number(e.target.value))}
-          placeholder="Number of beds"
-        />
+        {/* Bed Count (Numeric input + suggestions) */}
+        <div className="flex flex-col">
+          <label
+            htmlFor="bedCount"
+            className="text-sm font-medium text-gray-700 mb-1"
+          >
+            Bed Count
+          </label>
+          <Input
+            id="bedCount"
+            label=""
+            type="number"
+            min={0}
+            value={form.bedCount}
+            onChange={(e) => handleChange("bedCount", e.target.value)}
+            list="bedCounts"
+            className="!m-0 !p-1"
+          />
+          <datalist id="bedCounts">
+            {[0, 10, 20, 25, 30, 40, 50, 75, 100, 150, 200, 250, 300, 400, 500].map(
+              (v) => (
+                <option key={v} value={v} />
+              )
+            )}
+          </datalist>
+        </div>
 
         {/* Start Date */}
         <Input
           id="startDate"
           label="Start Date"
           type="date"
-          value={dateRange.start}
-          onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
+          value={form.startDate}
+          onChange={(e) => handleChange("startDate", e.target.value)}
         />
 
         {/* End Date */}
@@ -106,14 +165,25 @@ export default function FacilityHeader({ onSetupComplete }: FacilityHeaderProps)
           id="endDate"
           label="End Date"
           type="date"
-          value={dateRange.end}
-          onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+          value={form.endDate}
+          onChange={(e) => handleChange("endDate", e.target.value)}
         />
       </div>
 
-      <div className="mt-4 flex justify-end">
-        <Button onClick={handleSubmit} variant="primary">
-          Refresh Data
+      {/* Continue button */}
+      <div className="flex justify-end mt-6">
+        <Button
+          variant="primary"
+          onClick={handleContinue}
+          disabled={
+            !form.facility ||
+            !form.department ||
+            !form.costCenter ||
+            !form.startDate ||
+            !form.endDate
+          }
+        >
+          Continue →
         </Button>
       </div>
     </Card>

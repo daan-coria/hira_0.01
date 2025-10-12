@@ -8,7 +8,7 @@ import {
   useEffect,
   ReactNode,
 } from "react"
-import { hiraApi } from "@/services/hiraApi" // ✅ make sure alias is correct for your structure
+import { hiraApi } from "@/services/hiraApi"
 
 // ---------------------------------------------
 // TYPES
@@ -17,8 +17,8 @@ export type FacilitySetup = {
   facility: string
   department: string
   costCenter: string
-  bedCount: number
-  dateRange: { start: string; end: string }
+  bedCount: number | string
+  dateRange?: { start: string; end: string }
 }
 
 export type AppState = {
@@ -74,17 +74,21 @@ function appReducer(state: AppState, action: Action): AppState {
 }
 
 // ---------------------------------------------
-// CONTEXT
+// CONTEXT TYPE
 // ---------------------------------------------
 type AppContextType = {
   state: AppState
   data: DataState
   setFacilitySetup: (setup: FacilitySetup | null) => void
+  updateFacilitySetup: (setup: FacilitySetup) => void // ✅ ADDED
   setToolType: (type: "IP") => void
   reloadData: () => Promise<void>
-  updateData: (key: keyof DataState, value: any[]) => void // ✅ NEW
+  updateData: (key: keyof DataState, value: any[]) => void
 }
 
+// ---------------------------------------------
+// CONTEXT INSTANCE
+// ---------------------------------------------
 const AppContext = createContext<AppContextType>(null as any)
 
 // ---------------------------------------------
@@ -96,7 +100,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const STORAGE_KEY = `hira_ip_state_${import.meta.env.MODE}`
 
+  // ---------------------------------------------
   // Load from localStorage on mount
+  // ---------------------------------------------
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY)
     if (saved) {
@@ -111,7 +117,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  // Save setup to localStorage
+  // Save setup to localStorage whenever state changes
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
   }, [state])
@@ -121,7 +127,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // ---------------------------------------------
   const reloadData = async () => {
     try {
-      setData((prev) => ({ ...prev, loading: true, error: undefined }))
+      setData(prev => ({ ...prev, loading: true, error: undefined }))
 
       const [
         resourceInput,
@@ -150,7 +156,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       })
     } catch (err: any) {
       console.error("❌ Data load failed:", err)
-      setData((prev) => ({
+      setData(prev => ({
         ...prev,
         loading: false,
         error: err.message || "Data load failed",
@@ -158,34 +164,46 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // ✅ Allow any card to update its slice of data
+  // ✅ Allow individual components to update slices of data
   const updateData = (key: keyof DataState, value: any[]) => {
-    setData((prev) => ({
+    setData(prev => ({
       ...prev,
       [key]: value,
     }))
   }
 
-  // Auto-load on mount
+  // Auto-load once on mount
   useEffect(() => {
     reloadData()
   }, [])
 
+  // ---------------------------------------------
+  // Facility + Tool Type actions
+  // ---------------------------------------------
   const setFacilitySetup = (setup: FacilitySetup | null) =>
     dispatch({ type: "SET_FACILITY_SETUP", payload: setup })
+
+  // ✅ New wrapper that enforces type + saves to reducer
+  const updateFacilitySetup = (setup: FacilitySetup) => {
+    dispatch({ type: "SET_FACILITY_SETUP", payload: setup })
+  }
 
   const setToolType = (type: "IP") =>
     dispatch({ type: "SET_TOOL_TYPE", payload: type })
 
+  // ---------------------------------------------
+  // PROVIDER RETURN
+  // ---------------------------------------------
   return (
     <AppContext.Provider
       value={{
         state,
         data,
         setFacilitySetup,
+        updateFacilitySetup, // ✅ added here
         setToolType,
         reloadData,
-        updateData, // ✅ exposed here
+        updateData,
       }}
     >
       {children}

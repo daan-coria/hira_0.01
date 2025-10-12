@@ -48,9 +48,10 @@ export default function PositionControlCard() {
           department: facilitySetup.department,
           costCenter: facilitySetup.costCenter,
           bedCount: String(facilitySetup.bedCount),
-          start: facilitySetup.dateRange.start,
-          end: facilitySetup.dateRange.end,
+          start: facilitySetup.dateRange?.start || "",
+          end: facilitySetup.dateRange?.end || "",
         })
+
         url = `${baseURL}/position-control?${query.toString()}`
       }
 
