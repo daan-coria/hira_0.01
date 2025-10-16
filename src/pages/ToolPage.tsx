@@ -1,4 +1,3 @@
-import { useState } from "react"
 import { useApp } from "@/store/AppContext"
 import { useNavigate } from "react-router-dom"
 
@@ -17,8 +16,15 @@ import Button from "@/components/ui/Button"
 
 export default function ToolPage() {
   const navigate = useNavigate()
-  const { state, setFacilitySetup, setToolType, reloadData, data } = useApp()
-  const [currentStep, setCurrentStep] = useState(0)
+  const {
+    state,
+    setFacilitySetup,
+    setToolType,
+    reloadData,
+    data,
+    currentStep,
+    setCurrentStep,
+  } = useApp()
 
   const totalSteps = 7
   const progressPercent = ((currentStep + 1) / totalSteps) * 100
@@ -37,16 +43,12 @@ export default function ToolPage() {
     )
     if (!confirmReset) return
 
-    // Reset the setup and tool type
     setFacilitySetup({} as any)
     setToolType("IP")
     setCurrentStep(0)
     navigate("/setup")
   }
 
-  // -------------------------------
-  // Step Renderer
-  // -------------------------------
   const renderStep = () => {
     switch (currentStep) {
       case 0:
@@ -81,15 +83,10 @@ export default function ToolPage() {
     }
   }
 
-  // -------------------------------
-  // Layout
-  // -------------------------------
   return (
     <div className="space-y-8 p-6 max-w-6xl mx-auto">
-      {/* Facility Header - always visible */}
       <FacilityHeader />
 
-      {/* Step Header + Progress */}
       <div className="w-full" aria-label="Progress Section">
         <div className="flex justify-between items-center mb-1">
           <h2 className="text-lg font-semibold text-gray-800">
@@ -109,7 +106,6 @@ export default function ToolPage() {
           </span>
         </div>
 
-        {/* Native Progress element for accessibility */}
         <progress
           className="w-full h-3 accent-green-500 rounded"
           value={currentStep + 1}
@@ -118,7 +114,6 @@ export default function ToolPage() {
         />
       </div>
 
-      {/* Step Content */}
       {data.loading ? (
         <p className="text-gray-500 text-center mt-10">
           Loading data, please wait...
@@ -127,7 +122,6 @@ export default function ToolPage() {
         <div>{renderStep()}</div>
       )}
 
-      {/* Manual Reload Option (for debugging local JSON updates) */}
       <div className="text-center">
         <Button variant="ghost" onClick={reloadData}>
           🔁 Reload Mock Data

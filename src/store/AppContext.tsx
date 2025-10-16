@@ -1,222 +1,145 @@
-console.log("💡 Mock mode:", import.meta.env.VITE_USE_MOCK)
-
-import {
+import React, {
   createContext,
   useContext,
-  useReducer,
   useState,
   useEffect,
   ReactNode,
 } from "react"
-import { hiraApi } from "@/services/hiraApi"
 
-// ---------------------------------------------
-// TYPES
-// ---------------------------------------------
-export type FacilitySetup = {
-  facility: string
-  department: string
-  costCenter: string
-  bedCount: number | string
-  dateRange?: { start: string; end: string }
-}
-
-export type AppState = {
-  facilitySetup: FacilitySetup | null
-  toolType: "IP"
-}
-
-export type DataState = {
-  resourceInput: any[]
-  shiftConfig: any[]
-  staffingConfig: any[]
-  availabilityConfig: any[]
-  censusOverride: any[]
-  gapSummary: any[]
-  loading: boolean
-  error?: string
-}
-
-// ---------------------------------------------
-// INITIAL STATE
-// ---------------------------------------------
-const initialState: AppState = {
-  facilitySetup: null,
-  toolType: "IP",
-}
-
-const initialData: DataState = {
-  resourceInput: [],
-  shiftConfig: [],
-  staffingConfig: [],
-  availabilityConfig: [],
-  censusOverride: [],
-  gapSummary: [],
-  loading: true,
-}
-
-// ---------------------------------------------
-// REDUCER + ACTIONS
-// ---------------------------------------------
-type Action =
-  | { type: "SET_FACILITY_SETUP"; payload: FacilitySetup | null }
-  | { type: "SET_TOOL_TYPE"; payload: "IP" }
-
-function appReducer(state: AppState, action: Action): AppState {
-  switch (action.type) {
-    case "SET_FACILITY_SETUP":
-      return { ...state, facilitySetup: action.payload }
-    case "SET_TOOL_TYPE":
-      return { ...state, toolType: action.payload }
-    default:
-      return state
+// Define your types
+type FacilitySetup = {
+  facility?: string
+  department?: string
+  costCenter?: string
+  bedCount?: number
+  dateRange?: {
+    start?: string
+    end?: string
   }
 }
 
-// ---------------------------------------------
-// CONTEXT TYPE
-// ---------------------------------------------
+type AppState = {
+  facilitySetup?: FacilitySetup | null
+  toolType: "IP" | "ED"
+}
+
+type DataState = {
+  loading: boolean
+  [key: string]: any
+}
+
+// Context shape
 type AppContextType = {
   state: AppState
   data: DataState
-  setFacilitySetup: (setup: FacilitySetup | null) => void
-  updateFacilitySetup: (setup: FacilitySetup) => void // ✅ ADDED
-  setToolType: (type: "IP") => void
-  reloadData: () => Promise<void>
-  updateData: (key: keyof DataState, value: any[]) => void
+  updateData: (key: string, value: any) => void
+  reloadData: () => void
+  setFacilitySetup: (payload: FacilitySetup) => void
+  setToolType: (type: "IP" | "ED") => void
+  updateFacilitySetup: (payload: FacilitySetup) => void
+  currentStep: number
+  setCurrentStep: React.Dispatch<React.SetStateAction<number>>
 }
 
-// ---------------------------------------------
-// CONTEXT INSTANCE
-// ---------------------------------------------
-const AppContext = createContext<AppContextType>(null as any)
+// Create context
+const AppContext = createContext<AppContextType | undefined>(undefined)
 
-// ---------------------------------------------
-// PROVIDER
-// ---------------------------------------------
+// Hook
+export function useApp() {
+  const context = useContext(AppContext)
+  if (!context) throw new Error("useApp must be used within an AppProvider")
+  return context
+}
+
+// Provider
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(appReducer, initialState)
-  const [data, setData] = useState<DataState>(initialData)
+  // -----------------------
+  // Core app state
+  // -----------------------
+  const [state, setState] = useState<AppState>({
+    facilitySetup: null,
+    toolType: "IP",
+  })
 
-  const STORAGE_KEY = `hira_ip_state_${import.meta.env.MODE}`
+  // -----------------------
+  // Shared data
+  // -----------------------
+  const [data, setData] = useState<DataState>({ loading: true })
 
-  // ---------------------------------------------
-  // Load from localStorage on mount
-  // ---------------------------------------------
-  useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved)
-        if (parsed.facilitySetup) {
-          dispatch({ type: "SET_FACILITY_SETUP", payload: parsed.facilitySetup })
-        }
-      } catch (err) {
-        console.error("⚠️ Failed to load saved setup:", err)
-      }
-    }
-  }, [])
+  // -----------------------
+  // Global step control (persistent)
+  // -----------------------
+  const [currentStep, setCurrentStepState] = useState(() => {
+    // Try loading the last saved step from localStorage
+    const saved = localStorage.getItem("hira_current_step")
+    return saved ? Number(saved) : 0
+  })
 
-  // Save setup to localStorage whenever state changes
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-  }, [state])
+  // Wrapped setter that saves to localStorage too
+  const setCurrentStep = (value: number | ((prev: number) => number)) => {
+    setCurrentStepState((prev) => {
+      const newStep = typeof value === "function" ? value(prev) : value
+      localStorage.setItem("hira_current_step", String(newStep))
+      return newStep
+    })
+  }
 
-  // ---------------------------------------------
-  // Data Loader (Mock or API)
-  // ---------------------------------------------
+  // -----------------------
+  // Data management
+  // -----------------------
+  const updateData = (key: string, value: any) => {
+    setData((prev) => ({ ...prev, [key]: value }))
+  }
+
   const reloadData = async () => {
     try {
-      setData(prev => ({ ...prev, loading: true, error: undefined }))
-
-      const [
-        resourceInput,
-        shiftConfig,
-        staffingConfig,
-        availabilityConfig,
-        censusOverride,
-        gapSummary,
-      ] = await Promise.all([
-        hiraApi.getResourceInput(),
-        hiraApi.getShiftConfigs(),
-        hiraApi.getStaffingConfiguration(),
-        hiraApi.getAvailability(),
-        hiraApi.getCensusOverride(),
-        hiraApi.getGapSummary(),
-      ])
-
-      setData({
-        resourceInput,
-        shiftConfig,
-        staffingConfig,
-        availabilityConfig,
-        censusOverride,
-        gapSummary,
-        loading: false,
-      })
-    } catch (err: any) {
-      console.error("❌ Data load failed:", err)
-      setData(prev => ({
-        ...prev,
-        loading: false,
-        error: err.message || "Data load failed",
-      }))
+      setData((prev) => ({ ...prev, loading: true }))
+      // Load mock JSON or future API data
+      const response = await fetch("/mockdata/data.json")
+      const result = await response.json()
+      setData({ ...result, loading: false })
+    } catch (err) {
+      console.error("Error reloading data:", err)
+      setData((prev) => ({ ...prev, loading: false }))
     }
   }
 
-  // ✅ Allow individual components to update slices of data
-  const updateData = (key: keyof DataState, value: any[]) => {
-    setData(prev => ({
-      ...prev,
-      [key]: value,
-    }))
-  }
-
-  // Auto-load once on mount
   useEffect(() => {
     reloadData()
   }, [])
 
-  // ---------------------------------------------
-  // Facility + Tool Type actions
-  // ---------------------------------------------
-  const setFacilitySetup = (setup: FacilitySetup | null) =>
-    dispatch({ type: "SET_FACILITY_SETUP", payload: setup })
-
-  // ✅ New wrapper that enforces type + saves to reducer
-  const updateFacilitySetup = (setup: FacilitySetup) => {
-    dispatch({ type: "SET_FACILITY_SETUP", payload: setup })
+  // -----------------------
+  // Facility + tool management
+  // -----------------------
+  const setFacilitySetup = (payload: FacilitySetup) => {
+    setState((prev) => ({ ...prev, facilitySetup: payload }))
   }
 
-  const setToolType = (type: "IP") =>
-    dispatch({ type: "SET_TOOL_TYPE", payload: type })
+  const updateFacilitySetup = (payload: FacilitySetup) => {
+    setState((prev) => ({
+      ...prev,
+      facilitySetup: { ...prev.facilitySetup, ...payload },
+    }))
+  }
 
-  // ---------------------------------------------
-  // PROVIDER RETURN
-  // ---------------------------------------------
-  return (
-    <AppContext.Provider
-      value={{
-        state,
-        data,
-        setFacilitySetup,
-        updateFacilitySetup, // ✅ added here
-        setToolType,
-        reloadData,
-        updateData,
-      }}
-    >
-      {children}
-    </AppContext.Provider>
-  )
-}
+  const setToolType = (type: "IP" | "ED") => {
+    setState((prev) => ({ ...prev, toolType: type }))
+  }
 
-// ---------------------------------------------
-// HOOK
-// ---------------------------------------------
-export const useApp = () => {
-  const context = useContext(AppContext)
-  if (!context)
-    throw new Error("useApp must be used inside an AppProvider")
-  return context
+  // -----------------------
+  // Provider value
+  // -----------------------
+  const value: AppContextType = {
+    state,
+    data,
+    updateData,
+    reloadData,
+    setFacilitySetup,
+    updateFacilitySetup,
+    setToolType,
+    currentStep,
+    setCurrentStep,
+  }
+
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }

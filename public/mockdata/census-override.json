@@ -1,37 +1,32 @@
 [
   {
     "id": 1,
-    "date": "2025-10-01",
+    "date": "10/01/2025",
     "shift": "Day",
-    "census_value": 34,
-    "adjusted_value": 36
+    "systemCensus": 42,
+    "overrideCensus": 40,
+    "reason": "Isolation overflow"
   },
   {
     "id": 2,
-    "date": "2025-10-01",
+    "date": "10/01/2025",
     "shift": "Night",
-    "census_value": 30,
-    "adjusted_value": 30
+    "systemCensus": 38,
+    "overrideCensus": 39,
+    "reason": "ER admissions"
   },
   {
     "id": 3,
-    "date": "2025-10-02",
+    "date": "10/02/2025",
     "shift": "Day",
-    "census_value": 35,
-    "adjusted_value": 35
+    "systemCensus": 44,
+    "overrideCensus": 44
   },
   {
     "id": 4,
-    "date": "2025-10-02",
+    "date": "10/02/2025",
     "shift": "Night",
-    "census_value": 31,
-    "adjusted_value": 32
-  },
-  {
-    "id": 5,
-    "date": "2025-10-03",
-    "shift": "Day",
-    "census_value": 33,
-    "adjusted_value": 33
+    "systemCensus": 37,
+    "overrideCensus": 35
   }
 ]
