@@ -1,6 +1,7 @@
 [
   {
     "id": 1,
+    "employee_id": "EMP001",
     "first_name": "Emily",
     "last_name": "Nguyen",
     "position": "RN",
@@ -11,6 +12,7 @@
   },
   {
     "id": 2,
+    "employee_id": "EMP002",
     "first_name": "Michael",
     "last_name": "Lopez",
     "position": "RN",
@@ -21,6 +23,7 @@
   },
   {
     "id": 3,
+    "employee_id": "EMP003",
     "first_name": "Sarah",
     "last_name": "Johnson",
     "position": "CNA",
@@ -31,6 +34,7 @@
   },
   {
     "id": 4,
+    "employee_id": "EMP004",
     "first_name": "David",
     "last_name": "Martinez",
     "position": "LPN",
@@ -41,6 +45,7 @@
   },
   {
     "id": 5,
+    "employee_id": "EMP005",
     "first_name": "Olivia",
     "last_name": "Green",
     "position": "Clerk",

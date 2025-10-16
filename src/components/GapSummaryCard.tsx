@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useApp } from "@/store/AppContext"
 import Card from "@/components/ui/Card"
 import Button from "@/components/ui/Button"
+import debounce from "lodash.debounce"
 
-// Result row type
 type GapSummaryRow = {
   id?: number
   unit: string
@@ -20,12 +20,21 @@ type Props = {
 }
 
 export default function GapSummaryCard({ onPrev, onReset }: Props) {
-  const { data } = useApp()
+  const { data, updateData } = useApp()
   const [rows, setRows] = useState<GapSummaryRow[]>([])
+  const [saving, setSaving] = useState(false)
 
-  // --------------------------------------------------
-  // ⚙️ Recalculate whenever inputs change
-  // --------------------------------------------------
+  // Debounced context updater to avoid rapid re-writes
+  const debouncedSave = useCallback(
+    debounce((updated: GapSummaryRow[]) => {
+      setSaving(true)
+      updateData("gapSummary", updated)
+      setTimeout(() => setSaving(false), 600)
+    }, 500),
+    []
+  )
+
+  // 🔄 Recalculate whenever upstream data changes
   useEffect(() => {
     calculateGapSummary()
   }, [
@@ -42,10 +51,11 @@ export default function GapSummaryCard({ onPrev, onReset }: Props) {
       data.censusOverride.length === 0
     ) {
       setRows([])
+      debouncedSave([])
       return
     }
 
-    // ---- 1. Determine Average Census ----
+    // 1️⃣ Average Census
     const censusValues = data.censusOverride
       .map((r: any) => Number(r.census))
       .filter((n) => !isNaN(n))
@@ -54,7 +64,7 @@ export default function GapSummaryCard({ onPrev, onReset }: Props) {
         ? censusValues.reduce((a, b) => a + b, 0) / censusValues.length
         : 0
 
-    // ---- 2. Build StaffingConfig map ----
+    // 2️⃣ StaffingConfig map
     const configMap: Record<
       string,
       { mode: string; maxRatio: number; include: boolean; directCare: number }
@@ -68,7 +78,7 @@ export default function GapSummaryCard({ onPrev, onReset }: Props) {
       }
     })
 
-    // ---- 3. Aggregate Actual FTE by Role ----
+    // 3️⃣ Actual FTE
     const actualFTE: Record<string, number> = {}
     data.resourceInput.forEach((r: any) => {
       const role = r.position
@@ -78,7 +88,7 @@ export default function GapSummaryCard({ onPrev, onReset }: Props) {
       actualFTE[role] = (actualFTE[role] || 0) + fte * direct
     })
 
-    // ---- 4. Calculate Required FTE per Role ----
+    // 4️⃣ Required FTE
     const requiredFTE: Record<string, number> = {}
     Object.entries(configMap).forEach(([role, cfg]) => {
       if (cfg.mode === "Fixed") {
@@ -90,12 +100,9 @@ export default function GapSummaryCard({ onPrev, onReset }: Props) {
       }
     })
 
-    // ---- 5. Compose Summary Rows ----
+    // 5️⃣ Summary rows
     const roles = Array.from(
-      new Set([
-        ...Object.keys(requiredFTE),
-        ...Object.keys(actualFTE),
-      ])
+      new Set([...Object.keys(requiredFTE), ...Object.keys(actualFTE)])
     )
 
     const summary = roles.map((role, i) => {
@@ -121,16 +128,18 @@ export default function GapSummaryCard({ onPrev, onReset }: Props) {
     })
 
     setRows(summary)
+    debouncedSave(summary)
   }
 
-  // --------------------------------------------------
   // 🧮 Render
-  // --------------------------------------------------
   return (
     <Card className="p-4 space-y-4">
-      <h3 className="text-lg font-semibold text-gray-800">
-        Gap Summary
-      </h3>
+      <div className="flex justify-between items-center mb-2">
+        <h3 className="text-lg font-semibold text-gray-800">
+          Gap Summary
+        </h3>
+        {saving && <span className="text-sm text-gray-500">Saving…</span>}
+      </div>
 
       {rows.length === 0 ? (
         <p className="text-gray-500">

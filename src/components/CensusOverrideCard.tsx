@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useApp } from "@/store/AppContext"
 import Card from "@/components/ui/Card"
 import Button from "@/components/ui/Button"
 import Input from "@/components/ui/Input"
+import debounce from "lodash.debounce"
 
 type CensusOverrideRow = {
   id?: number
@@ -20,16 +21,26 @@ type Props = {
 
 export default function CensusOverrideCard({ onNext, onPrev }: Props) {
   const { data, updateData } = useApp()
-
   const [rows, setRows] = useState<CensusOverrideRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [overrideEnabled, setOverrideEnabled] = useState(true)
+  const [saving, setSaving] = useState(false)
 
   const baseURL =
     import.meta.env.MODE === "development" ? "/mockdata" : "/api"
 
-  // Load from global context or mock JSON
+  // --- Debounced save handler ---
+  const debouncedSave = useCallback(
+    debounce((updated: CensusOverrideRow[]) => {
+      setSaving(true)
+      updateData("censusOverride", updated)
+      setTimeout(() => setSaving(false), 600)
+    }, 500),
+    []
+  )
+
+  // Load from context or JSON
   useEffect(() => {
     if (data.censusOverride.length > 0) {
       setRows(data.censusOverride)
@@ -48,10 +59,9 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
       if (!res.ok) throw new Error("Failed to load census override data")
       const json = await res.json()
 
-      // Add systemCensus baseline if missing (simulating model output)
       const enriched = json.map((row: any) => ({
         ...row,
-        systemCensus: row.systemCensus ?? Math.floor(Math.random() * 50) + 20, // fake baseline for dev
+        systemCensus: row.systemCensus ?? Math.floor(Math.random() * 50) + 20,
       }))
 
       setRows(enriched)
@@ -62,21 +72,6 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
     } finally {
       setLoading(false)
     }
-  }
-
-  const saveRow = (row: CensusOverrideRow) => {
-    const updated = row.id
-      ? rows.map(r => (r.id === row.id ? row : r))
-      : [...rows, { ...row, id: Date.now() }]
-    setRows(updated)
-    updateData("censusOverride", updated)
-  }
-
-  const removeRow = (id?: number) => {
-    if (!id) return
-    const updated = rows.filter(r => r.id !== id)
-    setRows(updated)
-    updateData("censusOverride", updated)
   }
 
   const addRow = () => {
@@ -93,12 +88,20 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
     updateData("censusOverride", updated)
   }
 
-  // Toggle override mode
-  const handleToggle = () => {
-    setOverrideEnabled(prev => !prev)
+  const handleChange = (
+    index: number,
+    field: keyof CensusOverrideRow,
+    value: any
+  ) => {
+    const updated = rows.map((r, i) =>
+      i === index ? { ...r, [field]: value } : r
+    )
+    setRows(updated)
+    debouncedSave(updated)
   }
 
-  // Helper: determine if row differs from system
+  const handleToggle = () => setOverrideEnabled((prev) => !prev)
+
   const isOverridden = (r: CensusOverrideRow) =>
     r.systemCensus !== undefined && r.census !== r.systemCensus
 
@@ -110,6 +113,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
           Census Override
         </h3>
         <div className="flex items-center gap-3">
+          {saving && <span className="text-sm text-gray-500">Saving…</span>}
           <label className="flex items-center gap-2 text-sm text-gray-700">
             <input
               type="checkbox"
@@ -141,13 +145,12 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                 <th className="px-3 py-2 border text-right">System Census</th>
                 <th className="px-3 py-2 border text-right">Override</th>
                 <th className="px-3 py-2 border">Reason</th>
-                <th className="px-3 py-2 border text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-4 text-gray-500">
+                  <td colSpan={5} className="text-center py-4 text-gray-500">
                     No census override data yet.
                   </td>
                 </tr>
@@ -171,15 +174,9 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                         type="date"
                         value={row.date}
                         disabled={!overrideEnabled}
-                        onChange={e => {
-                          const updated = rows.map((r, idx) =>
-                            idx === i
-                              ? { ...r, date: e.target.value }
-                              : r
-                          )
-                          setRows(updated)
-                          updateData("censusOverride", updated)
-                        }}
+                        onChange={(e) =>
+                          handleChange(i, "date", e.target.value)
+                        }
                         className="!m-0 !p-1"
                       />
                     </td>
@@ -193,15 +190,9 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                         placeholder="e.g. 07:00"
                         value={row.hour}
                         disabled={!overrideEnabled}
-                        onChange={e => {
-                          const updated = rows.map((r, idx) =>
-                            idx === i
-                              ? { ...r, hour: e.target.value }
-                              : r
-                          )
-                          setRows(updated)
-                          updateData("censusOverride", updated)
-                        }}
+                        onChange={(e) =>
+                          handleChange(i, "hour", e.target.value)
+                        }
                         className="!m-0 !p-1"
                       />
                     </td>
@@ -220,17 +211,13 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                         min="0"
                         value={row.census}
                         disabled={!overrideEnabled}
-                        onChange={e => {
-                          const updated = rows.map((r, idx) =>
-                            idx === i
-                              ? { ...r, census: Number(e.target.value) }
-                              : r
-                          )
-                          setRows(updated)
-                          updateData("censusOverride", updated)
-                        }}
+                        onChange={(e) =>
+                          handleChange(i, "census", Number(e.target.value))
+                        }
                         className={`!m-0 !p-1 w-20 text-right ${
-                          isOverridden(row) ? "border-yellow-400 bg-yellow-50" : ""
+                          isOverridden(row)
+                            ? "border-yellow-400 bg-yellow-50"
+                            : ""
                         }`}
                       />
                     </td>
@@ -244,37 +231,11 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                         placeholder="Optional reason"
                         value={row.reason || ""}
                         disabled={!overrideEnabled}
-                        onChange={e => {
-                          const updated = rows.map((r, idx) =>
-                            idx === i
-                              ? { ...r, reason: e.target.value }
-                              : r
-                          )
-                          setRows(updated)
-                          updateData("censusOverride", updated)
-                        }}
+                        onChange={(e) =>
+                          handleChange(i, "reason", e.target.value)
+                        }
                         className="!m-0 !p-1"
                       />
-                    </td>
-
-                    {/* Actions */}
-                    <td className="border px-2 py-1 text-center space-x-2">
-                      <Button
-                        onClick={() => saveRow(row)}
-                        variant="primary"
-                        className="!px-2 !py-1 text-xs"
-                        disabled={!overrideEnabled}
-                      >
-                        Save
-                      </Button>
-                      <Button
-                        onClick={() => removeRow(row.id)}
-                        variant="ghost"
-                        className="!px-2 !py-1 text-xs text-red-600"
-                        disabled={!overrideEnabled}
-                      >
-                        Remove
-                      </Button>
                     </td>
                   </tr>
                 ))

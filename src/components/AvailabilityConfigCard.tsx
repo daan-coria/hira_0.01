@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useApp } from "@/store/AppContext"
 import Card from "@/components/ui/Card"
 import Button from "@/components/ui/Button"
 import Select from "@/components/ui/Select"
 import Input from "@/components/ui/Input"
+import debounce from "lodash.debounce"
 
 type AvailabilityRow = {
   id?: number
@@ -22,6 +23,17 @@ type Props = {
 export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
   const { data, updateData } = useApp()
   const [rows, setRows] = useState<AvailabilityRow[]>([])
+  const [saving, setSaving] = useState(false)
+
+  // --- Debounced save handler (to prevent too many re-renders) ---
+  const debouncedSave = useCallback(
+    debounce((updated: AvailabilityRow[]) => {
+      setSaving(true)
+      updateData("availabilityConfig", updated)
+      setTimeout(() => setSaving(false), 600) // small visual delay
+    }, 500),
+    []
+  )
 
   // Sync names from resourceInput (Step 2)
   useEffect(() => {
@@ -45,12 +57,17 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
     }
   }, [data.resourceInput])
 
-  const saveRow = (row: AvailabilityRow) => {
-    const updated = rows.map((r) =>
-      r.id === row.id ? row : r
+  // Generic handler for changes
+  const handleChange = (
+    index: number,
+    field: keyof AvailabilityRow,
+    value: any
+  ) => {
+    const updated = rows.map((r, i) =>
+      i === index ? { ...r, [field]: value } : r
     )
     setRows(updated)
-    updateData("availabilityConfig", updated)
+    debouncedSave(updated)
   }
 
   const handleAdd = () => {
@@ -62,8 +79,9 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
       loa_days: 0,
       available_shifts: 0,
     }
-    setRows([...rows, newRow])
-    updateData("availabilityConfig", [...rows, newRow])
+    const updated = [...rows, newRow]
+    setRows(updated)
+    updateData("availabilityConfig", updated)
   }
 
   return (
@@ -72,7 +90,10 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
         <h3 className="text-lg font-semibold text-gray-800">
           Resource Availability
         </h3>
-        <Button onClick={handleAdd}>+ Add Resource</Button>
+        <div className="flex items-center gap-3">
+          {saving && <span className="text-sm text-gray-500">Saving…</span>}
+          <Button onClick={handleAdd}>+ Add Resource</Button>
+        </div>
       </div>
 
       {rows.length === 0 ? (
@@ -87,27 +108,21 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
                 <th className="px-3 py-2 border">PTO Days</th>
                 <th className="px-3 py-2 border">LOA Days</th>
                 <th className="px-3 py-2 border">Available Shifts</th>
-                <th className="px-3 py-2 border text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((row, i) => (
                 <tr key={`${row.staff_name}_${i}`}>
                   <td className="border px-2 py-1">{row.staff_name}</td>
+
                   <td className="border px-2 py-1">
                     <Select
                       id={`weekend_${i}`}
                       label=""
                       value={row.weekend_group}
-                      onChange={(e) => {
-                        const updated = rows.map((r, idx) =>
-                          idx === i
-                            ? { ...r, weekend_group: e.target.value }
-                            : r
-                        )
-                        setRows(updated)
-                        updateData("availabilityConfig", updated)
-                      }}
+                      onChange={(e) =>
+                        handleChange(i, "weekend_group", e.target.value)
+                      }
                       className="!m-0 !p-1"
                     >
                       <option value="">--</option>
@@ -117,6 +132,7 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
                       <option value="WC">WC</option>
                     </Select>
                   </td>
+
                   <td className="border px-2 py-1">
                     <Input
                       id={`pto_${i}`}
@@ -124,18 +140,13 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
                       type="number"
                       min={0}
                       value={row.pto_days}
-                      onChange={(e) => {
-                        const updated = rows.map((r, idx) =>
-                          idx === i
-                            ? { ...r, pto_days: Number(e.target.value) }
-                            : r
-                        )
-                        setRows(updated)
-                        updateData("availabilityConfig", updated)
-                      }}
+                      onChange={(e) =>
+                        handleChange(i, "pto_days", Number(e.target.value))
+                      }
                       className="!m-0 !p-1 w-20"
                     />
                   </td>
+
                   <td className="border px-2 py-1">
                     <Input
                       id={`loa_${i}`}
@@ -143,18 +154,13 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
                       type="number"
                       min={0}
                       value={row.loa_days}
-                      onChange={(e) => {
-                        const updated = rows.map((r, idx) =>
-                          idx === i
-                            ? { ...r, loa_days: Number(e.target.value) }
-                            : r
-                        )
-                        setRows(updated)
-                        updateData("availabilityConfig", updated)
-                      }}
+                      onChange={(e) =>
+                        handleChange(i, "loa_days", Number(e.target.value))
+                      }
                       className="!m-0 !p-1 w-20"
                     />
                   </td>
+
                   <td className="border px-2 py-1">
                     <Input
                       id={`avail_${i}`}
@@ -162,29 +168,15 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
                       type="number"
                       min={0}
                       value={row.available_shifts}
-                      onChange={(e) => {
-                        const updated = rows.map((r, idx) =>
-                          idx === i
-                            ? {
-                                ...r,
-                                available_shifts: Number(e.target.value),
-                              }
-                            : r
+                      onChange={(e) =>
+                        handleChange(
+                          i,
+                          "available_shifts",
+                          Number(e.target.value)
                         )
-                        setRows(updated)
-                        updateData("availabilityConfig", updated)
-                      }}
+                      }
                       className="!m-0 !p-1 w-20"
                     />
-                  </td>
-                  <td className="border px-2 py-1 text-center space-x-2">
-                    <Button
-                      onClick={() => saveRow(row)}
-                      variant="primary"
-                      className="!px-2 !py-1 text-xs"
-                    >
-                      Save
-                    </Button>
                   </td>
                 </tr>
               ))}
