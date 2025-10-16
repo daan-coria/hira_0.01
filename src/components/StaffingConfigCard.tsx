@@ -28,10 +28,19 @@ export default function StaffingConfigCard({ onNext, onPrev }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
+  // ✅ Ensure leading slash for absolute path
   const baseURL =
     import.meta.env.MODE === "development" ? "/mockdata" : "/api"
 
-  // Debounced autosave
+  // ✅ Fallback data in case mock file is missing
+  const fallbackData: StaffingConfigRow[] = [
+    { id: 1, role: "RN", ratio_mode: "Ratio", max_ratio: 4, include_in_ratio: true, direct_care_percent: 100, category: "Nursing" },
+    { id: 2, role: "LPN", ratio_mode: "Ratio", max_ratio: 6, include_in_ratio: true, direct_care_percent: 80, category: "Nursing" },
+    { id: 3, role: "CNA", ratio_mode: "Ratio", max_ratio: 8, include_in_ratio: true, direct_care_percent: 90, category: "Support" },
+    { id: 4, role: "Clerk", ratio_mode: "Fixed", max_ratio: 1, include_in_ratio: false, direct_care_percent: 0, category: "Other" }
+  ]
+
+  // ✅ Debounced autosave
   const debouncedSave = useCallback(
     debounce((updated: StaffingConfigRow[]) => {
       setSaving(true)
@@ -45,25 +54,35 @@ export default function StaffingConfigCard({ onNext, onPrev }: Props) {
     fetchConfigs()
   }, [])
 
+  // ✅ Safe fetch with fallback logic
   const fetchConfigs = async () => {
     try {
       setLoading(true)
       setError(null)
-      const url = `${baseURL}/staffing-config.json`
+
+      const url = `${baseURL}/staffing-config.json` // absolute root path
       const res = await fetch(url)
-      if (!res.ok) throw new Error("Failed to load staffing configuration")
+
+      if (!res.ok) {
+        console.warn(`⚠️ ${url} not found, using fallback data.`)
+        setRows(fallbackData)
+        updateData("staffingConfig", fallbackData)
+        return
+      }
+
       const data = await res.json()
       setRows(data)
       updateData("staffingConfig", data)
     } catch (err: any) {
-      console.error("Failed to load staffing config", err)
-      setError(err.message || "Failed to load staffing configuration")
+      console.error("⚠️ Failed to fetch staffing config, using fallback", err)
+      setRows(fallbackData)
+      updateData("staffingConfig", fallbackData)
+      setError("Loaded fallback staffing configuration.")
     } finally {
       setLoading(false)
     }
   }
 
-  // Unified handler for field changes
   const handleChange = (index: number, field: keyof StaffingConfigRow, value: any) => {
     const updated = rows.map((r, i) =>
       i === index ? { ...r, [field]: value } : r
@@ -100,7 +119,9 @@ export default function StaffingConfigCard({ onNext, onPrev }: Props) {
       </div>
 
       {error && (
-        <p className="text-red-600 bg-red-50 px-3 py-1 rounded">{error}</p>
+        <p className="text-yellow-700 bg-yellow-50 px-3 py-1 rounded">
+          {error}
+        </p>
       )}
 
       {loading ? (
@@ -112,13 +133,31 @@ export default function StaffingConfigCard({ onNext, onPrev }: Props) {
               <tr>
                 <th className="px-3 py-2 border">Role</th>
                 <th className="px-3 py-2 border">Ratio Mode</th>
-                <th className="px-3 py-2 border text-right">Max Ratio</th>
-                <th className="px-3 py-2 border text-center">Regular Ratio</th>
+
+                {/* Max Ratio with tooltip */}
+                <th
+                  className="px-3 py-2 border text-right cursor-help relative group"
+                  title="Max Ratio: Maximum number of patients one staff member can care for (e.g., 1:6 means one RN per six patients)."
+                >
+                  Max Ratio
+                  <span className="ml-1 text-gray-400 group-hover:text-gray-600">ℹ️</span>
+                </th>
+
+                {/* Regular Ratio with tooltip */}
+                <th
+                  className="px-3 py-2 border text-center cursor-help relative group"
+                  title="Regular Ratio: Readable display of the staff-to-patient ratio (1 : Max Ratio)."
+                >
+                  Regular Ratio
+                  <span className="ml-1 text-gray-400 group-hover:text-gray-600">ℹ️</span>
+                </th>
+
                 <th className="px-3 py-2 border text-center">Include in Ratio</th>
                 <th className="px-3 py-2 border text-right">Direct Care %</th>
                 <th className="px-3 py-2 border">Category</th>
               </tr>
             </thead>
+
             <tbody>
               {rows.length === 0 ? (
                 <tr>
@@ -184,7 +223,7 @@ export default function StaffingConfigCard({ onNext, onPrev }: Props) {
                       />
                     </td>
 
-                    {/* Regular Ratio (auto display) */}
+                    {/* Regular Ratio */}
                     <td className="border px-2 py-1 text-center text-gray-700 font-medium">
                       {row.ratio_mode === "Ratio"
                         ? `1 : ${row.max_ratio || 0}`

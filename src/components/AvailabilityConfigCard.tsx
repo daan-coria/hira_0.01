@@ -1,41 +1,39 @@
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
 import { useApp } from "@/store/AppContext"
 import Card from "@/components/ui/Card"
 import Button from "@/components/ui/Button"
-import Select from "@/components/ui/Select"
 import Input from "@/components/ui/Input"
 import debounce from "lodash.debounce"
+
+type DateRange = { start: string; end: string }
 
 type AvailabilityRow = {
   id?: number
   staff_name: string
-  weekend_group: string
+  pto_range: DateRange
+  loa_range: DateRange
   pto_days: number
   loa_days: number
-  available_shifts: number
 }
 
-type Props = {
-  onNext?: () => void
-  onPrev?: () => void
-}
+type Props = { onNext?: () => void; onPrev?: () => void }
 
 export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
   const { data, updateData } = useApp()
   const [rows, setRows] = useState<AvailabilityRow[]>([])
   const [saving, setSaving] = useState(false)
 
-  // --- Debounced save handler (to prevent too many re-renders) ---
+  // --- Debounced autosave ---
   const debouncedSave = useCallback(
     debounce((updated: AvailabilityRow[]) => {
       setSaving(true)
       updateData("availabilityConfig", updated)
-      setTimeout(() => setSaving(false), 600) // small visual delay
-    }, 500),
+      setTimeout(() => setSaving(false), 600)
+    }, 600),
     []
   )
 
-  // Sync names from resourceInput (Step 2)
+  // --- Sync staff names from Step 2 ---
   useEffect(() => {
     if (data.resourceInput.length > 0) {
       const updated = data.resourceInput.map((r: any, i: number) => {
@@ -45,10 +43,10 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
           existing || {
             id: Date.now() + i,
             staff_name: name,
-            weekend_group: r.weekend_group || "",
+            pto_range: { start: "", end: "" },
+            loa_range: { start: "", end: "" },
             pto_days: 0,
             loa_days: 0,
-            available_shifts: 0,
           }
         )
       })
@@ -57,32 +55,75 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
     }
   }, [data.resourceInput])
 
-  // Generic handler for changes
-  const handleChange = (
+  // --- Helpers ---
+  const calcDays = (start: string, end: string) => {
+    if (!start || !end) return 0
+    const s = new Date(start)
+    const e = new Date(end)
+    const diff = Math.round((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24))
+    return diff >= 0 ? diff + 1 : 0
+  }
+
+  const handleRangeChange = (
     index: number,
-    field: keyof AvailabilityRow,
-    value: any
+    type: "pto" | "loa",
+    field: "start" | "end",
+    value: string
   ) => {
-    const updated = rows.map((r, i) =>
-      i === index ? { ...r, [field]: value } : r
-    )
+    const updated = rows.map((r, i) => {
+      if (i !== index) return r
+      const rangeKey = type === "pto" ? "pto_range" : "loa_range"
+      const daysKey = type === "pto" ? "pto_days" : "loa_days"
+
+      const newRange = { ...r[rangeKey], [field]: value }
+      const newDays = calcDays(newRange.start, newRange.end)
+
+      return { ...r, [rangeKey]: newRange, [daysKey]: newDays }
+    })
     setRows(updated)
     debouncedSave(updated)
   }
 
+  // --- Add Resource (syncs with Step 2) ---
   const handleAdd = () => {
     const newRow: AvailabilityRow = {
       id: Date.now(),
       staff_name: "",
-      weekend_group: "",
+      pto_range: { start: "", end: "" },
+      loa_range: { start: "", end: "" },
       pto_days: 0,
       loa_days: 0,
-      available_shifts: 0,
     }
+
     const updated = [...rows, newRow]
     setRows(updated)
     updateData("availabilityConfig", updated)
+
+    const newResource = {
+      id: newRow.id,
+      first_name: "",
+      last_name: "",
+      position: "",
+      unit_fte: 1,
+      availability: "Day",
+      weekend_group: "",
+      vacancy_status: "Filled",
+    }
+    const updatedResources = [...data.resourceInput, newResource]
+    updateData("resourceInput", updatedResources)
   }
+
+  // --- Summary totals ---
+  const summary = useMemo(() => {
+    const perStaff = rows.map((r) => ({
+      name: r.staff_name,
+      pto: r.pto_days,
+      loa: r.loa_days,
+      total: r.pto_days + r.loa_days,
+    }))
+    const grandTotal = perStaff.reduce((sum, r) => sum + r.total, 0)
+    return { perStaff, grandTotal }
+  }, [rows])
 
   return (
     <Card className="p-4 space-y-4">
@@ -96,6 +137,7 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
         </div>
       </div>
 
+      {/* Table */}
       {rows.length === 0 ? (
         <p className="text-gray-500">No availability data yet.</p>
       ) : (
@@ -104,82 +146,128 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-3 py-2 border">Staff Name</th>
-                <th className="px-3 py-2 border">Weekend Group</th>
-                <th className="px-3 py-2 border">PTO Days</th>
-                <th className="px-3 py-2 border">LOA Days</th>
-                <th className="px-3 py-2 border">Available Shifts</th>
+                <th className="px-3 py-2 border text-center" colSpan={3}>
+                  PTO Period
+                </th>
+                <th className="px-3 py-2 border text-center" colSpan={3}>
+                  LOA Period
+                </th>
+              </tr>
+              <tr className="bg-gray-50">
+                <th className="px-3 py-1 border"></th>
+                <th className="px-3 py-1 border">Start</th>
+                <th className="px-3 py-1 border">End</th>
+                <th className="px-3 py-1 border text-right">Days</th>
+                <th className="px-3 py-1 border">Start</th>
+                <th className="px-3 py-1 border">End</th>
+                <th className="px-3 py-1 border text-right">Days</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((row, i) => (
-                <tr key={`${row.staff_name}_${i}`}>
-                  <td className="border px-2 py-1">{row.staff_name}</td>
+                <tr key={row.id || i}>
+                  <td className="border px-2 py-1 text-gray-700">
+                    {row.staff_name || "(Unnamed)"}
+                  </td>
 
-                  <td className="border px-2 py-1">
-                    <Select
-                      id={`weekend_${i}`}
+                  {/* PTO Dates */}
+                  <td className="border px-2 py-1 text-center">
+                    <Input
+                      id={`pto_start_${i}`}
                       label=""
-                      value={row.weekend_group}
+                      type="date"
+                      value={row.pto_range.start}
                       onChange={(e) =>
-                        handleChange(i, "weekend_group", e.target.value)
+                        handleRangeChange(i, "pto", "start", e.target.value)
                       }
                       className="!m-0 !p-1"
-                    >
-                      <option value="">--</option>
-                      <option value="A">A</option>
-                      <option value="B">B</option>
-                      <option value="C">C</option>
-                      <option value="WC">WC</option>
-                    </Select>
-                  </td>
-
-                  <td className="border px-2 py-1">
-                    <Input
-                      id={`pto_${i}`}
-                      label=""
-                      type="number"
-                      min={0}
-                      value={row.pto_days}
-                      onChange={(e) =>
-                        handleChange(i, "pto_days", Number(e.target.value))
-                      }
-                      className="!m-0 !p-1 w-20"
                     />
                   </td>
-
-                  <td className="border px-2 py-1">
+                  <td className="border px-2 py-1 text-center">
                     <Input
-                      id={`loa_${i}`}
+                      id={`pto_start_${i}`}
                       label=""
-                      type="number"
-                      min={0}
-                      value={row.loa_days}
+                      type="date"
+                      value={row.pto_range.end}
                       onChange={(e) =>
-                        handleChange(i, "loa_days", Number(e.target.value))
+                        handleRangeChange(i, "pto", "end", e.target.value)
                       }
-                      className="!m-0 !p-1 w-20"
+                      className="!m-0 !p-1"
                     />
                   </td>
+                  <td className="border px-2 py-1 text-right text-gray-700 font-medium">
+                    {row.pto_days}
+                  </td>
 
-                  <td className="border px-2 py-1">
+                  {/* LOA Dates */}
+                  <td className="border px-2 py-1 text-center">
                     <Input
-                      id={`avail_${i}`}
+                      id={`pto_start_${i}`}
                       label=""
-                      type="number"
-                      min={0}
-                      value={row.available_shifts}
+                      type="date"
+                      value={row.loa_range.start}
                       onChange={(e) =>
-                        handleChange(
-                          i,
-                          "available_shifts",
-                          Number(e.target.value)
-                        )
+                        handleRangeChange(i, "loa", "start", e.target.value)
                       }
-                      className="!m-0 !p-1 w-20"
+                      className="!m-0 !p-1"
                     />
+                  </td>
+                  <td className="border px-2 py-1 text-center">
+                    <Input
+                      id={`pto_start_${i}`}
+                      label=""
+                      type="date"
+                      value={row.loa_range.end}
+                      onChange={(e) =>
+                        handleRangeChange(i, "loa", "end", e.target.value)
+                      }
+                      className="!m-0 !p-1"
+                    />
+                  </td>
+                  <td className="border px-2 py-1 text-right text-gray-700 font-medium">
+                    {row.loa_days}
                   </td>
                 </tr>
               ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Summary Section */}
+      {summary.perStaff.length > 0 && (
+        <div className="mt-6 border-t pt-4">
+          <h4 className="text-md font-semibold text-gray-800 mb-2">
+            Time-Off Summary
+          </h4>
+          <table className="min-w-full border border-gray-200 text-sm">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-3 py-2 border text-left">Staff</th>
+                <th className="px-3 py-2 border text-right">PTO Days</th>
+                <th className="px-3 py-2 border text-right">LOA Days</th>
+                <th className="px-3 py-2 border text-right">Total Days Off</th>
+              </tr>
+            </thead>
+            <tbody>
+              {summary.perStaff.map((r, i) => (
+                <tr key={i}>
+                  <td className="border px-3 py-1">{r.name}</td>
+                  <td className="border px-3 py-1 text-right">{r.pto}</td>
+                  <td className="border px-3 py-1 text-right">{r.loa}</td>
+                  <td className="border px-3 py-1 text-right font-semibold">
+                    {r.total}
+                  </td>
+                </tr>
+              ))}
+              <tr className="bg-gray-100 font-semibold">
+                <td className="border px-3 py-1 text-right" colSpan={3}>
+                  Grand Total Days Off
+                </td>
+                <td className="border px-3 py-1 text-right">
+                  {summary.grandTotal}
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
