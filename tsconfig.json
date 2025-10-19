@@ -12,11 +12,13 @@
     "noEmit": true,
     "allowJs": false,
     "strict": true,
-    "baseUrl": "src",
+    "forceConsistentCasingInFileNames": true,
+
+    // ✅ Correct base and alias
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["*"]
-    },
-    "forceConsistentCasingInFileNames": true
+      "@/*": ["src/*"]
+    }
   },
   "include": ["src"]
 }
