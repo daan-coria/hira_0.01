@@ -1,6 +1,6 @@
 import { useNavigate, useLocation } from "react-router-dom"
 import { useAuth } from "@/store/AuthContext"
-import { LogOut } from "lucide-react" // ✅ lightweight icon
+import { LogOut } from "lucide-react" 
 
 export default function ToolNavigator() {
   const navigate = useNavigate()

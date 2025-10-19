@@ -38,17 +38,21 @@ export default function GapSummaryCard({ onPrev, onReset }: Props) {
   useEffect(() => {
     calculateGapSummary()
   }, [
-    data.resourceInput,
-    data.staffingConfig,
-    data.availabilityConfig,
-    data.censusOverride,
+    data?.resourceInput,
+    data?.staffingConfig,
+    data?.availabilityConfig,
+    data?.censusOverride,
   ])
 
   const calculateGapSummary = () => {
+    const resourceInput = data?.resourceInput ?? []
+    const staffingConfig = data?.staffingConfig ?? []
+    const censusOverride = data?.censusOverride ?? []
+
     if (
-      data.resourceInput.length === 0 ||
-      data.staffingConfig.length === 0 ||
-      data.censusOverride.length === 0
+      resourceInput.length === 0 ||
+      staffingConfig.length === 0 ||
+      censusOverride.length === 0
     ) {
       setRows([])
       debouncedSave([])
@@ -56,7 +60,7 @@ export default function GapSummaryCard({ onPrev, onReset }: Props) {
     }
 
     // 1️⃣ Average Census
-    const censusValues: number[] = data.censusOverride
+    const censusValues: number[] = censusOverride
       .map((r: any) => Number(r.census))
       .filter((n: number) => !isNaN(n))
 
@@ -71,7 +75,7 @@ export default function GapSummaryCard({ onPrev, onReset }: Props) {
       { mode: string; maxRatio: number; include: boolean; directCare: number }
     > = {}
 
-    data.staffingConfig.forEach((r: any) => {
+    staffingConfig.forEach((r: any) => {
       configMap[r.role] = {
         mode: r.ratio_mode,
         maxRatio: Number(r.max_ratio) || 0,
@@ -82,7 +86,7 @@ export default function GapSummaryCard({ onPrev, onReset }: Props) {
 
     // 3️⃣ Actual FTE
     const actualFTE: Record<string, number> = {}
-    data.resourceInput.forEach((r: any) => {
+    resourceInput.forEach((r: any) => {
       const role = r.position
       const fte = Number(r.unit_fte) || 0
       const conf = configMap[role]
@@ -133,9 +137,7 @@ export default function GapSummaryCard({ onPrev, onReset }: Props) {
   return (
     <Card className="p-4 space-y-4">
       <div className="flex justify-between items-center mb-2">
-        <h3 className="text-lg font-semibold text-gray-800">
-          Gap Summary
-        </h3>
+        <h3 className="text-lg font-semibold text-gray-800">Gap Summary</h3>
         {saving && <span className="text-sm text-gray-500">Saving…</span>}
       </div>
 
