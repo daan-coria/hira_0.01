@@ -26,6 +26,8 @@ export default function InfoButton({ text }: Props) {
         onMouseEnter={() => setHovering(true)}
         onMouseLeave={() => setHovering(false)}
         className="inline-flex items-center justify-center bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-full w-5 h-5 text-xs focus:outline-none"
+        title={text}
+        aria-label={text}
       >
         <Info size={12} />
       </button>
