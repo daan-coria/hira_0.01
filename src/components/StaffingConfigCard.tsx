@@ -4,6 +4,7 @@ import Card from "@/components/ui/Card"
 import Button from "@/components/ui/Button"
 import Input from "@/components/ui/Input"
 import Select from "@/components/ui/Select"
+import InfoButton from "@/components/ui/InfoButton" // ✅ new component
 import debounce from "lodash.debounce"
 
 type StaffingConfigRow = {
@@ -28,11 +29,8 @@ export default function StaffingConfigCard({ onNext, onPrev }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
-  // ✅ Ensure leading slash for absolute path
-  const baseURL =
-    import.meta.env.MODE === "development" ? "/mockdata" : "/api"
+  const baseURL = import.meta.env.MODE === "development" ? "/mockdata" : "/api"
 
-  // ✅ Fallback data in case mock file is missing
   const fallbackData: StaffingConfigRow[] = [
     { id: 1, role: "RN", ratio_mode: "Ratio", max_ratio: 4, include_in_ratio: true, direct_care_percent: 100, category: "Nursing" },
     { id: 2, role: "LPN", ratio_mode: "Ratio", max_ratio: 6, include_in_ratio: true, direct_care_percent: 80, category: "Nursing" },
@@ -40,7 +38,6 @@ export default function StaffingConfigCard({ onNext, onPrev }: Props) {
     { id: 4, role: "Clerk", ratio_mode: "Fixed", max_ratio: 1, include_in_ratio: false, direct_care_percent: 0, category: "Other" }
   ]
 
-  // ✅ Debounced autosave
   const debouncedSave = useCallback(
     debounce((updated: StaffingConfigRow[]) => {
       setSaving(true)
@@ -54,13 +51,12 @@ export default function StaffingConfigCard({ onNext, onPrev }: Props) {
     fetchConfigs()
   }, [])
 
-  // ✅ Safe fetch with fallback logic
   const fetchConfigs = async () => {
     try {
       setLoading(true)
       setError(null)
 
-      const url = `${baseURL}/staffing-config.json` // absolute root path
+      const url = `${baseURL}/staffing-config.json`
       const res = await fetch(url)
 
       if (!res.ok) {
@@ -134,22 +130,18 @@ export default function StaffingConfigCard({ onNext, onPrev }: Props) {
                 <th className="px-3 py-2 border">Role</th>
                 <th className="px-3 py-2 border">Ratio Mode</th>
 
-                {/* Max Ratio with tooltip */}
-                <th
-                  className="px-3 py-2 border text-right cursor-help relative group"
-                  title="Max Ratio: Maximum number of patients one staff member can care for (e.g., 1:6 means one RN per six patients)."
-                >
-                  Max Ratio
-                  <span className="ml-1 text-gray-400 group-hover:text-gray-600">ℹ️</span>
+                <th className="px-3 py-2 border text-right">
+                  <div className="flex items-center justify-end">
+                    Max Ratio
+                    <InfoButton text="Maximum number of patients one staff member can care for (e.g., 1:6 means one RN per six patients)." />
+                  </div>
                 </th>
 
-                {/* Regular Ratio with tooltip */}
-                <th
-                  className="px-3 py-2 border text-center cursor-help relative group"
-                  title="Regular Ratio: Readable display of the staff-to-patient ratio (1 : Max Ratio)."
-                >
-                  Regular Ratio
-                  <span className="ml-1 text-gray-400 group-hover:text-gray-600">ℹ️</span>
+                <th className="px-3 py-2 border text-center">
+                  <div className="flex items-center justify-center">
+                    Regular Ratio
+                    <InfoButton text="Readable display of the staff-to-patient ratio (1 : Max Ratio)." />
+                  </div>
                 </th>
 
                 <th className="px-3 py-2 border text-center">Include in Ratio</th>

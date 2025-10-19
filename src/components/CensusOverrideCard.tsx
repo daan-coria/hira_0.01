@@ -3,8 +3,8 @@ import { useApp } from "@/store/AppContext"
 import Card from "@/components/ui/Card"
 import Button from "@/components/ui/Button"
 import Input from "@/components/ui/Input"
+import InfoButton from "@/components/ui/InfoButton" // ✅ mobile-friendly info tooltips
 import debounce from "lodash.debounce"
-import { FaInfoCircle } from "react-icons/fa"
 
 type CensusRow = {
   id?: number
@@ -62,9 +62,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
   return (
     <Card className="p-4 space-y-4">
       <div className="flex justify-between items-center mb-2">
-        <h3 className="text-lg font-semibold text-gray-800">
-          Census Override
-        </h3>
+        <h3 className="text-lg font-semibold text-gray-800">Census Override</h3>
         <div className="flex items-center gap-3">
           {saving && <span className="text-sm text-gray-500">Saving…</span>}
           <Button onClick={handleAdd}>+ Add Row</Button>
@@ -82,31 +80,19 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                 <th className="px-3 py-2 border text-center">
                   <div className="flex items-center justify-center gap-1">
                     Date
-                    <FaInfoCircle
-                      title="Date: The calendar day for which the census count applies."
-                      className="text-blue-500 cursor-pointer"
-                      size={13}
-                    />
+                    <InfoButton text="The calendar day for which the census count applies." />
                   </div>
                 </th>
                 <th className="px-3 py-2 border text-center">
                   <div className="flex items-center justify-center gap-1">
                     Hour
-                    <FaInfoCircle
-                      title="Hour: Time of day (in 24-hour format) when census was recorded."
-                      className="text-blue-500 cursor-pointer"
-                      size={13}
-                    />
+                    <InfoButton text="Time of day (in 24-hour format) when the census was recorded." />
                   </div>
                 </th>
                 <th className="px-3 py-2 border text-center">
                   <div className="flex items-center justify-center gap-1">
                     Census
-                    <FaInfoCircle
-                      title="Census: Total number of occupied beds or patients at that date and hour."
-                      className="text-blue-500 cursor-pointer"
-                      size={13}
-                    />
+                    <InfoButton text="Total number of occupied beds or patients at that date and hour." />
                   </div>
                 </th>
                 <th className="px-3 py-2 border text-center">Actions</th>
@@ -118,6 +104,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                   key={row.id || i}
                   className="odd:bg-white even:bg-gray-50 hover:bg-gray-100 transition-colors"
                 >
+                  {/* Date */}
                   <td className="border px-2 py-1 text-center">
                     <Input
                       id={`date_${i}`}
@@ -129,6 +116,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                     />
                   </td>
 
+                  {/* Hour */}
                   <td className="border px-2 py-1 text-center">
                     <Input
                       id={`hour_${i}`}
@@ -140,6 +128,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                     />
                   </td>
 
+                  {/* Census */}
                   <td className="border px-2 py-1 text-right">
                     <Input
                       id={`census_${i}`}
@@ -151,6 +140,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                     />
                   </td>
 
+                  {/* Remove Button */}
                   <td className="border px-2 py-1 text-center">
                     <Button
                       variant="ghost"
