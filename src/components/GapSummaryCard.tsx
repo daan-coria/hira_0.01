@@ -56,12 +56,13 @@ export default function GapSummaryCard({ onPrev, onReset }: Props) {
     }
 
     // 1️⃣ Average Census
-    const censusValues = data.censusOverride
+    const censusValues: number[] = data.censusOverride
       .map((r: any) => Number(r.census))
-      .filter((n) => !isNaN(n))
+      .filter((n: number) => !isNaN(n))
+
     const avgCensus =
       censusValues.length > 0
-        ? censusValues.reduce((a, b) => a + b, 0) / censusValues.length
+        ? censusValues.reduce((a: number, b: number) => a + b, 0) / censusValues.length
         : 0
 
     // 2️⃣ StaffingConfig map
@@ -69,6 +70,7 @@ export default function GapSummaryCard({ onPrev, onReset }: Props) {
       string,
       { mode: string; maxRatio: number; include: boolean; directCare: number }
     > = {}
+
     data.staffingConfig.forEach((r: any) => {
       configMap[r.role] = {
         mode: r.ratio_mode,
@@ -105,16 +107,12 @@ export default function GapSummaryCard({ onPrev, onReset }: Props) {
       new Set([...Object.keys(requiredFTE), ...Object.keys(actualFTE)])
     )
 
-    const summary = roles.map((role, i) => {
+    const summary: GapSummaryRow[] = roles.map((role, i) => {
       const req = requiredFTE[role] || 0
       const act = actualFTE[role] || 0
       const gap = act - req
       const overUnder =
-        gap > 0
-          ? "Overstaffed"
-          : gap < 0
-          ? "Understaffed"
-          : "Balanced"
+        gap > 0 ? "Overstaffed" : gap < 0 ? "Understaffed" : "Balanced"
       const pct = req === 0 ? 0 : (gap / req) * 100
       return {
         id: i + 1,

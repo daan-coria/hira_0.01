@@ -12,8 +12,10 @@ type AvailabilityRow = {
   staff_name: string
   pto_range: DateRange
   loa_range: DateRange
+  orientation_range: DateRange
   pto_days: number
   loa_days: number
+  orientation_days: number
 }
 
 type Props = { onNext?: () => void; onPrev?: () => void }
@@ -35,25 +37,28 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
 
   // --- Sync staff names from Step 2 ---
   useEffect(() => {
-    if (data.resourceInput.length > 0) {
-      const updated = data.resourceInput.map((r: any, i: number) => {
-        const name = `${r.first_name} ${r.last_name}`.trim()
-        const existing = rows.find((x) => x.staff_name === name)
-        return (
-          existing || {
-            id: Date.now() + i,
-            staff_name: name,
-            pto_range: { start: "", end: "" },
-            loa_range: { start: "", end: "" },
-            pto_days: 0,
-            loa_days: 0,
-          }
-        )
-      })
-      setRows(updated)
-      updateData("availabilityConfig", updated)
-    }
-  }, [data.resourceInput])
+    if (!Array.isArray(data?.resourceInput) || data.resourceInput.length === 0) return
+
+    const updated = data.resourceInput.map((r: any, i: number) => {
+      const name = `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim()
+      const existing = rows.find((x) => x.staff_name === name)
+      return (
+        existing || {
+          id: Date.now() + i,
+          staff_name: name,
+          pto_range: { start: "", end: "" },
+          loa_range: { start: "", end: "" },
+          orientation_range: { start: "", end: "" },
+          pto_days: 0,
+          loa_days: 0,
+          orientation_days: 0,
+        }
+      )
+    })
+
+    setRows(updated)
+    updateData("availabilityConfig", updated)
+  }, [data?.resourceInput])
 
   // --- Helpers ---
   const calcDays = (start: string, end: string) => {
@@ -66,14 +71,16 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
 
   const handleRangeChange = (
     index: number,
-    type: "pto" | "loa",
+    type: "pto" | "loa" | "orientation",
     field: "start" | "end",
     value: string
   ) => {
     const updated = rows.map((r, i) => {
       if (i !== index) return r
-      const rangeKey = type === "pto" ? "pto_range" : "loa_range"
-      const daysKey = type === "pto" ? "pto_days" : "loa_days"
+      const rangeKey =
+        type === "pto" ? "pto_range" : type === "loa" ? "loa_range" : "orientation_range"
+      const daysKey =
+        type === "pto" ? "pto_days" : type === "loa" ? "loa_days" : "orientation_days"
 
       const newRange = { ...r[rangeKey], [field]: value }
       const newDays = calcDays(newRange.start, newRange.end)
@@ -91,8 +98,10 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
       staff_name: "",
       pto_range: { start: "", end: "" },
       loa_range: { start: "", end: "" },
+      orientation_range: { start: "", end: "" },
       pto_days: 0,
       loa_days: 0,
+      orientation_days: 0,
     }
 
     const updated = [...rows, newRow]
@@ -109,7 +118,11 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
       weekend_group: "",
       vacancy_status: "Filled",
     }
-    const updatedResources = [...data.resourceInput, newResource]
+
+    const resourceInputSafe = Array.isArray(data?.resourceInput)
+      ? data.resourceInput
+      : []
+    const updatedResources = [...resourceInputSafe, newResource]
     updateData("resourceInput", updatedResources)
   }
 
@@ -119,7 +132,8 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
       name: r.staff_name,
       pto: r.pto_days,
       loa: r.loa_days,
-      total: r.pto_days + r.loa_days,
+      orientation: r.orientation_days,
+      total: r.pto_days + r.loa_days + r.orientation_days,
     }))
     const grandTotal = perStaff.reduce((sum, r) => sum + r.total, 0)
     return { perStaff, grandTotal }
@@ -152,9 +166,15 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
                 <th className="px-3 py-2 border text-center" colSpan={3}>
                   LOA Period
                 </th>
+                <th className="px-3 py-2 border text-center" colSpan={3}>
+                  Orientation Period
+                </th>
               </tr>
               <tr className="bg-gray-50">
                 <th className="px-3 py-1 border"></th>
+                <th className="px-3 py-1 border">Start</th>
+                <th className="px-3 py-1 border">End</th>
+                <th className="px-3 py-1 border text-right">Days</th>
                 <th className="px-3 py-1 border">Start</th>
                 <th className="px-3 py-1 border">End</th>
                 <th className="px-3 py-1 border text-right">Days</th>
@@ -185,7 +205,7 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
                   </td>
                   <td className="border px-2 py-1 text-center">
                     <Input
-                      id={`pto_start_${i}`}
+                      id={`pto_end_${i}`}
                       label=""
                       type="date"
                       value={row.pto_range.end}
@@ -195,14 +215,14 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
                       className="!m-0 !p-1"
                     />
                   </td>
-                  <td className="border px-2 py-1 text-right text-gray-700 font-medium">
+                  <td className="border px-2 py-1 text-right font-medium text-gray-700">
                     {row.pto_days}
                   </td>
 
                   {/* LOA Dates */}
                   <td className="border px-2 py-1 text-center">
                     <Input
-                      id={`pto_start_${i}`}
+                      id={`loa_start_${i}`}
                       label=""
                       type="date"
                       value={row.loa_range.start}
@@ -214,7 +234,7 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
                   </td>
                   <td className="border px-2 py-1 text-center">
                     <Input
-                      id={`pto_start_${i}`}
+                      id={`loa_end_${i}`}
                       label=""
                       type="date"
                       value={row.loa_range.end}
@@ -224,8 +244,37 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
                       className="!m-0 !p-1"
                     />
                   </td>
-                  <td className="border px-2 py-1 text-right text-gray-700 font-medium">
+                  <td className="border px-2 py-1 text-right font-medium text-gray-700">
                     {row.loa_days}
+                  </td>
+
+                  {/* Orientation Dates */}
+                  <td className="border px-2 py-1 text-center">
+                    <Input
+                      id={`orientation_start_${i}`}
+                      label=""
+                      type="date"
+                      value={row.orientation_range.start}
+                      onChange={(e) =>
+                        handleRangeChange(i, "orientation", "start", e.target.value)
+                      }
+                      className="!m-0 !p-1"
+                    />
+                  </td>
+                  <td className="border px-2 py-1 text-center">
+                    <Input
+                      id={`orientation_end_${i}`}
+                      label=""
+                      type="date"
+                      value={row.orientation_range.end}
+                      onChange={(e) =>
+                        handleRangeChange(i, "orientation", "end", e.target.value)
+                      }
+                      className="!m-0 !p-1"
+                    />
+                  </td>
+                  <td className="border px-2 py-1 text-right font-medium text-gray-700">
+                    {row.orientation_days}
                   </td>
                 </tr>
               ))}
@@ -246,6 +295,7 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
                 <th className="px-3 py-2 border text-left">Staff</th>
                 <th className="px-3 py-2 border text-right">PTO Days</th>
                 <th className="px-3 py-2 border text-right">LOA Days</th>
+                <th className="px-3 py-2 border text-right">Orientation Days</th>
                 <th className="px-3 py-2 border text-right">Total Days Off</th>
               </tr>
             </thead>
@@ -255,13 +305,14 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
                   <td className="border px-3 py-1">{r.name}</td>
                   <td className="border px-3 py-1 text-right">{r.pto}</td>
                   <td className="border px-3 py-1 text-right">{r.loa}</td>
+                  <td className="border px-3 py-1 text-right">{r.orientation}</td>
                   <td className="border px-3 py-1 text-right font-semibold">
                     {r.total}
                   </td>
                 </tr>
               ))}
               <tr className="bg-gray-100 font-semibold">
-                <td className="border px-3 py-1 text-right" colSpan={3}>
+                <td className="border px-3 py-1 text-right" colSpan={4}>
                   Grand Total Days Off
                 </td>
                 <td className="border px-3 py-1 text-right">

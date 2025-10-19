@@ -1,10 +1,13 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useApp } from "@/store/AppContext"
 import Card from "@/components/ui/Card"
 import Button from "@/components/ui/Button"
 import Input from "@/components/ui/Input"
 import Select from "@/components/ui/Select"
 import debounce from "lodash.debounce"
+import Papa from "papaparse"
+import Swal from "sweetalert2"
+import "sweetalert2/dist/sweetalert2.min.css"
 
 type ResourceRow = {
   id?: number
@@ -27,30 +30,36 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
   const { data, updateData } = useApp()
   const [rows, setRows] = useState<ResourceRow[]>([])
   const [saving, setSaving] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Debounced autosave for smoother UX
+  // Debounced autosave
   const debouncedSave = useCallback(
     debounce((updated: ResourceRow[]) => {
       setSaving(true)
       updateData("resourceInput", updated)
       setTimeout(() => setSaving(false), 600)
     }, 500),
-    []
+    [updateData]
   )
 
+  // Initialize from stored data
   useEffect(() => {
-    if (data.resourceInput?.length > 0) {
-      setRows(data.resourceInput)
+    const resourceArray = Array.isArray(data?.resourceInput)
+      ? (data.resourceInput as ResourceRow[])
+      : []
+    if (resourceArray.length > 0) {
+      setRows(resourceArray)
     }
-  }, [data.resourceInput])
+  }, [data?.resourceInput])
 
-  // Handle field edits
+  // Handle inline edits
   const handleChange = (index: number, field: keyof ResourceRow, value: any) => {
     const updated = rows.map((r, i) => (i === index ? { ...r, [field]: value } : r))
     setRows(updated)
     debouncedSave(updated)
   }
 
+  // Add row manually
   const addRow = () => {
     const newRow: ResourceRow = {
       id: Date.now(),
@@ -68,10 +77,82 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     debouncedSave(updated)
   }
 
+  // Remove row
   const removeRow = (id?: number) => {
     const updated = rows.filter((r) => r.id !== id)
     setRows(updated)
     updateData("resourceInput", updated)
+  }
+
+  // ✅ CSV Upload Handler
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const newRows = results.data as ResourceRow[]
+
+        for (const newRow of newRows) {
+          const match = rows.find(
+            (r) =>
+              r.employee_id === newRow.employee_id ||
+              (r.first_name === newRow.first_name && r.last_name === newRow.last_name)
+          )
+
+          if (match) {
+            const result = await Swal.fire({
+              title: "Duplicate Employee Found",
+              html: `
+                <p><strong>${newRow.first_name} ${newRow.last_name}</strong> already exists.</p>
+                <p>Do you want to <b>update</b> their information or <b>ignore</b> this entry?</p>
+              `,
+              icon: "warning",
+              showCancelButton: true,
+              confirmButtonText: "Update",
+              cancelButtonText: "Ignore",
+            })
+
+            if (result.isConfirmed) {
+              setRows((prev) =>
+                prev.map((r) =>
+                  r.employee_id === newRow.employee_id
+                    ? { ...r, ...newRow }
+                    : r.first_name === newRow.first_name &&
+                      r.last_name === newRow.last_name
+                    ? { ...r, ...newRow }
+                    : r
+                )
+              )
+            }
+          } else {
+            setRows((prev) => [...prev, { ...newRow, id: Date.now() }])
+          }
+        }
+
+        updateData("resourceInput", newRows)
+        Swal.fire("Upload Complete", "Roster processed successfully!", "success")
+      },
+    })
+  }
+
+  // ✅ Export CSV
+  const handleExport = () => {
+    if (rows.length === 0) {
+      Swal.fire("No Data", "There are no rows to export.", "info")
+      return
+    }
+
+    const csv = Papa.unparse(rows.map(({ id, ...r }) => r)) // omit internal id
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+    const link = document.createElement("a")
+    const url = URL.createObjectURL(blob)
+    link.setAttribute("href", url)
+    link.setAttribute("download", "resource_roster.csv")
+    link.click()
+    URL.revokeObjectURL(url)
   }
 
   return (
@@ -80,10 +161,28 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
         <h3 className="text-lg font-semibold text-gray-800">Resource Input</h3>
         <div className="flex items-center gap-3">
           {saving && <span className="text-sm text-gray-500">Saving…</span>}
+
+          {/* ✅ Hidden CSV Upload Input (accessible) */}
+          <input
+            type="file"
+            accept=".csv"
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+            className="hidden"
+            aria-label="Upload CSV File"
+            title="Upload CSV File"
+          />
+
+          {/* Buttons */}
+          <Button onClick={() => fileInputRef.current?.click()}>Upload CSV</Button>
+          <Button onClick={handleExport} variant="ghost" className="border border-gray-300 text-gray-700">
+            Export CSV
+          </Button>
           <Button onClick={addRow}>+ Add Resource</Button>
         </div>
       </div>
 
+      {/* Table */}
       {rows.length === 0 ? (
         <p className="text-gray-500">No resource data yet.</p>
       ) : (
@@ -108,32 +207,32 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                   key={row.id || i}
                   className="odd:bg-white even:bg-gray-50 hover:bg-gray-100 transition-colors"
                 >
-                  {/* Employee ID */}
                   <td className="border px-2 py-1 text-gray-600">{row.employee_id}</td>
 
-                  {/* First Name */}
                   <td className="border px-2 py-1">
                     <Input
                       id={`fname_${i}`}
                       label=""
                       value={row.first_name}
-                      onChange={(e) => handleChange(i, "first_name", e.target.value)}
+                      onChange={(e) =>
+                        handleChange(i, "first_name", e.target.value)
+                      }
                       className="!m-0 !p-1"
                     />
                   </td>
 
-                  {/* Last Name */}
                   <td className="border px-2 py-1">
                     <Input
                       id={`lname_${i}`}
                       label=""
                       value={row.last_name}
-                      onChange={(e) => handleChange(i, "last_name", e.target.value)}
+                      onChange={(e) =>
+                        handleChange(i, "last_name", e.target.value)
+                      }
                       className="!m-0 !p-1"
                     />
                   </td>
 
-                  {/* Position */}
                   <td className="border px-2 py-1">
                     <Select
                       id={`pos_${i}`}
@@ -150,7 +249,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     </Select>
                   </td>
 
-                  {/* Unit FTE */}
                   <td className="border px-2 py-1 text-right">
                     <Input
                       id={`fte_${i}`}
@@ -166,7 +264,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     />
                   </td>
 
-                  {/* Availability */}
                   <td className="border px-2 py-1">
                     <Select
                       id={`avail_${i}`}
@@ -182,7 +279,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     </Select>
                   </td>
 
-                  {/* Weekend Group */}
                   <td className="border px-2 py-1">
                     <Select
                       id={`weekend_${i}`}
@@ -201,7 +297,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     </Select>
                   </td>
 
-                  {/* Vacancy Status */}
                   <td className="border px-2 py-1">
                     <Select
                       id={`vacancy_${i}`}
@@ -217,7 +312,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     </Select>
                   </td>
 
-                  {/* Actions */}
                   <td className="border px-2 py-1 text-center">
                     <Button
                       onClick={() => removeRow(row.id)}

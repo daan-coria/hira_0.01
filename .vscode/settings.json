@@ -24,7 +24,11 @@
     "daanc",
     "HIRA",
     "mockdata",
+    "papaparse",
+    "Swal",
+    "sweetalert",
     "Tunables",
+    "unparse",
     "VITE"
   ]
 }

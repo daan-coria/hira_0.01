@@ -8,7 +8,6 @@ import ProtectedRoute from "@/router/ProtectedRoute"
 import FacilitySetupPage from "@/pages/FacilitySetupPage"
 import ToolPage from "@/pages/ToolPage"
 import DashboardPage from "@/pages/DashboardPage"
-import DebugOverlay from "@/components/DebugOverlay"
 
 export default function App() {
   return (
@@ -37,7 +36,6 @@ export default function App() {
         </Routes>
       </main>
       
-      <DebugOverlay />
       {/* Footer */}
       <footer className="border-t bg-white text-center py-3 text-sm text-gray-500">
         © {new Date().getFullYear()} HIRA Staffing Tool. All rights reserved.

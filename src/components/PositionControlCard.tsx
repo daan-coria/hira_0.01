@@ -74,12 +74,15 @@ export default function PositionControlCard() {
         url = `${baseURL}/position-control.json`
       } else {
         const query = new URLSearchParams({
-          facility: facilitySetup.facility,
-          department: facilitySetup.department,
-          costCenter: facilitySetup.costCenter,
-          bedCount: String(facilitySetup.bedCount),
-          start: facilitySetup.dateRange?.start || "",
-          end: facilitySetup.dateRange?.end || "",
+          facility: facilitySetup.facility ?? "",
+          department: facilitySetup.department ?? "",
+          costCenter: facilitySetup.costCenter ?? "",
+          bedCount:
+            facilitySetup.bedCount !== undefined && facilitySetup.bedCount !== null
+              ? String(facilitySetup.bedCount)
+              : "",
+          start: facilitySetup.dateRange?.start ?? "",
+          end: facilitySetup.dateRange?.end ?? "",
         })
         url = `${baseURL}/position-control?${query.toString()}`
       }
