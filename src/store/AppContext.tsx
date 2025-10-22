@@ -30,6 +30,7 @@ type DataState = {
   shiftConfig?: any[]
   censusOverride?: any[]
   gapSummary?: any[]
+  positions?: string[]
   [key: string]: any
 }
 
@@ -67,7 +68,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   })
 
   // Shared Data (from multiple mock files)
-  const [data, setData] = useState<DataState>({ loading: true })
+  const [data, setData] = useState<DataState>({ loading: true, positions: [] })
 
   // Step control with localStorage persistence
   const [currentStep, setCurrentStepState] = useState(() => {

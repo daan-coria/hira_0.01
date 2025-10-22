@@ -52,6 +52,9 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     }
   }, [data?.resourceInput])
 
+  // Dynamic positions from Position Setup Page
+  const positions: string[] = (data.positions as string[]) || ["RN", "LPN", "CNA", "Clerk"]
+
   // Handle inline edits
   const handleChange = (index: number, field: keyof ResourceRow, value: any) => {
     const updated = rows.map((r, i) => (i === index ? { ...r, [field]: value } : r))
@@ -63,7 +66,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
   const addRow = () => {
     const newRow: ResourceRow = {
       id: Date.now(),
-      employee_id: `EMP${String(rows.length + 1).padStart(3, "0")}`,
+      employee_id: "",
       first_name: "",
       last_name: "",
       position: "",
@@ -162,7 +165,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
         <div className="flex items-center gap-3">
           {saving && <span className="text-sm text-gray-500">Saving…</span>}
 
-          {/* ✅ Hidden CSV Upload Input (accessible) */}
+          {/* ✅ Hidden CSV Upload Input */}
           <input
             type="file"
             accept=".csv"
@@ -197,7 +200,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                 <th className="px-3 py-2 border text-right">Unit FTE</th>
                 <th className="px-3 py-2 border">Availability</th>
                 <th className="px-3 py-2 border">Weekend Group</th>
-                <th className="px-3 py-2 border">Vacancy Status</th>
+                <th className="px-3 py-2 border">Status</th>
                 <th className="px-3 py-2 border text-center">Actions</th>
               </tr>
             </thead>
@@ -207,7 +210,18 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                   key={row.id || i}
                   className="odd:bg-white even:bg-gray-50 hover:bg-gray-100 transition-colors"
                 >
-                  <td className="border px-2 py-1 text-gray-600">{row.employee_id}</td>
+                  <td className="border px-2 py-1">
+                    <Input
+                      id={`emp_${i}`}
+                      label=""
+                      value={row.employee_id}
+                      onChange={(e) =>
+                        handleChange(i, "employee_id", e.target.value)
+                      }
+                      placeholder="Employee ID"
+                      className="!m-0 !p-1 w-24 text-center"
+                    />
+                  </td>
 
                   <td className="border px-2 py-1">
                     <Input
@@ -217,6 +231,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       onChange={(e) =>
                         handleChange(i, "first_name", e.target.value)
                       }
+                      placeholder="First Name"
                       className="!m-0 !p-1"
                     />
                   </td>
@@ -229,6 +244,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       onChange={(e) =>
                         handleChange(i, "last_name", e.target.value)
                       }
+                      placeholder="Last Name"
                       className="!m-0 !p-1"
                     />
                   </td>
@@ -242,10 +258,11 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       className="!m-0 !p-1"
                     >
                       <option value="">-- Select --</option>
-                      <option value="RN">RN</option>
-                      <option value="LPN">LPN</option>
-                      <option value="CNA">CNA</option>
-                      <option value="Clerk">Clerk</option>
+                      {positions.map((p) => (
+                        <option key={p} value={p}>
+                          {p}
+                        </option>
+                      ))}
                     </Select>
                   </td>
 
@@ -308,7 +325,8 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       className="!m-0 !p-1"
                     >
                       <option value="Filled">Filled</option>
-                      <option value="Vacant">Vacant</option>
+                      <option value="LOA">LOA</option>
+                      <option value="Terminated">Terminated</option>
                     </Select>
                   </td>
 
