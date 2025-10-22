@@ -14,10 +14,6 @@ type FacilitySetup = {
   department?: string
   costCenter?: string
   bedCount?: number
-  dateRange?: {
-    start?: string
-    end?: string
-  }
   categories?: string[]
 }
 
@@ -43,8 +39,8 @@ type AppContextType = {
   updateData: (key: string, value: any) => void
   reloadData: () => void
   setFacilitySetup: (payload: FacilitySetup) => void
-  setToolType: (type: "IP" | "ED") => void
   updateFacilitySetup: (payload: FacilitySetup) => void
+  setToolType: (type: "IP" | "ED") => void
   currentStep: number
   setCurrentStep: React.Dispatch<React.SetStateAction<number>>
 }
@@ -70,7 +66,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     toolType: "IP",
   })
 
-  // Shared Data (will be filled by multiple mock files)
+  // Shared Data (from multiple mock files)
   const [data, setData] = useState<DataState>({ loading: true })
 
   // Step control with localStorage persistence
@@ -98,7 +94,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       setData((prev) => ({ ...prev, loading: true }))
 
-      // ✅ Load all mock files in parallel
       const [
         resourceInput,
         availabilityConfig,

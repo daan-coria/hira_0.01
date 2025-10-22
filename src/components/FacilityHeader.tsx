@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Card from "@/components/ui/Card"
 import Button from "@/components/ui/Button"
 import Select from "@/components/ui/Select"
@@ -13,64 +13,78 @@ type Props = {
 export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
   const { updateFacilitySetup } = useApp()
 
-  const [form, setForm] = useState({
-    facility: "",
-    department: "",
-    costCenter: "",
-    bedCount: "",
-    startDate: "",
-    endDate: "",
-  })
+  // 🔁 Randomized one-to-one Cost Center ↔ Department map
+  const costCenterMap: Record<string, string> = {
+    "1001": "ICU",
+    "1002": "Med-Surg",
+    "1003": "ER",
+    "1004": "Telemetry",
+    "1005": "Labor & Delivery",
+    "1006": "Rehab",
+  }
 
-  // Dropdown option sets
-  const facilityOptions = [
+  const facilities = [
     "General Hospital",
     "Regional Medical Center",
     "Valley Care Center",
   ]
 
-  const costCenterOptions = ["CC1001", "CC2003", "CC3012", "CC4015"]
+  const costCenters = Object.keys(costCenterMap)
+  const departments = Object.values(costCenterMap)
 
-  // ✅ Facility → Department dynamic mapping
-  const departmentMap: Record<string, string[]> = {
-    "General Hospital": ["ICU", "ER", "Med-Surg", "Pediatrics"],
-    "Regional Medical Center": [
-      "ICU",
-      "Telemetry",
-      "Oncology",
-      "Labor & Delivery",
-    ],
-    "Valley Care Center": ["Rehab", "Memory Care", "Skilled Nursing"],
-  }
+  const [form, setForm] = useState({
+    facility: "",
+    department: "",
+    costCenter: "",
+    bedCount: "",
+  })
 
-  // Derived departments based on selected facility
-  const departmentOptions =
-    departmentMap[form.facility] || ["(Select facility first)"]
+  const [lockedField, setLockedField] = useState<"department" | "costCenter" | null>(null)
 
-  const handleChange = (key: keyof typeof form, value: string) => {
-    // Reset department if facility changes
-    if (key === "facility") {
-      setForm((prev) => ({ ...prev, facility: value, department: "" }))
-    } else {
-      setForm((prev) => ({ ...prev, [key]: value }))
-    }
-  }
-
-  const handleContinue = () => {
-    const payload = {
+  // 🔁 Auto-sync FacilitySetup with AppContext
+  useEffect(() => {
+    updateFacilitySetup({
       facility: form.facility,
       department: form.department,
       costCenter: form.costCenter,
       bedCount: Number(form.bedCount) || 0,
-      dateRange: {
-        start: form.startDate,
-        end: form.endDate,
-      },
-    }
+      categories: ["Nursing", "Support", "Other"],
+    })
+  }, [form])
 
-    updateFacilitySetup(payload)
+  const handleChange = (key: keyof typeof form, value: string) => {
+    setForm((prev) => {
+      let updated = { ...prev, [key]: value }
 
-    // ✅ Trigger navigation callback(s)
+      // 🔒 Auto-link Cost Center ↔ Department
+      if (key === "department" && !lockedField) {
+        const match = Object.entries(costCenterMap).find(([cc, dept]) => dept === value)
+        if (match) {
+          updated.costCenter = match[0]
+          setLockedField("department")
+        }
+      }
+      if (key === "costCenter" && !lockedField) {
+        const dept = costCenterMap[value]
+        if (dept) {
+          updated.department = dept
+          setLockedField("costCenter")
+        }
+      }
+
+      return updated
+    })
+  }
+
+  const handleContinue = () => {
+    updateFacilitySetup({
+      facility: form.facility,
+      department: form.department,
+      costCenter: form.costCenter,
+      bedCount: Number(form.bedCount) || 0,
+      categories: ["Nursing", "Support", "Other"],
+    })
+
     if (onNext) onNext()
     if (onSetupComplete) onSetupComplete()
   }
@@ -86,7 +100,7 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
           onChange={(e) => handleChange("facility", e.target.value)}
         >
           <option value="">-- Select Facility --</option>
-          {facilityOptions.map((opt) => (
+          {facilities.map((opt) => (
             <option key={opt} value={opt}>
               {opt}
             </option>
@@ -98,11 +112,11 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
           id="department"
           label="Department"
           value={form.department}
+          disabled={lockedField === "costCenter"}
           onChange={(e) => handleChange("department", e.target.value)}
-          disabled={!form.facility}
         >
           <option value="">-- Select Department --</option>
-          {departmentOptions.map((opt) => (
+          {departments.map((opt) => (
             <option key={opt} value={opt}>
               {opt}
             </option>
@@ -114,59 +128,26 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
           id="costCenter"
           label="Cost Center"
           value={form.costCenter}
+          disabled={lockedField === "department"}
           onChange={(e) => handleChange("costCenter", e.target.value)}
         >
           <option value="">-- Select Cost Center --</option>
-          {costCenterOptions.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
+          {costCenters.map((cc) => (
+            <option key={cc} value={cc}>
+              {cc} — {costCenterMap[cc]}
             </option>
           ))}
         </Select>
 
-        {/* Bed Count (Numeric input + suggestions) */}
-        <div className="flex flex-col">
-          <label
-            htmlFor="bedCount"
-            className="text-sm font-medium text-gray-700 mb-1"
-          >
-            Bed Count
-          </label>
-          <Input
-            id="bedCount"
-            label=""
-            type="number"
-            min={0}
-            value={form.bedCount}
-            onChange={(e) => handleChange("bedCount", e.target.value)}
-            list="bedCounts"
-            className="!m-0 !p-1"
-          />
-          <datalist id="bedCounts">
-            {[0, 10, 20, 25, 30, 40, 50, 75, 100, 150, 200, 250, 300, 400, 500].map(
-              (v) => (
-                <option key={v} value={v} />
-              )
-            )}
-          </datalist>
-        </div>
-
-        {/* Start Date */}
+        {/* Bed Count */}
         <Input
-          id="startDate"
-          label="Start Date"
-          type="date"
-          value={form.startDate}
-          onChange={(e) => handleChange("startDate", e.target.value)}
-        />
-
-        {/* End Date */}
-        <Input
-          id="endDate"
-          label="End Date"
-          type="date"
-          value={form.endDate}
-          onChange={(e) => handleChange("endDate", e.target.value)}
+          id="bedCount"
+          label="Bed Count"
+          type="number"
+          min={0}
+          value={form.bedCount}
+          onChange={(e) => handleChange("bedCount", e.target.value)}
+          placeholder="Enter bed count"
         />
       </div>
 
@@ -175,13 +156,7 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
         <Button
           variant="primary"
           onClick={handleContinue}
-          disabled={
-            !form.facility ||
-            !form.department ||
-            !form.costCenter ||
-            !form.startDate ||
-            !form.endDate
-          }
+          disabled={!form.facility || !form.department || !form.costCenter}
         >
           Continue →
         </Button>

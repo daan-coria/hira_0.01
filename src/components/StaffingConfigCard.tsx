@@ -34,6 +34,47 @@ export default function StaffingConfigCard({ onNext, onPrev }: Props) {
   const baseURL = import.meta.env.MODE === "development" ? "/mockdata" : "/api"
   const categories = state.facilitySetup?.categories || ["Nursing", "Support", "Other"]
 
+  // ✅ Debounced auto-save
+  const debouncedSave = useCallback(
+    debounce((updated: StaffingConfigRow[]) => {
+      setSaving(true)
+      updateData("staffingConfig", updated)
+      setTimeout(() => setSaving(false), 600)
+    }, 500),
+    [updateData]
+  )
+
+  useEffect(() => {
+    fetchConfigs()
+  }, [])
+
+  // ✅ Fetch or use fallback
+  const fetchConfigs = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const url = `${baseURL}/staffing-config.json`
+      const res = await fetch(url)
+      if (!res.ok) {
+        console.info(`ℹ️ Using fallback data (no ${url} found).`)
+        setRows(fallbackData)
+        updateData("staffingConfig", fallbackData)
+        return
+      }
+      const data = await res.json()
+      setRows(data)
+      updateData("staffingConfig", data)
+    } catch (err: any) {
+      console.error("⚠️ Failed to fetch staffing config, using fallback", err)
+      setRows(fallbackData)
+      updateData("staffingConfig", fallbackData)
+      setError("Loaded fallback staffing configuration.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // ✅ Fallback data if JSON not found
   const fallbackData: StaffingConfigRow[] = [
     {
       id: 1,
@@ -81,44 +122,30 @@ export default function StaffingConfigCard({ onNext, onPrev }: Props) {
     },
   ]
 
-  const debouncedSave = useCallback(
-    debounce((updated: StaffingConfigRow[]) => {
-      setSaving(true)
-      updateData("staffingConfig", updated)
-      setTimeout(() => setSaving(false), 600)
-    }, 500),
-    [updateData]
-  )
-
-  useEffect(() => {
-    fetchConfigs()
-  }, [])
-
-  const fetchConfigs = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      const url = `${baseURL}/staffing-config.json`
-      const res = await fetch(url)
-      if (!res.ok) {
-        console.warn(`⚠️ ${url} not found, using fallback data.`)
-        setRows(fallbackData)
-        updateData("staffingConfig", fallbackData)
-        return
-      }
-      const data = await res.json()
-      setRows(data)
-      updateData("staffingConfig", data)
-    } catch (err: any) {
-      console.error("⚠️ Failed to fetch staffing config, using fallback", err)
-      setRows(fallbackData)
-      updateData("staffingConfig", fallbackData)
-      setError("Loaded fallback staffing configuration.")
-    } finally {
-      setLoading(false)
-    }
+  // 🧮 Auto-calculate FTE dynamically
+  const calculateFTE = (row: StaffingConfigRow): number => {
+    const bedCount = state.facilitySetup?.bedCount || 0
+    const ratio = typeof row.regular_ratio === "number" ? row.regular_ratio : 0
+    const carePct = row.direct_care_percent / 100
+    if (!ratio || ratio <= 0) return 0
+    return parseFloat(((bedCount / ratio) * carePct).toFixed(2))
   }
 
+  // ⚠️ Validation logic for warnings
+  const validateRow = (row: StaffingConfigRow): string | null => {
+    if (
+      row.type === "Ratio-Based" &&
+      typeof row.max_ratio === "number" &&
+      typeof row.regular_ratio === "number" &&
+      row.regular_ratio > row.max_ratio
+    )
+      return "Regular Ratio cannot exceed Max Ratio."
+    if (!row.category) return "Category must be defined."
+    if (row.direct_care_percent > 100) return "Direct Care % cannot exceed 100."
+    return null
+  }
+
+  // 🔁 Handle user changes
   const handleChange = (index: number, field: keyof StaffingConfigRow, value: any) => {
     const updated = rows.map((r, i) => {
       if (i !== index) return r
@@ -145,13 +172,15 @@ export default function StaffingConfigCard({ onNext, onPrev }: Props) {
         newRow.regular_ratio = newRow.max_ratio
       }
 
+      // ✅ Recalculate FTE
+      newRow.fte = calculateFTE(newRow)
       return newRow
     })
-
     setRows(updated)
     debouncedSave(updated)
   }
 
+  // ➕ Add new config row
   const addRow = () => {
     const newRow: StaffingConfigRow = {
       id: Date.now(),
@@ -190,21 +219,18 @@ export default function StaffingConfigCard({ onNext, onPrev }: Props) {
               <tr>
                 <th className="px-3 py-2 border">Role</th>
                 <th className="px-3 py-2 border">Type</th>
-
                 <th className="px-3 py-2 border text-right">
                   <div className="flex items-center justify-end">
                     Max Ratio
                     <InfoButton text="Maximum number of patients per staff (e.g., 1:6 means one RN per six patients)." />
                   </div>
                 </th>
-
                 <th className="px-3 py-2 border text-right">
                   <div className="flex items-center justify-end">
                     Regular Ratio
                     <InfoButton text="Editable ratio used in calculations. Must not exceed Max Ratio." />
                   </div>
                 </th>
-
                 <th className="px-3 py-2 border text-center">Include in Ratio</th>
                 <th className="px-3 py-2 border text-right">Direct Care %</th>
                 <th className="px-3 py-2 border">Category</th>
@@ -221,130 +247,155 @@ export default function StaffingConfigCard({ onNext, onPrev }: Props) {
                 </tr>
               ) : (
                 rows.map((row, i) => (
-                  <tr key={row.id || i}>
-                    {/* Role */}
-                    <td className="border px-2 py-1">
-                      <Select
-                        id={`role_${i}`}
-                        label=""
-                        value={row.role}
-                        onChange={(e) => handleChange(i, "role", e.target.value)}
-                        className="!m-0 !p-1"
-                      >
-                        <option value="">-- Select Role --</option>
-                        <option value="RN">RN</option>
-                        <option value="LPN">LPN</option>
-                        <option value="CNA">CNA</option>
-                        <option value="Clerk">Clerk</option>
-                      </Select>
-                    </td>
+                  <>
+                    <tr key={row.id || i}>
+                      {/* Role */}
+                      <td className="border px-2 py-1">
+                        <Select
+                          id={`role_${i}`}
+                          label=""
+                          value={row.role}
+                          onChange={(e) => handleChange(i, "role", e.target.value)}
+                          className="!m-0 !p-1"
+                        >
+                          <option value="">-- Select Role --</option>
+                          <option value="RN">RN</option>
+                          <option value="LPN">LPN</option>
+                          <option value="CNA">CNA</option>
+                          <option value="Clerk">Clerk</option>
+                        </Select>
+                      </td>
 
-                    {/* Type */}
-                    <td className="border px-2 py-1">
-                      <Select
-                        id={`type_${i}`}
-                        label=""
-                        value={row.type}
-                        onChange={(e) => handleChange(i, "type", e.target.value as any)}
-                        className="!m-0 !p-1"
-                      >
-                        <option value="Ratio-Based">Ratio-Based</option>
-                        <option value="Fixed Position">Fixed Position</option>
-                      </Select>
-                    </td>
+                      {/* Type */}
+                      <td className="border px-2 py-1">
+                        <Select
+                          id={`type_${i}`}
+                          label=""
+                          value={row.type}
+                          onChange={(e) => handleChange(i, "type", e.target.value as any)}
+                          className="!m-0 !p-1"
+                        >
+                          <option value="Ratio-Based">Ratio-Based</option>
+                          <option value="Fixed Position">Fixed Position</option>
+                        </Select>
+                      </td>
 
-                    {/* Max Ratio */}
-                    <td className="border px-2 py-1 text-right">
-                      <Input
-                        label=""
-                        id={`max_ratio_${i}`}
-                        type={row.type === "Fixed Position" ? "text" : "number"}
-                        value={row.type === "Fixed Position" ? "N/A" : row.max_ratio}
-                        disabled={row.type === "Fixed Position"}
-                        onChange={(e) => handleChange(i, "max_ratio", Number(e.target.value))}
-                        className={`!m-0 !p-1 w-20 text-right ${
-                          row.type === "Fixed Position" ? "bg-gray-100 opacity-60" : ""
-                        }`}
-                      />
-                    </td>
+                      {/* Max Ratio */}
+                      <td className="border px-2 py-1 text-right">
+                        <Input
+                          label=""
+                          id={`max_ratio_${i}`}
+                          type={row.type === "Fixed Position" ? "text" : "number"}
+                          value={row.type === "Fixed Position" ? "N/A" : row.max_ratio}
+                          disabled={row.type === "Fixed Position"}
+                          placeholder="Max ratio"
+                          title="Max ratio"
+                          onChange={(e) =>
+                            handleChange(i, "max_ratio", Number(e.target.value))
+                          }
+                          className={`!m-0 !p-1 w-20 text-right ${
+                            row.type === "Fixed Position" ? "bg-gray-100 opacity-60" : ""
+                          }`}
+                        />
+                      </td>
 
-                    {/* Regular Ratio */}
-                    <td className="border px-2 py-1 text-right">
-                      <Input
-                        label=""
-                        id={`regular_ratio_${i}`}
-                        type={row.type === "Fixed Position" ? "text" : "number"}
-                        value={row.type === "Fixed Position" ? "N/A" : row.regular_ratio}
-                        disabled={row.type === "Fixed Position"}
-                        onChange={(e) =>
-                          handleChange(i, "regular_ratio", Number(e.target.value))
-                        }
-                        className={`!m-0 !p-1 w-20 text-right ${
-                          row.type === "Fixed Position" ? "bg-gray-100 opacity-60" : ""
-                        }`}
-                      />
-                    </td>
+                      {/* Regular Ratio */}
+                      <td className="border px-2 py-1 text-right">
+                        <Input
+                          label=""
+                          id={`regular_ratio_${i}`}
+                          type={row.type === "Fixed Position" ? "text" : "number"}
+                          value={row.type === "Fixed Position" ? "N/A" : row.regular_ratio}
+                          disabled={row.type === "Fixed Position"}
+                          placeholder="Regular ratio"
+                          title="Regular ratio"
+                          onChange={(e) =>
+                            handleChange(i, "regular_ratio", Number(e.target.value))
+                          }
+                          className={`!m-0 !p-1 w-20 text-right ${
+                            row.type === "Fixed Position" ? "bg-gray-100 opacity-60" : ""
+                          }`}
+                        />
+                      </td>
 
-                    {/* Include in Ratio */}
-                    <td className="border px-2 py-1 text-center">
-                      <input
-                        id={`include_${i}`}
-                        type="checkbox"
-                        checked={row.include_in_ratio}
-                        onChange={(e) => handleChange(i, "include_in_ratio", e.target.checked)}
-                        className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-                        aria-label={`Include ${row.role || "role"} in ratio`}
-                        title={`Include ${row.role || "role"} in ratio`}
-                        placeholder="Include in ratio"
-                      />
-                    </td>
+                      {/* Include in Ratio */}
+                      <td className="border px-2 py-1 text-center">
+                        <input
+                          id={`include_${i}`}
+                          type="checkbox"
+                          checked={row.include_in_ratio}
+                          onChange={(e) =>
+                            handleChange(i, "include_in_ratio", e.target.checked)
+                          }
+                          className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                          aria-label={`Include ${row.role || "role"} in ratio`}
+                          title={`Include ${row.role || "role"} in ratio`}
+                        />
+                      </td>
 
-                    {/* Direct Care % */}
-                    <td className="border px-2 py-1 text-right">
-                      <Input
-                        label=""
-                        id={`direct_care_${i}`}
-                        type="number"
-                        min={0}
-                        max={100}
-                        value={row.direct_care_percent}
-                        onChange={(e) =>
-                          handleChange(i, "direct_care_percent", Number(e.target.value))
-                        }
-                        className="!m-0 !p-1 w-20 text-right"
-                      />
-                    </td>
+                      {/* Direct Care % */}
+                      <td className="border px-2 py-1 text-right">
+                        <Input
+                          label=""
+                          id={`direct_care_${i}`}
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={row.direct_care_percent}
+                          placeholder="Direct care %"
+                          title="Direct care %"
+                          onChange={(e) =>
+                            handleChange(i, "direct_care_percent", Number(e.target.value))
+                          }
+                          className="!m-0 !p-1 w-20 text-right"
+                        />
+                      </td>
 
-                    {/* Category */}
-                    <td className="border px-2 py-1">
-                      <Select
-                        id={`category_${i}`}
-                        label=""
-                        value={row.category}
-                        onChange={(e) => handleChange(i, "category", e.target.value)}
-                        className="!m-0 !p-1"
-                      >
-                        <option value="">-- Select Category --</option>
-                        {categories.map((cat) => (
-                          <option key={cat} value={cat}>
-                            {cat}
-                          </option>
-                        ))}
-                      </Select>
-                    </td>
+                      {/* Category */}
+                      <td className="border px-2 py-1">
+                        <Select
+                          id={`category_${i}`}
+                          label=""
+                          value={row.category}
+                          onChange={(e) => handleChange(i, "category", e.target.value)}
+                          className="!m-0 !p-1"
+                        >
+                          <option value="">-- Select Category --</option>
+                          {categories.map((cat: string) => (
+                            <option key={cat} value={cat}>
+                              {cat}
+                            </option>
+                          ))}
+                        </Select>
+                      </td>
 
-                    {/* FTE */}
-                    <td className="border px-2 py-1 text-right">
-                      <Input
-                        label=""
-                        id={`fte_${i}`}
-                        type="number"
-                        value={row.fte}
-                        disabled
-                        className="!m-0 !p-1 w-20 text-right bg-gray-100 opacity-60 cursor-not-allowed"
-                      />
-                    </td>
-                  </tr>
+                      {/* FTE */}
+                      <td className="border px-2 py-1 text-right">
+                        <Input
+                          label=""
+                          id={`fte_${i}`}
+                          type="number"
+                          value={row.fte}
+                          disabled
+                          placeholder="Auto-calculated FTE"
+                          title="Full-Time Equivalent (read-only)"
+                          className="!m-0 !p-1 w-20 text-right bg-gray-100 opacity-60 cursor-not-allowed"
+                        />
+                      </td>
+                    </tr>
+
+                    {/* Validation Warning */}
+                    {validateRow(row) && (
+                      <tr>
+                        <td
+                          colSpan={8}
+                          className="text-xs text-red-600 bg-red-50 p-2 border-t"
+                        >
+                          ⚠️ {validateRow(row)}
+                        </td>
+                      </tr>
+                    )}
+                  </>
                 ))
               )}
             </tbody>
