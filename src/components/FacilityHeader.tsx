@@ -13,7 +13,7 @@ type Props = {
 export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
   const { updateFacilitySetup } = useApp()
 
-  // 🔁 One-to-one Cost Center ↔ Department map
+  //  One-to-one Cost Center ↔ Department map
   const costCenterMap: Record<string, string> = {
     "1001": "ICU",
     "1002": "Med-Surg",
@@ -41,7 +41,7 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
 
   const [warning, setWarning] = useState<string | null>(null)
 
-  // 🔁 Auto-sync Facility Setup with AppContext
+  //  Auto-sync Facility Setup with AppContext
   useEffect(() => {
     updateFacilitySetup({
       facility: form.facility,
@@ -58,7 +58,7 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
 
       setWarning(null) // reset previous warning
 
-      // 🔄 Two-way sync between Department and Cost Center
+      //  Two-way sync between Department and Cost Center
       if (key === "department") {
         const match = Object.entries(costCenterMap).find(
           ([cc, dept]) => dept === value

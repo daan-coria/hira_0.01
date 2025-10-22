@@ -39,6 +39,13 @@ export default function ToolPage() {
     "Gap Summary",
   ]
 
+  // ✅ Consistent display for fractional step
+  const getStepLabel = (index: number): string => {
+    if (index === 1) return "1.5"
+    if (index > 1) return String(index)
+    return "1"
+  }
+
   const progressPercent = ((currentStep + 1) / totalSteps) * 100
 
   const handleNext = () => {
@@ -104,19 +111,18 @@ export default function ToolPage() {
 
       {/* ✅ Clickable Step Navigation */}
       <div className="w-full" aria-label="Progress Section">
+        {/* Header */}
         <div className="flex flex-wrap justify-between items-center mb-2">
           <h2 className="text-lg font-semibold text-gray-800">
-            Step{" "}
-            {currentStep === 1
-              ? "1.5"
-              : currentStep + 1}{" "}
-            of {totalSteps} — {stepNames[currentStep]}
+            Step {getStepLabel(currentStep)} of {totalSteps} —{" "}
+            {stepNames[currentStep]}
           </h2>
           <span className="text-sm text-gray-600">
             {Math.round(progressPercent)}%
           </span>
         </div>
 
+        {/* Step Chips */}
         <div className="flex items-center gap-2 overflow-x-auto pb-2">
           {stepNames.map((name, i) => (
             <button
@@ -129,11 +135,12 @@ export default function ToolPage() {
               }`}
               title={`Go to ${name}`}
             >
-              {i === 1 ? "1.5" : i + 1}. {name}
+              {getStepLabel(i)}. {name}
             </button>
           ))}
         </div>
 
+        {/* Progress Bar */}
         <progress
           className="w-full h-3 accent-green-600 rounded mt-2"
           value={currentStep + 1}
