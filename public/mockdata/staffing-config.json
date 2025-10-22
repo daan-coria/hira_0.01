@@ -2,37 +2,45 @@
   {
     "id": 1,
     "role": "RN",
-    "ratio_mode": "Ratio",
-    "max_ratio": 4.0,
+    "type": "Ratio-Based",
+    "regular_ratio": 4,
+    "max_ratio": 5,
     "include_in_ratio": true,
     "direct_care_percent": 100,
-    "category": "Nursing"
+    "category": "Nursing",
+    "fte": 10
   },
   {
     "id": 2,
     "role": "LPN",
-    "ratio_mode": "Ratio",
-    "max_ratio": 6.0,
+    "type": "Ratio-Based",
+    "regular_ratio": 6,
+    "max_ratio": 8,
     "include_in_ratio": true,
     "direct_care_percent": 80,
-    "category": "Nursing"
+    "category": "Nursing",
+    "fte": 7
   },
   {
     "id": 3,
     "role": "CNA",
-    "ratio_mode": "Ratio",
-    "max_ratio": 8.0,
+    "type": "Ratio-Based",
+    "regular_ratio": 8,
+    "max_ratio": 10,
     "include_in_ratio": true,
     "direct_care_percent": 90,
-    "category": "Support"
+    "category": "Support",
+    "fte": 12
   },
   {
     "id": 4,
     "role": "Clerk",
-    "ratio_mode": "Fixed",
-    "max_ratio": 1.0,
+    "type": "Fixed Position",
+    "regular_ratio": "N/A",
+    "max_ratio": "N/A",
     "include_in_ratio": false,
     "direct_care_percent": 0,
-    "category": "Other"
+    "category": "Other",
+    "fte": 1
   }
 ]
