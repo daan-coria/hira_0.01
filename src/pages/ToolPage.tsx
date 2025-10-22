@@ -4,10 +4,10 @@ import { useNavigate } from "react-router-dom"
 // Step Components
 import FacilityHeader from "@/components/FacilityHeader"
 import PositionSetupPage from "@/pages/PositionSetupPage"
+import AvailabilityConfigCard from "@/components/AvailabilityConfigCard" // ✅ moved up
 import ResourceInputCard from "@/components/ResourceInputCard"
 import ShiftConfigCard from "@/components/ShiftConfigCard"
 import StaffingConfigCard from "@/components/StaffingConfigCard"
-import AvailabilityConfigCard from "@/components/AvailabilityConfigCard"
 import CensusOverrideCard from "@/components/CensusOverrideCard"
 import GapSummaryCard from "@/components/GapSummaryCard"
 
@@ -31,10 +31,10 @@ export default function ToolPage() {
   const stepNames = [
     "Facility Setup",
     "Position Setup",
+    "Availability Configuration", // ✅ moved before Resource Input
     "Resource Input",
     "Shift Configuration",
     "Staffing Configuration",
-    "Availability Configuration",
     "Census Override",
     "Gap Summary",
   ]
@@ -88,13 +88,13 @@ export default function ToolPage() {
       case 1:
         return <PositionSetupPage onNext={handleNext} onPrev={handlePrev} />
       case 2:
-        return <ResourceInputCard onNext={handleNext} onPrev={handlePrev} />
+        return <AvailabilityConfigCard onNext={handleNext} onPrev={handlePrev} /> // ✅ now step 2
       case 3:
-        return <ShiftConfigCard onNext={handleNext} onPrev={handlePrev} />
+        return <ResourceInputCard onNext={handleNext} onPrev={handlePrev} /> // ✅ now step 3
       case 4:
-        return <StaffingConfigCard onNext={handleNext} onPrev={handlePrev} />
+        return <ShiftConfigCard onNext={handleNext} onPrev={handlePrev} />
       case 5:
-        return <AvailabilityConfigCard onNext={handleNext} onPrev={handlePrev} />
+        return <StaffingConfigCard onNext={handleNext} onPrev={handlePrev} />
       case 6:
         return <CensusOverrideCard onNext={handleNext} onPrev={handlePrev} />
       case 7:
