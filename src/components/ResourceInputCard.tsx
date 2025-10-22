@@ -178,10 +178,44 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
 
           {/* Buttons */}
           <Button onClick={() => fileInputRef.current?.click()}>Upload CSV</Button>
-          <Button onClick={handleExport} variant="ghost" className="border border-gray-300 text-gray-700">
+
+          <Button
+            onClick={handleExport}
+            variant="ghost"
+            className="border border-gray-300 text-gray-700"
+          >
             Export CSV
           </Button>
-          <Button onClick={addRow}>+ Add Resource</Button>
+
+          {/* ✅ NEW: Clear All Button */}
+          <Button
+            variant="ghost"
+            className="border border-red-400 text-red-600 hover:bg-red-50"
+            onClick={() => {
+              if (rows.length === 0) return
+              Swal.fire({
+                title: "Clear All Resources?",
+                text: "This will remove all rows permanently. Do you want to continue?",
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonColor: "#d33",
+                cancelButtonColor: "#3085d6",
+                confirmButtonText: "Yes, clear all",
+              }).then((result) => {
+                if (result.isConfirmed) {
+                  setRows([])
+                  updateData("resourceInput", [])
+                  Swal.fire("Cleared!", "All resources have been removed.", "success")
+                }
+              })
+            }}
+          >
+            🗑 Clear All
+          </Button>
+
+          <Button onClick={addRow} className="bg-green-600 hover:bg-green-700">
+            + Add Resource
+          </Button>
         </div>
       </div>
 
