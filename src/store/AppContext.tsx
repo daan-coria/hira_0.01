@@ -18,6 +18,7 @@ type FacilitySetup = {
     start?: string
     end?: string
   }
+  categories?: string[]
 }
 
 type AppState = {
