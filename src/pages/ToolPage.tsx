@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom"
 
 // Step Components
 import FacilityHeader from "@/components/FacilityHeader"
+import PositionSetupPage from "@/pages/PositionSetupPage" // ✅ New Step 1.5
 import ResourceInputCard from "@/components/ResourceInputCard"
 import ShiftConfigCard from "@/components/ShiftConfigCard"
 import StaffingConfigCard from "@/components/StaffingConfigCard"
@@ -26,7 +27,8 @@ export default function ToolPage() {
     setCurrentStep,
   } = useApp()
 
-  const totalSteps = 7
+  // ✅ Updated total step count
+  const totalSteps = 8
   const progressPercent = ((currentStep + 1) / totalSteps) * 100
 
   const handleNext = () => {
@@ -62,44 +64,58 @@ export default function ToolPage() {
               onClick={handleNext}
               disabled={!state.facilitySetup}
             >
-              Continue to Step 2
+              Continue to Step 1.5
             </Button>
           </Card>
         )
+
       case 1:
-        return <ResourceInputCard onNext={handleNext} onPrev={handlePrev} />
+        return <PositionSetupPage onNext={handleNext} onPrev={handlePrev} />
+
       case 2:
-        return <ShiftConfigCard onNext={handleNext} onPrev={handlePrev} />
+        return <ResourceInputCard onNext={handleNext} onPrev={handlePrev} />
+
       case 3:
-        return <StaffingConfigCard onNext={handleNext} onPrev={handlePrev} />
+        return <ShiftConfigCard onNext={handleNext} onPrev={handlePrev} />
+
       case 4:
-        return <AvailabilityConfigCard onNext={handleNext} onPrev={handlePrev} />
+        return <StaffingConfigCard onNext={handleNext} onPrev={handlePrev} />
+
       case 5:
-        return <CensusOverrideCard onNext={handleNext} onPrev={handlePrev} />
+        return <AvailabilityConfigCard onNext={handleNext} onPrev={handlePrev} />
+
       case 6:
+        return <CensusOverrideCard onNext={handleNext} onPrev={handlePrev} />
+
+      case 7:
         return <GapSummaryCard onPrev={handlePrev} onReset={handleReset} />
+
       default:
         return null
     }
   }
 
+  const stepNames = [
+    "Facility Setup",
+    "Position Setup",
+    "Resource Input",
+    "Shift Configuration",
+    "Staffing Configuration",
+    "Availability Configuration",
+    "Census Override",
+    "Gap Summary",
+  ]
+
   return (
     <div className="space-y-8 p-6 max-w-6xl mx-auto">
+      {/* Always show Facility Header at top */}
       <FacilityHeader />
 
+      {/* Progress Section */}
       <div className="w-full" aria-label="Progress Section">
         <div className="flex justify-between items-center mb-1">
           <h2 className="text-lg font-semibold text-gray-800">
-            Step {currentStep + 1} of {totalSteps} —{" "}
-            {[
-              "Facility Setup",
-              "Resource Input",
-              "Shift Configuration",
-              "Staffing Configuration",
-              "Availability Configuration",
-              "Census Override",
-              "Gap Summary",
-            ][currentStep]}
+            Step {currentStep + 1} of {totalSteps} — {stepNames[currentStep]}
           </h2>
           <span className="text-sm text-gray-600">
             {Math.round(progressPercent)}%
@@ -114,6 +130,7 @@ export default function ToolPage() {
         />
       </div>
 
+      {/* Render Step Content */}
       {data.loading ? (
         <p className="text-gray-500 text-center mt-10">
           Loading data, please wait...
@@ -122,6 +139,7 @@ export default function ToolPage() {
         <div>{renderStep()}</div>
       )}
 
+      {/* Reload Button */}
       <div className="text-center">
         <Button variant="ghost" onClick={reloadData}>
           🔁 Reload Mock Data
