@@ -26,7 +26,7 @@ export default function PositionControlCard() {
   const baseURL =
     import.meta.env.MODE === "development" ? "/mockdata" : "/api"
 
-  // Debounced autosave (prevents spam on fast edits)
+  // ✅ Debounced autosave
   const debouncedSave = useCallback(
     debounce(async (updated: PositionControlRow[]) => {
       setSaving(true)
@@ -58,7 +58,7 @@ export default function PositionControlCard() {
     [facilitySetup]
   )
 
-  // Load data on mount
+  // ✅ Load data on mount
   useEffect(() => {
     if (facilitySetup) fetchPositions()
   }, [facilitySetup])
@@ -81,8 +81,6 @@ export default function PositionControlCard() {
             facilitySetup.bedCount !== undefined && facilitySetup.bedCount !== null
               ? String(facilitySetup.bedCount)
               : "",
-          start: facilitySetup.dateRange?.start ?? "",
-          end: facilitySetup.dateRange?.end ?? "",
         })
         url = `${baseURL}/position-control?${query.toString()}`
       }
