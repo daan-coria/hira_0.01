@@ -13,7 +13,7 @@ type Props = {
 export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
   const { updateFacilitySetup } = useApp()
 
-  // 🔁 Randomized one-to-one Cost Center ↔ Department map
+  // 🔁 One-to-one Cost Center ↔ Department map
   const costCenterMap: Record<string, string> = {
     "1001": "ICU",
     "1002": "Med-Surg",
@@ -39,9 +39,9 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
     bedCount: "",
   })
 
-  const [lockedField, setLockedField] = useState<"department" | "costCenter" | null>(null)
+  const [warning, setWarning] = useState<string | null>(null)
 
-  // 🔁 Auto-sync FacilitySetup with AppContext
+  // 🔁 Auto-sync Facility Setup with AppContext
   useEffect(() => {
     updateFacilitySetup({
       facility: form.facility,
@@ -56,19 +56,26 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
     setForm((prev) => {
       let updated = { ...prev, [key]: value }
 
-      // 🔒 Auto-link Cost Center ↔ Department
-      if (key === "department" && !lockedField) {
-        const match = Object.entries(costCenterMap).find(([cc, dept]) => dept === value)
+      setWarning(null) // reset previous warning
+
+      // 🔄 Two-way sync between Department and Cost Center
+      if (key === "department") {
+        const match = Object.entries(costCenterMap).find(
+          ([cc, dept]) => dept === value
+        )
         if (match) {
           updated.costCenter = match[0]
-          setLockedField("department")
+        } else {
+          updated.costCenter = ""
+          setWarning(`No matching Cost Center found for ${value}`)
         }
-      }
-      if (key === "costCenter" && !lockedField) {
+      } else if (key === "costCenter") {
         const dept = costCenterMap[value]
         if (dept) {
           updated.department = dept
-          setLockedField("costCenter")
+        } else {
+          updated.department = ""
+          setWarning(`No matching Department found for ${value}`)
         }
       }
 
@@ -112,7 +119,6 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
           id="department"
           label="Department"
           value={form.department}
-          disabled={lockedField === "costCenter"}
           onChange={(e) => handleChange("department", e.target.value)}
         >
           <option value="">-- Select Department --</option>
@@ -128,7 +134,6 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
           id="costCenter"
           label="Cost Center"
           value={form.costCenter}
-          disabled={lockedField === "department"}
           onChange={(e) => handleChange("costCenter", e.target.value)}
         >
           <option value="">-- Select Cost Center --</option>
@@ -150,6 +155,13 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
           placeholder="Enter bed count"
         />
       </div>
+
+      {/* ⚠️ Warning message */}
+      {warning && (
+        <p className="text-yellow-700 bg-yellow-50 px-3 py-2 rounded mt-3 text-sm">
+          ⚠️ {warning}
+        </p>
+      )}
 
       {/* Continue button */}
       <div className="flex justify-end mt-6">
