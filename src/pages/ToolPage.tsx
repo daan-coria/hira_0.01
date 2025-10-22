@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom"
 
 // Step Components
 import FacilityHeader from "@/components/FacilityHeader"
-import PositionSetupPage from "@/pages/PositionSetupPage" // ✅ New Step 1.5
+import PositionSetupPage from "@/pages/PositionSetupPage"
 import ResourceInputCard from "@/components/ResourceInputCard"
 import ShiftConfigCard from "@/components/ShiftConfigCard"
 import StaffingConfigCard from "@/components/StaffingConfigCard"
@@ -27,8 +27,18 @@ export default function ToolPage() {
     setCurrentStep,
   } = useApp()
 
-  // ✅ Updated total step count
   const totalSteps = 8
+  const stepNames = [
+    "Facility Setup",
+    "Position Setup",
+    "Resource Input",
+    "Shift Configuration",
+    "Staffing Configuration",
+    "Availability Configuration",
+    "Census Override",
+    "Gap Summary",
+  ]
+
   const progressPercent = ((currentStep + 1) / totalSteps) * 100
 
   const handleNext = () => {
@@ -64,73 +74,75 @@ export default function ToolPage() {
               onClick={handleNext}
               disabled={!state.facilitySetup}
             >
-              Continue to Step 1.5
+              Continue to Position Setup
             </Button>
           </Card>
         )
-
       case 1:
         return <PositionSetupPage onNext={handleNext} onPrev={handlePrev} />
-
       case 2:
         return <ResourceInputCard onNext={handleNext} onPrev={handlePrev} />
-
       case 3:
         return <ShiftConfigCard onNext={handleNext} onPrev={handlePrev} />
-
       case 4:
         return <StaffingConfigCard onNext={handleNext} onPrev={handlePrev} />
-
       case 5:
         return <AvailabilityConfigCard onNext={handleNext} onPrev={handlePrev} />
-
       case 6:
         return <CensusOverrideCard onNext={handleNext} onPrev={handlePrev} />
-
       case 7:
         return <GapSummaryCard onPrev={handlePrev} onReset={handleReset} />
-
       default:
         return null
     }
   }
 
-  const stepNames = [
-    "Facility Setup",
-    "Position Setup",
-    "Resource Input",
-    "Shift Configuration",
-    "Staffing Configuration",
-    "Availability Configuration",
-    "Census Override",
-    "Gap Summary",
-  ]
-
   return (
     <div className="space-y-8 p-6 max-w-6xl mx-auto">
-      {/* Always show Facility Header at top */}
+      {/* Always show Facility Header */}
       <FacilityHeader />
 
-      {/* Progress Section */}
+      {/* ✅ Clickable Step Navigation */}
       <div className="w-full" aria-label="Progress Section">
-        <div className="flex justify-between items-center mb-1">
+        <div className="flex flex-wrap justify-between items-center mb-2">
           <h2 className="text-lg font-semibold text-gray-800">
-            Step {currentStep + 1} of {totalSteps} — {stepNames[currentStep]}
+            Step{" "}
+            {currentStep === 1
+              ? "1.5"
+              : currentStep + 1}{" "}
+            of {totalSteps} — {stepNames[currentStep]}
           </h2>
           <span className="text-sm text-gray-600">
             {Math.round(progressPercent)}%
           </span>
         </div>
 
+        <div className="flex items-center gap-2 overflow-x-auto pb-2">
+          {stepNames.map((name, i) => (
+            <button
+              key={name}
+              onClick={() => setCurrentStep(i)}
+              className={`px-3 py-1 text-sm rounded-full border transition-colors ${
+                i === currentStep
+                  ? "bg-green-600 text-white border-green-600"
+                  : "border-gray-300 text-gray-700 hover:bg-gray-100"
+              }`}
+              title={`Go to ${name}`}
+            >
+              {i === 1 ? "1.5" : i + 1}. {name}
+            </button>
+          ))}
+        </div>
+
         <progress
-          className="w-full h-3 accent-green-500 rounded"
+          className="w-full h-3 accent-green-600 rounded mt-2"
           value={currentStep + 1}
           max={totalSteps}
           aria-label="Wizard progress"
         />
       </div>
 
-      {/* Render Step Content */}
+      {/* Step content */}
       {data.loading ? (
         <p className="text-gray-500 text-center mt-10">
           Loading data, please wait...
