@@ -102,7 +102,11 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
   ) => {
     const updated = rows.map((r, i) => {
       if (i !== index) return r
-      const newRange = { ...r.range, [field]: value }
+      const newRange = {
+        ...r.range,
+        [field]: value ? new Date(value).toISOString().split("T")[0] : "",
+      }
+
       const newDays = calcDays(newRange.start, newRange.end)
       return { ...r, range: newRange, days: newDays }
     })
