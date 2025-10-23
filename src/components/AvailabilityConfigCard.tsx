@@ -93,13 +93,15 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
     { value: "Orientation", label: "Orientation" },
   ]
 
-  // --- Load normalized data ---
+  // --- Load normalized data only once (no overwrite after save) ---
   useEffect(() => {
-    if (Array.isArray(data?.availabilityConfig)) {
+    if (rows.length === 0 && Array.isArray(data?.availabilityConfig)) {
       const normalized = normalizeRows(data.availabilityConfig)
       setRows(normalized)
     }
-  }, [data?.availabilityConfig])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // run once only
+
 
   // --- Calculate days ---
   const calcDays = (start: string, end: string) => {
