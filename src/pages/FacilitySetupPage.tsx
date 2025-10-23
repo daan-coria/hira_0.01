@@ -7,7 +7,7 @@ export default function FacilitySetupPage() {
   const navigate = useNavigate()
   const { state } = useApp()
 
-  // ✅ Auto-redirect if facility already set up
+  //  Auto-redirect if facility already set up
   useEffect(() => {
     if (state.facilitySetup && state.toolType) {
       navigate("/tool")
@@ -15,7 +15,7 @@ export default function FacilitySetupPage() {
   }, [state, navigate])
 
   const handleSetupComplete = () => {
-    // ✅ Redirect to main tool page
+    //  Redirect to main tool page
     navigate("/tool")
   }
 

@@ -55,8 +55,56 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
   // Dynamic positions from Position Setup Page
   const positions: string[] = (data.positions as string[]) || ["RN", "LPN", "CNA", "Clerk"]
 
+  // ✅ Dynamic availability restrictions
+  const availabilityOptions = Array.from(
+    new Set((data.availabilityConfig || []).map((r: any) => r.availability))
+  ).filter(Boolean)
+
+  const weekendGroups = Array.from(
+    new Set((data.availabilityConfig || []).map((r: any) => r.weekend_group))
+  ).filter(Boolean)
+
+  // ✅ Dynamic hosted positions (for vacancy status)
+  const hostedPositions: { role: string; open_fte: number }[] = (data.positionControl || []).map(
+    (p: any) => ({
+      role: p.role,
+      open_fte: p.open_fte,
+    })
+  )
+
+  // ✅ Validate input against allowed config
+  const validateSelection = (field: keyof ResourceRow, value: string) => {
+    if (field === "availability" && value && !availabilityOptions.includes(value)) {
+      Swal.fire({
+        icon: "error",
+        title: "Invalid Availability",
+        text: `The selected availability "${value}" is not defined in Availability Configuration.`,
+      })
+      return false
+    }
+    if (field === "weekend_group" && value && !weekendGroups.includes(value)) {
+      Swal.fire({
+        icon: "error",
+        title: "Invalid Weekend Group",
+        text: `The selected weekend group "${value}" is not defined in Availability Configuration.`,
+      })
+      return false
+    }
+    if (field === "vacancy_status" && value && !hostedPositions.some((p) => p.role === value)) {
+      Swal.fire({
+        icon: "error",
+        title: "Invalid Vacancy Status",
+        text: `The selected position "${value}" is not defined in Hosted Positions.`,
+      })
+      return false
+    }
+    return true
+  }
+
   // Handle inline edits
   const handleChange = (index: number, field: keyof ResourceRow, value: any) => {
+    if (!validateSelection(field, value)) return
+
     const updated = rows.map((r, i) => (i === index ? { ...r, [field]: value } : r))
     setRows(updated)
     debouncedSave(updated)
@@ -71,9 +119,9 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
       last_name: "",
       position: "",
       unit_fte: 1,
-      availability: "Day",
+      availability: "",
       weekend_group: "",
-      vacancy_status: "Filled",
+      vacancy_status: "",
     }
     const updated = [...rows, newRow]
     setRows(updated)
@@ -148,7 +196,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
       return
     }
 
-    const csv = Papa.unparse(rows.map(({ id, ...r }) => r)) // omit internal id
+    const csv = Papa.unparse(rows.map(({ id, ...r }) => r))
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
     const link = document.createElement("a")
     const url = URL.createObjectURL(blob)
@@ -165,7 +213,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
         <div className="flex items-center gap-3">
           {saving && <span className="text-sm text-gray-500">Saving…</span>}
 
-          {/* ✅ Hidden CSV Upload Input */}
+          {/* Hidden CSV Upload Input */}
           <input
             type="file"
             accept=".csv"
@@ -178,7 +226,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
 
           {/* Buttons */}
           <Button onClick={() => fileInputRef.current?.click()}>Upload CSV</Button>
-
           <Button
             onClick={handleExport}
             variant="ghost"
@@ -187,7 +234,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
             Export CSV
           </Button>
 
-          {/* ✅ NEW: Clear All Button */}
+          {/* Clear All */}
           <Button
             variant="ghost"
             className="border border-red-400 text-red-600 hover:bg-red-50"
@@ -234,7 +281,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                 <th className="px-3 py-2 border text-right">Unit FTE</th>
                 <th className="px-3 py-2 border">Availability</th>
                 <th className="px-3 py-2 border">Weekend Group</th>
-                <th className="px-3 py-2 border">Status</th>
+                <th className="px-3 py-2 border">Vacancy Status</th>
                 <th className="px-3 py-2 border text-center">Actions</th>
               </tr>
             </thead>
@@ -247,11 +294,8 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                   <td className="border px-2 py-1">
                     <Input
                       id={`emp_${i}`}
-                      label=""
                       value={row.employee_id}
-                      onChange={(e) =>
-                        handleChange(i, "employee_id", e.target.value)
-                      }
+                      onChange={(e) => handleChange(i, "employee_id", e.target.value)}
                       placeholder="Employee ID"
                       className="!m-0 !p-1 w-24 text-center"
                     />
@@ -260,11 +304,8 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                   <td className="border px-2 py-1">
                     <Input
                       id={`fname_${i}`}
-                      label=""
                       value={row.first_name}
-                      onChange={(e) =>
-                        handleChange(i, "first_name", e.target.value)
-                      }
+                      onChange={(e) => handleChange(i, "first_name", e.target.value)}
                       placeholder="First Name"
                       className="!m-0 !p-1"
                     />
@@ -273,11 +314,8 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                   <td className="border px-2 py-1">
                     <Input
                       id={`lname_${i}`}
-                      label=""
                       value={row.last_name}
-                      onChange={(e) =>
-                        handleChange(i, "last_name", e.target.value)
-                      }
+                      onChange={(e) => handleChange(i, "last_name", e.target.value)}
                       placeholder="Last Name"
                       className="!m-0 !p-1"
                     />
@@ -286,7 +324,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                   <td className="border px-2 py-1">
                     <Select
                       id={`pos_${i}`}
-                      label=""
                       value={row.position}
                       onChange={(e) => handleChange(i, "position", e.target.value)}
                       className="!m-0 !p-1"
@@ -303,64 +340,78 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                   <td className="border px-2 py-1 text-right">
                     <Input
                       id={`fte_${i}`}
-                      label=""
                       type="number"
                       min={0}
                       step={0.1}
                       value={row.unit_fte}
-                      onChange={(e) =>
-                        handleChange(i, "unit_fte", Number(e.target.value))
-                      }
+                      onChange={(e) => handleChange(i, "unit_fte", Number(e.target.value))}
                       className="!m-0 !p-1 w-20 text-right"
                     />
                   </td>
 
+                  {/* Availability */}
                   <td className="border px-2 py-1">
                     <Select
                       id={`avail_${i}`}
-                      label=""
                       value={row.availability}
-                      onChange={(e) =>
-                        handleChange(i, "availability", e.target.value)
-                      }
+                      onChange={(e) => handleChange(i, "availability", e.target.value)}
+                      disabled={availabilityOptions.length === 0}
                       className="!m-0 !p-1"
                     >
-                      <option value="Day">Day</option>
-                      <option value="Night">Night</option>
+                      <option value="">
+                        {availabilityOptions.length === 0
+                          ? "Define in Step 2"
+                          : "-- Select --"}
+                      </option>
+                      {availabilityOptions.map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
                     </Select>
                   </td>
 
+                  {/* Weekend Group */}
                   <td className="border px-2 py-1">
                     <Select
                       id={`weekend_${i}`}
-                      label=""
                       value={row.weekend_group}
-                      onChange={(e) =>
-                        handleChange(i, "weekend_group", e.target.value)
-                      }
+                      onChange={(e) => handleChange(i, "weekend_group", e.target.value)}
+                      disabled={weekendGroups.length === 0}
                       className="!m-0 !p-1"
                     >
-                      <option value="">--</option>
-                      <option value="A">A</option>
-                      <option value="B">B</option>
-                      <option value="C">C</option>
-                      <option value="WC">WC</option>
+                      <option value="">
+                        {weekendGroups.length === 0
+                          ? "Define in Step 2"
+                          : "-- Select --"}
+                      </option>
+                      {weekendGroups.map((g) => (
+                        <option key={g} value={g}>
+                          {g}
+                        </option>
+                      ))}
                     </Select>
                   </td>
 
+                  {/* Vacancy Status */}
                   <td className="border px-2 py-1">
                     <Select
                       id={`vacancy_${i}`}
-                      label=""
                       value={row.vacancy_status}
-                      onChange={(e) =>
-                        handleChange(i, "vacancy_status", e.target.value)
-                      }
+                      onChange={(e) => handleChange(i, "vacancy_status", e.target.value)}
+                      disabled={hostedPositions.length === 0}
                       className="!m-0 !p-1"
                     >
-                      <option value="Filled">Filled</option>
-                      <option value="LOA">LOA</option>
-                      <option value="Terminated">Terminated</option>
+                      <option value="">
+                        {hostedPositions.length === 0
+                          ? "Define in Step 1.5"
+                          : "-- Select --"}
+                      </option>
+                      {hostedPositions.map((p: { role: string; open_fte: number }) => (
+                        <option key={p.role} value={p.role}>
+                          {p.role} — {p.open_fte > 0 ? "Vacant" : "Filled"}
+                        </option>
+                      ))}
                     </Select>
                   </td>
 
