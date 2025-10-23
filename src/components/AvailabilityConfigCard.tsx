@@ -1,4 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from "react"
+import CreatableSelect from "react-select/creatable"
+import type { StylesConfig, GroupBase } from "react-select"
 import { useApp } from "@/store/AppContext"
 import Card from "@/components/ui/Card"
 import Button from "@/components/ui/Button"
@@ -34,6 +36,15 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
     }, 600),
     []
   )
+
+  // --- Build staff dropdown options from Step 2 ---
+  const staffOptions = useMemo(() => {
+    if (!Array.isArray(data?.resourceInput)) return []
+    return data.resourceInput.map((r: any) => ({
+      value: `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim(),
+      label: `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim(),
+    }))
+  }, [data?.resourceInput])
 
   // --- Sync staff names from Step 2 ---
   useEffect(() => {
@@ -91,7 +102,7 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
     debouncedSave(updated)
   }
 
-  // --- Add Resource (syncs with Step 2) ---
+  // --- Add a blank resource ---
   const handleAdd = () => {
     const newRow: AvailabilityRow = {
       id: Date.now(),
@@ -103,15 +114,23 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
       loa_days: 0,
       orientation_days: 0,
     }
-
     const updated = [...rows, newRow]
     setRows(updated)
     updateData("availabilityConfig", updated)
+  }
+
+  // --- Add new staff directly from dropdown ---
+  const handleCreateStaff = (inputValue: string) => {
+    const name = inputValue.trim()
+    if (!name) return
+
+    const [first, ...rest] = name.split(" ")
+    const last = rest.join(" ")
 
     const newResource = {
-      id: newRow.id,
-      first_name: "",
-      last_name: "",
+      id: Date.now(),
+      first_name: first,
+      last_name: last,
       position: "",
       unit_fte: 1,
       availability: "Day",
@@ -119,25 +138,46 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
       vacancy_status: "Filled",
     }
 
-    const resourceInputSafe = Array.isArray(data?.resourceInput)
-      ? data.resourceInput
-      : []
-    const updatedResources = [...resourceInputSafe, newResource]
+    const updatedResources = [
+      ...(Array.isArray(data?.resourceInput) ? data.resourceInput : []),
+      newResource,
+    ]
+
     updateData("resourceInput", updatedResources)
+
+    // Also update rows so the new name appears immediately
+    const newRow: AvailabilityRow = {
+      id: Date.now(),
+      staff_name: name,
+      pto_range: { start: "", end: "" },
+      loa_range: { start: "", end: "" },
+      orientation_range: { start: "", end: "" },
+      pto_days: 0,
+      loa_days: 0,
+      orientation_days: 0,
+    }
+
+    const updatedRows = [...rows, newRow]
+    setRows(updatedRows)
+    updateData("availabilityConfig", updatedRows)
   }
 
-  // --- Summary totals ---
-  const summary = useMemo(() => {
-    const perStaff = rows.map((r) => ({
-      name: r.staff_name,
-      pto: r.pto_days,
-      loa: r.loa_days,
-      orientation: r.orientation_days,
-      total: r.pto_days + r.loa_days + r.orientation_days,
-    }))
-    const grandTotal = perStaff.reduce((sum, r) => sum + r.total, 0)
-    return { perStaff, grandTotal }
-  }, [rows])
+  // --- Typed styles for react-select ---
+  const customSelectStyles: StylesConfig<any, false, GroupBase<any>> = {
+    control: (base) => ({
+      ...base,
+      minHeight: "28px",
+      fontSize: "0.875rem",
+    }),
+    dropdownIndicator: (base) => ({
+      ...base,
+      padding: "2px",
+    }),
+    indicatorsContainer: (base) => ({
+      ...base,
+      height: "28px",
+    }),
+  }
 
   return (
     <Card className="p-4 space-y-4">
@@ -186,8 +226,26 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
             <tbody>
               {rows.map((row, i) => (
                 <tr key={row.id || i}>
-                  <td className="border px-2 py-1 text-gray-700">
-                    {row.staff_name || "(Unnamed)"}
+                  {/* ✅ Searchable + creatable dropdown for staff */}
+                  <td className="border px-2 py-1 text-gray-700 w-64">
+                    <CreatableSelect
+                      options={staffOptions}
+                      value={
+                        staffOptions.find((opt) => opt.value === row.staff_name) ||
+                        { label: row.staff_name, value: row.staff_name }
+                      }
+                      onChange={(option: any) => {
+                        const updated = [...rows]
+                        updated[i].staff_name = option ? option.value : ""
+                        setRows(updated)
+                        debouncedSave(updated)
+                      }}
+                      onCreateOption={handleCreateStaff}
+                      placeholder="Search or add staff..."
+                      isClearable
+                      isSearchable
+                      styles={customSelectStyles}
+                    />
                   </td>
 
                   {/* PTO Dates */}
@@ -278,47 +336,6 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
                   </td>
                 </tr>
               ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Summary Section */}
-      {summary.perStaff.length > 0 && (
-        <div className="mt-6 border-t pt-4">
-          <h4 className="text-md font-semibold text-gray-800 mb-2">
-            Time-Off Summary
-          </h4>
-          <table className="min-w-full border border-gray-200 text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-3 py-2 border text-left">Staff</th>
-                <th className="px-3 py-2 border text-right">PTO Days</th>
-                <th className="px-3 py-2 border text-right">LOA Days</th>
-                <th className="px-3 py-2 border text-right">Orientation Days</th>
-                <th className="px-3 py-2 border text-right">Total Days Off</th>
-              </tr>
-            </thead>
-            <tbody>
-              {summary.perStaff.map((r, i) => (
-                <tr key={i}>
-                  <td className="border px-3 py-1">{r.name}</td>
-                  <td className="border px-3 py-1 text-right">{r.pto}</td>
-                  <td className="border px-3 py-1 text-right">{r.loa}</td>
-                  <td className="border px-3 py-1 text-right">{r.orientation}</td>
-                  <td className="border px-3 py-1 text-right font-semibold">
-                    {r.total}
-                  </td>
-                </tr>
-              ))}
-              <tr className="bg-gray-100 font-semibold">
-                <td className="border px-3 py-1 text-right" colSpan={4}>
-                  Grand Total Days Off
-                </td>
-                <td className="border px-3 py-1 text-right">
-                  {summary.grandTotal}
-                </td>
-              </tr>
             </tbody>
           </table>
         </div>
