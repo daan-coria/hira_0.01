@@ -6,13 +6,15 @@ import Card from "@/components/ui/Card"
 import Button from "@/components/ui/Button"
 import Input from "@/components/ui/Input"
 import debounce from "lodash.debounce"
+import Swal from "sweetalert2"
+import "sweetalert2/dist/sweetalert2.min.css"
 
 type DateRange = { start: string; end: string }
 
 type AvailabilityRow = {
   id?: number
   staff_name: string
-  type: "PTO" | "LOA" | "Orientation" | ""
+  type: "PTO" | "FMLA" | "Orientation" | ""
   range: DateRange
   days: number
 }
@@ -31,10 +33,10 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
       updateData("availabilityConfig", updated)
       setTimeout(() => setSaving(false), 600)
     }, 600),
-    []
+    [updateData]
   )
 
-  // --- Normalize old data for backward compatibility ---
+  // --- Normalize old data ---
   const normalizeRows = (input: any[]): AvailabilityRow[] => {
     const normalizeDate = (d: string) =>
       d && /^\d{4}-\d{2}-\d{2}$/.test(d)
@@ -44,33 +46,21 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
         : ""
 
     return (input || []).map((r: any) => {
-      if (r.range) {
-        return {
-          ...r,
-          range: {
-            start: normalizeDate(r.range.start),
-            end: normalizeDate(r.range.end),
-          },
-        }
-      }
-
       const typeGuess =
         r.pto_range ? "PTO" :
-        r.loa_range ? "LOA" :
+        r.loa_range ? "FMLA" : // ✅ updated from LOA → FMLA
         r.orientation_range ? "Orientation" : ""
 
       const rangeGuess = {
         start: normalizeDate(
           r.pto_range?.start ||
-            r.loa_range?.start ||
-            r.orientation_range?.start ||
-            ""
+          r.loa_range?.start ||
+          r.orientation_range?.start || ""
         ),
         end: normalizeDate(
           r.pto_range?.end ||
-            r.loa_range?.end ||
-            r.orientation_range?.end ||
-            ""
+          r.loa_range?.end ||
+          r.orientation_range?.end || ""
         ),
       }
 
@@ -87,7 +77,7 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
     })
   }
 
-  // --- Build dropdown options from Step 2 (resourceInput) ---
+  // --- Build staff dropdown ---
   const staffOptions = useMemo(() => {
     if (!Array.isArray(data?.resourceInput)) return []
     return data.resourceInput.map((r: any) => ({
@@ -96,23 +86,22 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
     }))
   }, [data?.resourceInput])
 
-  // --- Absence type options ---
+  // --- Absence type dropdown ---
   const typeOptions = [
     { value: "PTO", label: "PTO" },
-    { value: "LOA", label: "LOA" },
+    { value: "FMLA", label: "FMLA" }, // ✅ updated label
     { value: "Orientation", label: "Orientation" },
   ]
 
-  // --- Load & normalize data once (prevent overwrite) ---
+  // --- Load normalized data ---
   useEffect(() => {
     if (Array.isArray(data?.availabilityConfig)) {
       const normalized = normalizeRows(data.availabilityConfig)
       setRows(normalized)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // ← runs only once when component mounts
+  }, [data?.availabilityConfig])
 
-  // --- Helper to calculate days ---
+  // --- Calculate days ---
   const calcDays = (start: string, end: string) => {
     if (!start || !end) return 0
     const s = new Date(start)
@@ -121,7 +110,7 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
     return diff >= 0 ? diff + 1 : 0
   }
 
-  // --- Handle date changes ---
+  // --- Handle date range changes with validation ---
   const handleRangeChange = (
     index: number,
     field: "start" | "end",
@@ -129,10 +118,26 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
   ) => {
     const updated = rows.map((r, i) => {
       if (i !== index) return r
+
       const newRange = {
         ...r.range,
         [field]: value ? new Date(value).toISOString().split("T")[0] : "",
       }
+
+      // ✅ Validation: Prevent start > end
+      const startDate = new Date(newRange.start)
+      const endDate = new Date(newRange.end)
+      if (newRange.start && newRange.end && startDate > endDate) {
+        Swal.fire({
+          icon: "error",
+          title: "Invalid Date Range",
+          text: "Start date cannot be after end date.",
+        })
+        // Automatically fix the invalid date
+        if (field === "start") newRange.start = newRange.end
+        else newRange.end = newRange.start
+      }
+
       const newDays = calcDays(newRange.start, newRange.end)
       return { ...r, range: newRange, days: newDays }
     })
@@ -141,7 +146,6 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
     debouncedSave(updated)
   }
 
-  // --- Add new availability entry ---
   const handleAdd = () => {
     const newRow: AvailabilityRow = {
       id: Date.now(),
@@ -155,7 +159,6 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
     updateData("availabilityConfig", updated)
   }
 
-  // --- Custom styles for react-select ---
   const customSelectStyles: StylesConfig<any, false, GroupBase<any>> = {
     control: (base) => ({
       ...base,
@@ -184,7 +187,6 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
         </div>
       </div>
 
-      {/* Table */}
       {rows.length === 0 ? (
         <p className="text-gray-500">No entries yet.</p>
       ) : (
@@ -202,8 +204,8 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
             <tbody>
               {rows.map((row, i) => (
                 <tr key={row.id || i}>
-                  {/* Staff Dropdown (read-only roster) */}
-                  <td className="border px-2 py-1 text-gray-700 w-64">
+                  {/* Staff Dropdown */}
+                  <td className="border px-2 py-1 w-64">
                     <Select
                       options={staffOptions}
                       value={
@@ -220,13 +222,12 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
                       }}
                       placeholder="Select staff..."
                       isClearable
-                      isSearchable
                       styles={customSelectStyles}
                     />
                   </td>
 
                   {/* Type Dropdown */}
-                  <td className="border px-2 py-1 text-gray-700 w-40">
+                  <td className="border px-2 py-1 w-40">
                     <Select
                       options={typeOptions}
                       value={
