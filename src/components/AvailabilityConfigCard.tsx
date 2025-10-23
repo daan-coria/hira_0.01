@@ -25,7 +25,7 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
   const [rows, setRows] = useState<AvailabilityRow[]>([])
   const [saving, setSaving] = useState(false)
 
-  // Debounced autosave
+  // --- Debounced autosave ---
   const debouncedSave = useCallback(
     debounce((updated: AvailabilityRow[]) => {
       setSaving(true)
@@ -35,7 +35,34 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
     []
   )
 
-  // Staff dropdown options (Step 2 data)
+  // --- Normalize old data ---
+  const normalizeRows = (input: any[]): AvailabilityRow[] => {
+    return (input || []).map((r: any) => {
+      // already new structure
+      if (r.range) return r
+
+      const typeGuess =
+        r.pto_range ? "PTO" :
+        r.loa_range ? "LOA" :
+        r.orientation_range ? "Orientation" : ""
+
+      const rangeGuess =
+        r.pto_range || r.loa_range || r.orientation_range || { start: "", end: "" }
+
+      const daysGuess =
+        r.pto_days || r.loa_days || r.orientation_days || 0
+
+      return {
+        id: r.id || Date.now(),
+        staff_name: r.staff_name || "",
+        type: typeGuess,
+        range: rangeGuess,
+        days: daysGuess,
+      }
+    })
+  }
+
+  // --- Staff dropdown options (Step 2 data) ---
   const staffOptions = useMemo(() => {
     if (!Array.isArray(data?.resourceInput)) return []
     return data.resourceInput.map((r: any) => ({
@@ -44,21 +71,23 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
     }))
   }, [data?.resourceInput])
 
-  // Absence type options
+  // --- Absence type options ---
   const typeOptions = [
     { value: "PTO", label: "PTO" },
     { value: "LOA", label: "LOA" },
     { value: "Orientation", label: "Orientation" },
   ]
 
-  // Load existing data
+  // --- Load & normalize existing data ---
   useEffect(() => {
     if (Array.isArray(data?.availabilityConfig)) {
-      setRows(data.availabilityConfig)
+      const normalized = normalizeRows(data.availabilityConfig)
+      setRows(normalized)
+      updateData("availabilityConfig", normalized)
     }
   }, [data?.availabilityConfig])
 
-  // Helper to calculate days
+  // --- Helper to calculate days ---
   const calcDays = (start: string, end: string) => {
     if (!start || !end) return 0
     const s = new Date(start)
@@ -67,7 +96,7 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
     return diff >= 0 ? diff + 1 : 0
   }
 
-  // Handle date range updates
+  // --- Handle date changes ---
   const handleRangeChange = (
     index: number,
     field: "start" | "end",
@@ -83,7 +112,7 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
     debouncedSave(updated)
   }
 
-  // Add new row
+  // --- Add new entry row ---
   const handleAdd = () => {
     const newRow: AvailabilityRow = {
       id: Date.now(),
@@ -97,7 +126,7 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
     updateData("availabilityConfig", updated)
   }
 
-  // Add new staff directly (if typed)
+  // --- Add new staff directly ---
   const handleCreateStaff = (inputValue: string) => {
     const name = inputValue.trim()
     if (!name) return
@@ -122,7 +151,7 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
     updateData("resourceInput", updatedResources)
   }
 
-  // Styles for react-select
+  // --- Custom styles for react-select ---
   const customSelectStyles: StylesConfig<any, false, GroupBase<any>> = {
     control: (base) => ({
       ...base,
@@ -169,7 +198,7 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
             <tbody>
               {rows.map((row, i) => (
                 <tr key={row.id || i}>
-                  {/* Staff Name Dropdown */}
+                  {/* Staff Dropdown */}
                   <td className="border px-2 py-1 text-gray-700 w-64">
                     <CreatableSelect
                       options={staffOptions}
@@ -218,7 +247,7 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
                       id={`start_${i}`}
                       label=""
                       type="date"
-                      value={row.range.start}
+                      value={row.range?.start || ""}
                       onChange={(e) =>
                         handleRangeChange(i, "start", e.target.value)
                       }
@@ -232,7 +261,7 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
                       id={`end_${i}`}
                       label=""
                       type="date"
-                      value={row.range.end}
+                      value={row.range?.end || ""}
                       onChange={(e) => handleRangeChange(i, "end", e.target.value)}
                       className="!m-0 !p-1"
                     />
@@ -240,7 +269,7 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
 
                   {/* Days */}
                   <td className="border px-2 py-1 text-center font-medium text-gray-700">
-                    {row.days}
+                    {row.days || 0}
                   </td>
                 </tr>
               ))}
