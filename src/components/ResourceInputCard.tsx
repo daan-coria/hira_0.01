@@ -294,6 +294,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                   <td className="border px-2 py-1">
                     <Input
                       id={`emp_${i}`}
+                      label=""
                       value={row.employee_id}
                       onChange={(e) => handleChange(i, "employee_id", e.target.value)}
                       placeholder="Employee ID"
@@ -304,6 +305,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                   <td className="border px-2 py-1">
                     <Input
                       id={`fname_${i}`}
+                      label=""
                       value={row.first_name}
                       onChange={(e) => handleChange(i, "first_name", e.target.value)}
                       placeholder="First Name"
@@ -314,6 +316,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                   <td className="border px-2 py-1">
                     <Input
                       id={`lname_${i}`}
+                      label=""
                       value={row.last_name}
                       onChange={(e) => handleChange(i, "last_name", e.target.value)}
                       placeholder="Last Name"
@@ -324,6 +327,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                   <td className="border px-2 py-1">
                     <Select
                       id={`pos_${i}`}
+                      label=""
                       value={row.position}
                       onChange={(e) => handleChange(i, "position", e.target.value)}
                       className="!m-0 !p-1"
@@ -340,6 +344,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                   <td className="border px-2 py-1 text-right">
                     <Input
                       id={`fte_${i}`}
+                      label=""
                       type="number"
                       min={0}
                       step={0.1}
@@ -353,6 +358,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                   <td className="border px-2 py-1">
                     <Select
                       id={`avail_${i}`}
+                      label=""
                       value={row.availability}
                       onChange={(e) => handleChange(i, "availability", e.target.value)}
                       disabled={availabilityOptions.length === 0}
@@ -375,6 +381,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                   <td className="border px-2 py-1">
                     <Select
                       id={`weekend_${i}`}
+                      label=""
                       value={row.weekend_group}
                       onChange={(e) => handleChange(i, "weekend_group", e.target.value)}
                       disabled={weekendGroups.length === 0}
@@ -397,6 +404,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                   <td className="border px-2 py-1">
                     <Select
                       id={`vacancy_${i}`}
+                      label=""
                       value={row.vacancy_status}
                       onChange={(e) => handleChange(i, "vacancy_status", e.target.value)}
                       disabled={hostedPositions.length === 0}
