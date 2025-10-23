@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { useApp } from "@/store/AppContext"
 import Card from "@/components/ui/Card"
 import Button from "@/components/ui/Button"
@@ -9,9 +9,10 @@ import debounce from "lodash.debounce"
 type ShiftConfigRow = {
   id?: number
   role: string
+  shift_block: string
   shift_label: string
-  start_hour: number
-  end_hour: number
+  start_hour: string
+  end_hour: string
   hours_per_shift: number
 }
 
@@ -24,35 +25,38 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
   const { data, updateData } = useApp()
   const [rows, setRows] = useState<ShiftConfigRow[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
   const baseURL =
     import.meta.env.MODE === "development" ? "/mockdata" : "/api"
 
-  // Predefined shift templates
-  const shiftTemplates: Record<
-    string,
-    { start: number; end: number; hours: number }
-  > = {
-    Day: { start: 7, end: 19, hours: 12 },
-    Evening: { start: 15, end: 23, hours: 8 },
-    Night: { start: 19, end: 7, hours: 12 },
-  }
+  // --- Dynamic role options from ResourceInputCard ---
+  const roleOptions = useMemo(() => {
+    if (!Array.isArray(data.resourceInput)) {
+      return ["RN", "LPN", "CNA", "Clerk"]
+    }
+    const positions = data.resourceInput
+      .map((r: any) => r.position)
+      .filter((p: string) => !!p)
+    const unique = Array.from(new Set(positions))
+    return unique.length > 0 ? unique.sort() : ["RN", "LPN", "CNA", "Clerk"]
+  }, [data.resourceInput])
 
-  // Debounced auto-save
+  // --- Debounced autosave ---
   const debouncedSave = useCallback(
     debounce((updated: ShiftConfigRow[]) => {
       setSaving(true)
       updateData("shiftConfig", updated)
       setTimeout(() => setSaving(false), 600)
     }, 500),
-    []
+    [updateData]
   )
 
+  // --- Load saved or default data ---
   useEffect(() => {
-    if (data.shiftConfig && data.shiftConfig.length > 0) {
-      setRows(data.shiftConfig)
+    if (Array.isArray(data.shiftConfig) && data.shiftConfig.length > 0) {
+      const restored = autoFixShiftBlocks(data.shiftConfig)
+      setRows(restored)
       setLoading(false)
     } else {
       fetchShiftConfigs()
@@ -62,57 +66,83 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
   const fetchShiftConfigs = async () => {
     try {
       setLoading(true)
-      setError(null)
       const res = await fetch(`${baseURL}/shift-config.json`)
       if (!res.ok) throw new Error("Failed to load shift configurations")
       const json = await res.json()
-      setRows(json)
-      updateData("shiftConfig", json)
-    } catch (err: any) {
-      console.error("Failed to load shift configs", err)
-      setError(err.message || "Failed to load shift configurations")
+      const fixed = autoFixShiftBlocks(json)
+      setRows(fixed)
+      updateData("shiftConfig", fixed)
+    } catch (err) {
+      console.warn("⚠️ Could not load shift configs; using defaults.")
+      const defaults: ShiftConfigRow[] = []
+      setRows(defaults)
+      updateData("shiftConfig", defaults)
     } finally {
       setLoading(false)
     }
   }
 
-  const calculateHours = (start: number, end: number): number => {
-    const diff = end >= start ? end - start : 24 - start + end
+  // --- Utility: auto-fix and number shift blocks (Day 1, Day 2, etc.) ---
+  const autoFixShiftBlocks = (input: ShiftConfigRow[]): ShiftConfigRow[] => {
+    let counter = 1
+    return input.map((row) => {
+      const label = row.shift_block?.trim()
+      if (!label || !/^Day\s*\d+$/i.test(label)) {
+        row.shift_block = `Day ${counter}`
+      }
+      counter++
+      return row
+    })
+  }
+
+  // --- Calculate total hours ---
+  const calculateHours = (start: string, end: string): number => {
+    if (!start || !end) return 0
+    const s = Number(start)
+    const e = Number(end)
+    if (isNaN(s) || isNaN(e)) return 0
+    const diff = e >= s ? e - s : 24 - s + e
     return diff === 0 ? 24 : diff
   }
 
-  // Unified field change handler
-  const handleChange = (index: number, changes: Partial<ShiftConfigRow>) => {
+  // --- Handle changes in any field ---
+  const handleChange = (index: number, field: keyof ShiftConfigRow, value: any) => {
     const updated = rows.map((r, i) => {
       if (i !== index) return r
-      const merged = { ...r, ...changes }
+      const newRow = { ...r, [field]: value }
 
-      // Auto-calc if start or end changes
-      if (
-        changes.start_hour !== undefined ||
-        changes.end_hour !== undefined
-      ) {
-        merged.hours_per_shift = calculateHours(
-          merged.start_hour,
-          merged.end_hour
-        )
+      if (field === "start_hour" || field === "end_hour") {
+        newRow.hours_per_shift = calculateHours(newRow.start_hour, newRow.end_hour)
       }
 
-      return merged
+      return newRow
     })
     setRows(updated)
     debouncedSave(updated)
   }
 
   const addRow = () => {
+    const nextBlockNum =
+      rows.length > 0
+        ? Math.max(
+            ...rows
+              .map((r) => {
+                const match = r.shift_block?.match(/\d+$/)
+                return match ? parseInt(match[0]) : 0
+              })
+          ) + 1
+        : 1
+
     const newRow: ShiftConfigRow = {
       id: Date.now(),
       role: "",
+      shift_block: `Day ${nextBlockNum}`,
       shift_label: "",
-      start_hour: 7,
-      end_hour: 19,
-      hours_per_shift: 12,
+      start_hour: "",
+      end_hour: "",
+      hours_per_shift: 0,
     }
+
     const updated = [...rows, newRow]
     setRows(updated)
     debouncedSave(updated)
@@ -130,10 +160,6 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
         </div>
       </div>
 
-      {error && (
-        <p className="text-red-600 bg-red-50 px-3 py-1 rounded">{error}</p>
-      )}
-
       {loading ? (
         <p className="text-gray-500">Loading shift configurations...</p>
       ) : (
@@ -142,6 +168,7 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-3 py-2 border">Role</th>
+                <th className="px-3 py-2 border">Shift Block</th>
                 <th className="px-3 py-2 border">Shift Label</th>
                 <th className="px-3 py-2 border text-right">Start Hour</th>
                 <th className="px-3 py-2 border text-right">End Hour</th>
@@ -151,7 +178,7 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-4 text-gray-500">
+                  <td colSpan={6} className="text-center py-4 text-gray-500">
                     No shifts defined yet.
                   </td>
                 </tr>
@@ -165,61 +192,56 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                         label=""
                         value={row.role}
                         onChange={(e) =>
-                          handleChange(i, { role: e.target.value })
+                          handleChange(i, "role", e.target.value)
                         }
                         className="!m-0 !p-1"
                       >
                         <option value="">-- Select Role --</option>
-                        <option value="RN">RN</option>
-                        <option value="LPN">LPN</option>
-                        <option value="CNA">CNA</option>
-                        <option value="Clerk">Clerk</option>
+                        {roleOptions.map((role) => (
+                          <option key={role} value={role}>
+                            {role}
+                          </option>
+                        ))}
                       </Select>
+                    </td>
+
+                    {/* Shift Block (auto numbered) */}
+                    <td className="border px-2 py-1">
+                      <Input
+                        id={`block_${i}`}
+                        value={row.shift_block}
+                        onChange={(e) =>
+                          handleChange(i, "shift_block", e.target.value)
+                        }
+                        className="!m-0 !p-1 w-24"
+                      />
                     </td>
 
                     {/* Shift Label */}
                     <td className="border px-2 py-1">
-                      <Select
-                        id={`shift_label_${i}`}
-                        label=""
+                      <Input
+                        id={`label_${i}`}
                         value={row.shift_label}
-                        onChange={(e) => {
-                          const label = e.target.value
-                          const template = shiftTemplates[label]
-                          if (template) {
-                            handleChange(i, {
-                              shift_label: label,
-                              start_hour: template.start,
-                              end_hour: template.end,
-                              hours_per_shift: template.hours,
-                            })
-                          } else {
-                            handleChange(i, { shift_label: label })
-                          }
-                        }}
-                        className="!m-0 !p-1"
-                      >
-                        <option value="">-- Select Shift --</option>
-                        <option value="Day">Day</option>
-                        <option value="Evening">Evening</option>
-                        <option value="Night">Night</option>
-                      </Select>
+                        placeholder="e.g. Day, Night, Custom"
+                        onChange={(e) =>
+                          handleChange(i, "shift_label", e.target.value)
+                        }
+                        className="!m-0 !p-1 w-28"
+                      />
                     </td>
 
                     {/* Start Hour */}
                     <td className="border px-2 py-1 text-right">
                       <Input
                         id={`start_${i}`}
-                        label=""
                         type="number"
                         min={0}
                         max={23}
                         value={row.start_hour}
                         onChange={(e) =>
-                          handleChange(i, {
-                            start_hour: Number(e.target.value),
-                          })
+                          handleChange(i, "start_hour", e.target.value)
                         }
+                        placeholder="Start"
                         className="!m-0 !p-1 w-20 text-right"
                       />
                     </td>
@@ -228,23 +250,21 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                     <td className="border px-2 py-1 text-right">
                       <Input
                         id={`end_${i}`}
-                        label=""
                         type="number"
                         min={0}
                         max={23}
                         value={row.end_hour}
                         onChange={(e) =>
-                          handleChange(i, {
-                            end_hour: Number(e.target.value),
-                          })
+                          handleChange(i, "end_hour", e.target.value)
                         }
+                        placeholder="End"
                         className="!m-0 !p-1 w-20 text-right"
                       />
                     </td>
 
                     {/* Hours per Shift */}
                     <td className="border px-2 py-1 text-right bg-gray-50">
-                      {row.hours_per_shift.toFixed(1)}
+                      {row.hours_per_shift ? row.hours_per_shift.toFixed(1) : "-"}
                     </td>
                   </tr>
                 ))
