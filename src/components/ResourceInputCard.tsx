@@ -241,11 +241,10 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
             <tbody>
               {rows.map((row, i) => (
                 <tr key={row.id || i} className="odd:bg-white even:bg-gray-50 hover:bg-gray-100">
-                  {/* Employee Info */}
                   <td className="border px-2 py-1 text-center">
                     <Input
                       id={`emp_${i}`}
-                      label="Employee ID"
+                      label="" // hidden
                       value={row.employee_id || ""}
                       onChange={(e) => handleChange(i, "employee_id", e.target.value)}
                       placeholder="Employee ID"
@@ -255,7 +254,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                   <td className="border px-2 py-1">
                     <Input
                       id={`fname_${i}`}
-                      label="First Name"
+                      label="" // hidden
                       value={row.first_name}
                       onChange={(e) => handleChange(i, "first_name", e.target.value)}
                       placeholder="First Name"
@@ -265,7 +264,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                   <td className="border px-2 py-1">
                     <Input
                       id={`lname_${i}`}
-                      label="Last Name"
+                      label="" // hidden
                       value={row.last_name}
                       onChange={(e) => handleChange(i, "last_name", e.target.value)}
                       placeholder="Last Name"
@@ -273,11 +272,10 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     />
                   </td>
 
-                  {/* Position */}
                   <td className="border px-2 py-1">
                     <Select
                       id={`pos_${i}`}
-                      label="Position"
+                      label="" // hidden
                       value={row.position}
                       onChange={(e) => handleChange(i, "position", e.target.value)}
                       className="!m-0 !p-1"
@@ -291,11 +289,10 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     </Select>
                   </td>
 
-                  {/* Unit FTE */}
                   <td className="border px-2 py-1 text-right">
                     <Input
                       id={`fte_${i}`}
-                      label="Unit FTE"
+                      label="" // hidden
                       type="number"
                       min={0}
                       step={0.1}
@@ -305,11 +302,10 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     />
                   </td>
 
-                  {/* Availability (Shift Labels) */}
                   <td className="border px-2 py-1">
                     <Select
                       id={`avail_${i}`}
-                      label="Availability"
+                      label="" // hidden
                       value={row.availability}
                       onChange={(e) => handleChange(i, "availability", e.target.value)}
                       disabled={availabilityOptions.length === 0}
@@ -328,11 +324,10 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     </Select>
                   </td>
 
-                  {/* Weekend Group (Live from Step 2) */}
                   <td className="border px-2 py-1">
                     <Select
                       id={`weekend_${i}`}
-                      label="Weekend Group"
+                      label="" // hidden
                       value={row.weekend_group}
                       onChange={(e) => handleChange(i, "weekend_group", e.target.value)}
                       disabled={weekendGroups.length === 0}
@@ -349,11 +344,10 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     </Select>
                   </td>
 
-                  {/* Vacancy Status (fixed options) */}
                   <td className="border px-2 py-1">
                     <Select
                       id={`vacancy_${i}`}
-                      label="Vacancy Status"
+                      label="" // hidden
                       value={row.vacancy_status}
                       onChange={(e) => handleChange(i, "vacancy_status", e.target.value)}
                       className="!m-0 !p-1"
@@ -365,7 +359,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     </Select>
                   </td>
 
-                  {/* Actions */}
                   <td className="border px-2 py-1 text-center">
                     <Button
                       onClick={() => removeRow(row.id)}
