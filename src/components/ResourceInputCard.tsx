@@ -32,7 +32,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
   const [saving, setSaving] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Debounced autosave
+  // ✅ Debounced autosave
   const debouncedSave = useCallback(
     debounce((updated: ResourceRow[]) => {
       setSaving(true)
@@ -42,7 +42,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     [updateData]
   )
 
-  // Initialize from stored data
+  // ✅ Initialize from stored data
   useEffect(() => {
     const resourceArray = Array.isArray(data?.resourceInput)
       ? (data.resourceInput as ResourceRow[])
@@ -52,10 +52,13 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     }
   }, [data?.resourceInput])
 
-  // Dynamic positions from Position Setup Page
-  const positions: string[] = (data.positions as string[]) || ["RN", "LPN", "CNA", "Clerk"]
+  // ✅ Pull positions from AppContext (objects → extract names)
+  const positions =
+    Array.isArray(data.positions) && data.positions.length > 0
+      ? data.positions.map((p: any) => p.name)
+      : ["RN", "LPN", "CNA", "Clerk"]
 
-  // ✅ Dynamic availability restrictions
+  // ✅ Dynamic availability options
   const availabilityOptions = Array.from(
     new Set((data.availabilityConfig || []).map((r: any) => r.availability))
   ).filter(Boolean)
@@ -64,7 +67,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     new Set((data.availabilityConfig || []).map((r: any) => r.weekend_group))
   ).filter(Boolean)
 
-  // ✅ Dynamic hosted positions (for vacancy status)
+  // ✅ Vacancy status / hosted positions
   const hostedPositions: { role: string; open_fte: number }[] = (data.positionControl || []).map(
     (p: any) => ({
       role: p.role,
@@ -72,7 +75,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     })
   )
 
-  // ✅ Validate input against allowed config
+  // ✅ Validation
   const validateSelection = (field: keyof ResourceRow, value: string) => {
     if (field === "availability" && value && !availabilityOptions.includes(value)) {
       Swal.fire({
@@ -101,7 +104,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     return true
   }
 
-  // Handle inline edits
+  // ✅ Handle inline changes
   const handleChange = (index: number, field: keyof ResourceRow, value: any) => {
     if (!validateSelection(field, value)) return
 
@@ -110,7 +113,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     debouncedSave(updated)
   }
 
-  // Add row manually
+  // ✅ Add new row
   const addRow = () => {
     const newRow: ResourceRow = {
       id: Date.now(),
@@ -128,7 +131,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     debouncedSave(updated)
   }
 
-  // Remove row
+  // ✅ Remove row
   const removeRow = (id?: number) => {
     const updated = rows.filter((r) => r.id !== id)
     setRows(updated)
@@ -206,6 +209,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     URL.revokeObjectURL(url)
   }
 
+  // ✅ Render
   return (
     <Card className="p-4 space-y-4">
       <div className="flex justify-between items-center mb-2">
@@ -222,9 +226,9 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
             className="hidden"
             aria-label="Upload CSV File"
             title="Upload CSV File"
+            placeholder="Upload CSV File"
           />
 
-          {/* Buttons */}
           <Button onClick={() => fileInputRef.current?.click()}>Upload CSV</Button>
           <Button
             onClick={handleExport}
@@ -234,7 +238,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
             Export CSV
           </Button>
 
-          {/* Clear All */}
           <Button
             variant="ghost"
             className="border border-red-400 text-red-600 hover:bg-red-50"
@@ -324,6 +327,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     />
                   </td>
 
+                  {/* ✅ Position dropdown uses unified roles */}
                   <td className="border px-2 py-1">
                     <Select
                       id={`pos_${i}`}
@@ -415,7 +419,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                           ? "Define in Step 1.5"
                           : "-- Select --"}
                       </option>
-                      {hostedPositions.map((p: { role: string; open_fte: number }) => (
+                      {hostedPositions.map((p) => (
                         <option key={p.role} value={p.role}>
                           {p.role} — {p.open_fte > 0 ? "Vacant" : "Filled"}
                         </option>
