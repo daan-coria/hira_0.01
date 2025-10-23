@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from "react"
 import CreatableSelect from "react-select/creatable"
+import Select from "react-select"
 import type { StylesConfig, GroupBase } from "react-select"
 import { useApp } from "@/store/AppContext"
 import Card from "@/components/ui/Card"
@@ -12,12 +13,9 @@ type DateRange = { start: string; end: string }
 type AvailabilityRow = {
   id?: number
   staff_name: string
-  pto_range: DateRange
-  loa_range: DateRange
-  orientation_range: DateRange
-  pto_days: number
-  loa_days: number
-  orientation_days: number
+  type: "PTO" | "LOA" | "Orientation" | ""
+  range: DateRange
+  days: number
 }
 
 type Props = { onNext?: () => void; onPrev?: () => void }
@@ -27,7 +25,7 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
   const [rows, setRows] = useState<AvailabilityRow[]>([])
   const [saving, setSaving] = useState(false)
 
-  // --- Debounced autosave ---
+  // Debounced autosave
   const debouncedSave = useCallback(
     debounce((updated: AvailabilityRow[]) => {
       setSaving(true)
@@ -37,7 +35,7 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
     []
   )
 
-  // --- Build staff dropdown options from Step 2 ---
+  // Staff dropdown options (Step 2 data)
   const staffOptions = useMemo(() => {
     if (!Array.isArray(data?.resourceInput)) return []
     return data.resourceInput.map((r: any) => ({
@@ -46,32 +44,21 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
     }))
   }, [data?.resourceInput])
 
-  // --- Sync staff names from Step 2 ---
+  // Absence type options
+  const typeOptions = [
+    { value: "PTO", label: "PTO" },
+    { value: "LOA", label: "LOA" },
+    { value: "Orientation", label: "Orientation" },
+  ]
+
+  // Load existing data
   useEffect(() => {
-    if (!Array.isArray(data?.resourceInput) || data.resourceInput.length === 0) return
+    if (Array.isArray(data?.availabilityConfig)) {
+      setRows(data.availabilityConfig)
+    }
+  }, [data?.availabilityConfig])
 
-    const updated = data.resourceInput.map((r: any, i: number) => {
-      const name = `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim()
-      const existing = rows.find((x) => x.staff_name === name)
-      return (
-        existing || {
-          id: Date.now() + i,
-          staff_name: name,
-          pto_range: { start: "", end: "" },
-          loa_range: { start: "", end: "" },
-          orientation_range: { start: "", end: "" },
-          pto_days: 0,
-          loa_days: 0,
-          orientation_days: 0,
-        }
-      )
-    })
-
-    setRows(updated)
-    updateData("availabilityConfig", updated)
-  }, [data?.resourceInput])
-
-  // --- Helpers ---
+  // Helper to calculate days
   const calcDays = (start: string, end: string) => {
     if (!start || !end) return 0
     const s = new Date(start)
@@ -80,50 +67,40 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
     return diff >= 0 ? diff + 1 : 0
   }
 
+  // Handle date range updates
   const handleRangeChange = (
     index: number,
-    type: "pto" | "loa" | "orientation",
     field: "start" | "end",
     value: string
   ) => {
     const updated = rows.map((r, i) => {
       if (i !== index) return r
-      const rangeKey =
-        type === "pto" ? "pto_range" : type === "loa" ? "loa_range" : "orientation_range"
-      const daysKey =
-        type === "pto" ? "pto_days" : type === "loa" ? "loa_days" : "orientation_days"
-
-      const newRange = { ...r[rangeKey], [field]: value }
+      const newRange = { ...r.range, [field]: value }
       const newDays = calcDays(newRange.start, newRange.end)
-
-      return { ...r, [rangeKey]: newRange, [daysKey]: newDays }
+      return { ...r, range: newRange, days: newDays }
     })
     setRows(updated)
     debouncedSave(updated)
   }
 
-  // --- Add a blank resource ---
+  // Add new row
   const handleAdd = () => {
     const newRow: AvailabilityRow = {
       id: Date.now(),
       staff_name: "",
-      pto_range: { start: "", end: "" },
-      loa_range: { start: "", end: "" },
-      orientation_range: { start: "", end: "" },
-      pto_days: 0,
-      loa_days: 0,
-      orientation_days: 0,
+      type: "",
+      range: { start: "", end: "" },
+      days: 0,
     }
     const updated = [...rows, newRow]
     setRows(updated)
     updateData("availabilityConfig", updated)
   }
 
-  // --- Add new staff directly from dropdown ---
+  // Add new staff directly (if typed)
   const handleCreateStaff = (inputValue: string) => {
     const name = inputValue.trim()
     if (!name) return
-
     const [first, ...rest] = name.split(" ")
     const last = rest.join(" ")
 
@@ -142,27 +119,10 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
       ...(Array.isArray(data?.resourceInput) ? data.resourceInput : []),
       newResource,
     ]
-
     updateData("resourceInput", updatedResources)
-
-    // Also update rows so the new name appears immediately
-    const newRow: AvailabilityRow = {
-      id: Date.now(),
-      staff_name: name,
-      pto_range: { start: "", end: "" },
-      loa_range: { start: "", end: "" },
-      orientation_range: { start: "", end: "" },
-      pto_days: 0,
-      loa_days: 0,
-      orientation_days: 0,
-    }
-
-    const updatedRows = [...rows, newRow]
-    setRows(updatedRows)
-    updateData("availabilityConfig", updatedRows)
   }
 
-  // --- Typed styles for react-select ---
+  // Styles for react-select
   const customSelectStyles: StylesConfig<any, false, GroupBase<any>> = {
     control: (base) => ({
       ...base,
@@ -187,52 +147,37 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
         </h3>
         <div className="flex items-center gap-3">
           {saving && <span className="text-sm text-gray-500">Saving…</span>}
-          <Button onClick={handleAdd}>+ Add Resource</Button>
+          <Button onClick={handleAdd}>+ Add Entry</Button>
         </div>
       </div>
 
       {/* Table */}
       {rows.length === 0 ? (
-        <p className="text-gray-500">No availability data yet.</p>
+        <p className="text-gray-500">No entries yet.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full border border-gray-200 text-sm">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-3 py-2 border">Staff Name</th>
-                <th className="px-3 py-2 border text-center" colSpan={3}>
-                  PTO Period
-                </th>
-                <th className="px-3 py-2 border text-center" colSpan={3}>
-                  LOA Period
-                </th>
-                <th className="px-3 py-2 border text-center" colSpan={3}>
-                  Orientation Period
-                </th>
-              </tr>
-              <tr className="bg-gray-50">
-                <th className="px-3 py-1 border"></th>
-                <th className="px-3 py-1 border">Start</th>
-                <th className="px-3 py-1 border">End</th>
-                <th className="px-3 py-1 border text-right">Days</th>
-                <th className="px-3 py-1 border">Start</th>
-                <th className="px-3 py-1 border">End</th>
-                <th className="px-3 py-1 border text-right">Days</th>
-                <th className="px-3 py-1 border">Start</th>
-                <th className="px-3 py-1 border">End</th>
-                <th className="px-3 py-1 border text-right">Days</th>
+                <th className="px-3 py-2 border text-center">Type</th>
+                <th className="px-3 py-2 border text-center">Start</th>
+                <th className="px-3 py-2 border text-center">End</th>
+                <th className="px-3 py-2 border text-center">Days</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((row, i) => (
                 <tr key={row.id || i}>
-                  {/* ✅ Searchable + creatable dropdown for staff */}
+                  {/* Staff Name Dropdown */}
                   <td className="border px-2 py-1 text-gray-700 w-64">
                     <CreatableSelect
                       options={staffOptions}
                       value={
                         staffOptions.find((opt) => opt.value === row.staff_name) ||
-                        { label: row.staff_name, value: row.staff_name }
+                        (row.staff_name
+                          ? { label: row.staff_name, value: row.staff_name }
+                          : null)
                       }
                       onChange={(option: any) => {
                         const updated = [...rows]
@@ -248,91 +193,54 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
                     />
                   </td>
 
-                  {/* PTO Dates */}
-                  <td className="border px-2 py-1 text-center">
-                    <Input
-                      id={`pto_start_${i}`}
-                      label=""
-                      type="date"
-                      value={row.pto_range.start}
-                      onChange={(e) =>
-                        handleRangeChange(i, "pto", "start", e.target.value)
+                  {/* Type Dropdown */}
+                  <td className="border px-2 py-1 text-gray-700 w-40">
+                    <Select
+                      options={typeOptions}
+                      value={
+                        typeOptions.find((opt) => opt.value === row.type) || null
                       }
-                      className="!m-0 !p-1"
+                      onChange={(option: any) => {
+                        const updated = [...rows]
+                        updated[i].type = option ? option.value : ""
+                        setRows(updated)
+                        debouncedSave(updated)
+                      }}
+                      placeholder="Select type..."
+                      isClearable
+                      styles={customSelectStyles}
                     />
-                  </td>
-                  <td className="border px-2 py-1 text-center">
-                    <Input
-                      id={`pto_end_${i}`}
-                      label=""
-                      type="date"
-                      value={row.pto_range.end}
-                      onChange={(e) =>
-                        handleRangeChange(i, "pto", "end", e.target.value)
-                      }
-                      className="!m-0 !p-1"
-                    />
-                  </td>
-                  <td className="border px-2 py-1 text-right font-medium text-gray-700">
-                    {row.pto_days}
                   </td>
 
-                  {/* LOA Dates */}
+                  {/* Start Date */}
                   <td className="border px-2 py-1 text-center">
                     <Input
-                      id={`loa_start_${i}`}
+                      id={`start_${i}`}
                       label=""
                       type="date"
-                      value={row.loa_range.start}
+                      value={row.range.start}
                       onChange={(e) =>
-                        handleRangeChange(i, "loa", "start", e.target.value)
+                        handleRangeChange(i, "start", e.target.value)
                       }
                       className="!m-0 !p-1"
                     />
-                  </td>
-                  <td className="border px-2 py-1 text-center">
-                    <Input
-                      id={`loa_end_${i}`}
-                      label=""
-                      type="date"
-                      value={row.loa_range.end}
-                      onChange={(e) =>
-                        handleRangeChange(i, "loa", "end", e.target.value)
-                      }
-                      className="!m-0 !p-1"
-                    />
-                  </td>
-                  <td className="border px-2 py-1 text-right font-medium text-gray-700">
-                    {row.loa_days}
                   </td>
 
-                  {/* Orientation Dates */}
+                  {/* End Date */}
                   <td className="border px-2 py-1 text-center">
                     <Input
-                      id={`orientation_start_${i}`}
+                      id={`end_${i}`}
                       label=""
                       type="date"
-                      value={row.orientation_range.start}
-                      onChange={(e) =>
-                        handleRangeChange(i, "orientation", "start", e.target.value)
-                      }
+                      value={row.range.end}
+                      onChange={(e) => handleRangeChange(i, "end", e.target.value)}
                       className="!m-0 !p-1"
                     />
                   </td>
-                  <td className="border px-2 py-1 text-center">
-                    <Input
-                      id={`orientation_end_${i}`}
-                      label=""
-                      type="date"
-                      value={row.orientation_range.end}
-                      onChange={(e) =>
-                        handleRangeChange(i, "orientation", "end", e.target.value)
-                      }
-                      className="!m-0 !p-1"
-                    />
-                  </td>
-                  <td className="border px-2 py-1 text-right font-medium text-gray-700">
-                    {row.orientation_days}
+
+                  {/* Days */}
+                  <td className="border px-2 py-1 text-center font-medium text-gray-700">
+                    {row.days}
                   </td>
                 </tr>
               ))}
