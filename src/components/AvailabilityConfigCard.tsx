@@ -36,16 +36,43 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
 
   // --- Normalize old data for backward compatibility ---
   const normalizeRows = (input: any[]): AvailabilityRow[] => {
+    const normalizeDate = (d: string) =>
+      d && /^\d{4}-\d{2}-\d{2}$/.test(d)
+        ? d
+        : d
+        ? new Date(d).toISOString().split("T")[0]
+        : ""
+
     return (input || []).map((r: any) => {
-      if (r.range) return r // already new structure
+      if (r.range) {
+        return {
+          ...r,
+          range: {
+            start: normalizeDate(r.range.start),
+            end: normalizeDate(r.range.end),
+          },
+        }
+      }
 
       const typeGuess =
         r.pto_range ? "PTO" :
         r.loa_range ? "LOA" :
         r.orientation_range ? "Orientation" : ""
 
-      const rangeGuess =
-        r.pto_range || r.loa_range || r.orientation_range || { start: "", end: "" }
+      const rangeGuess = {
+        start: normalizeDate(
+          r.pto_range?.start ||
+            r.loa_range?.start ||
+            r.orientation_range?.start ||
+            ""
+        ),
+        end: normalizeDate(
+          r.pto_range?.end ||
+            r.loa_range?.end ||
+            r.orientation_range?.end ||
+            ""
+        ),
+      }
 
       const daysGuess =
         r.pto_days || r.loa_days || r.orientation_days || 0
@@ -76,14 +103,14 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
     { value: "Orientation", label: "Orientation" },
   ]
 
-  // --- Load & normalize data ---
+  // --- Load & normalize data once (prevent overwrite) ---
   useEffect(() => {
     if (Array.isArray(data?.availabilityConfig)) {
       const normalized = normalizeRows(data.availabilityConfig)
       setRows(normalized)
-      updateData("availabilityConfig", normalized)
     }
-  }, [data?.availabilityConfig])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // ← runs only once when component mounts
 
   // --- Helper to calculate days ---
   const calcDays = (start: string, end: string) => {
@@ -106,10 +133,10 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
         ...r.range,
         [field]: value ? new Date(value).toISOString().split("T")[0] : "",
       }
-
       const newDays = calcDays(newRange.start, newRange.end)
       return { ...r, range: newRange, days: newDays }
     })
+
     setRows(updated)
     debouncedSave(updated)
   }
@@ -238,7 +265,9 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
                       label="End"
                       type="date"
                       value={row.range?.end || ""}
-                      onChange={(e) => handleRangeChange(i, "end", e.target.value)}
+                      onChange={(e) =>
+                        handleRangeChange(i, "end", e.target.value)
+                      }
                       className="!m-0 !p-1"
                     />
                   </td>
