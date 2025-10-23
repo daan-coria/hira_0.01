@@ -4,9 +4,9 @@ import { useNavigate } from "react-router-dom"
 // Step Components
 import FacilityHeader from "@/components/FacilityHeader"
 import PositionSetupPage from "@/pages/PositionSetupPage"
-import ResourceInputCard from "@/components/ResourceInputCard"       
-import AvailabilityConfigCard from "@/components/AvailabilityConfigCard" 
-import ShiftConfigCard from "@/components/ShiftConfigCard"
+import ShiftConfigCard from "@/components/ShiftConfigCard"              // ✅ moved up
+import ResourceInputCard from "@/components/ResourceInputCard"
+import AvailabilityConfigCard from "@/components/AvailabilityConfigCard"
 import StaffingConfigCard from "@/components/StaffingConfigCard"
 import CensusOverrideCard from "@/components/CensusOverrideCard"
 import GapSummaryCard from "@/components/GapSummaryCard"
@@ -27,21 +27,22 @@ export default function ToolPage() {
     setCurrentStep,
   } = useApp()
 
+  // ✅ Updated total steps and order
   const totalSteps = 8
   const stepNames = [
     "Facility Setup",
     "Position Setup",
-    "Resource Input",              
-    "Availability Configuration",  
-    "Shift Configuration",
+    "Shift Configuration",           // ✅ now step 2
+    "Resource Input",                // ✅ moved down to step 3
+    "Availability Configuration",
     "Staffing Configuration",
     "Census Override",
     "Gap Summary",
   ]
 
-  // For fractional step display
+  // Fractional label support for step 1.5
   const getStepLabel = (index: number): string => {
-    if (index === 1) return "1.5"
+    if (index === 1) return "1.5" // Position Setup
     if (index > 1) return String(index)
     return "1"
   }
@@ -86,20 +87,28 @@ export default function ToolPage() {
             </Button>
           </Card>
         )
+
       case 1:
         return <PositionSetupPage onNext={handleNext} onPrev={handlePrev} />
+
       case 2:
-        return <ResourceInputCard onNext={handleNext} onPrev={handlePrev} />       // ✅ Step 2
+        return <ShiftConfigCard onNext={handleNext} onPrev={handlePrev} />      // ✅ now Step 2
+
       case 3:
-        return <AvailabilityConfigCard onNext={handleNext} onPrev={handlePrev} />  // ✅ Step 3
+        return <ResourceInputCard onNext={handleNext} onPrev={handlePrev} />    // ✅ now Step 3
+
       case 4:
-        return <ShiftConfigCard onNext={handleNext} onPrev={handlePrev} />
+        return <AvailabilityConfigCard onNext={handleNext} onPrev={handlePrev} />
+
       case 5:
         return <StaffingConfigCard onNext={handleNext} onPrev={handlePrev} />
+
       case 6:
         return <CensusOverrideCard onNext={handleNext} onPrev={handlePrev} />
+
       case 7:
         return <GapSummaryCard onPrev={handlePrev} onReset={handleReset} />
+
       default:
         return null
     }
@@ -149,7 +158,7 @@ export default function ToolPage() {
         />
       </div>
 
-      {/* Step content */}
+      {/* Step Content */}
       {data.loading ? (
         <p className="text-gray-500 text-center mt-10">
           Loading data, please wait...
