@@ -30,7 +30,8 @@ type DataState = {
   shiftConfig?: any[]
   censusOverride?: any[]
   gapSummary?: any[]
-  positions?: string[]
+  positions?: { id?: number; name: string; category: string }[]
+  categories?: string[]
   [key: string]: any
 }
 
@@ -63,12 +64,23 @@ export function useApp() {
 export function AppProvider({ children }: { children: ReactNode }) {
   // Core App State
   const [state, setState] = useState<AppState>({
-    facilitySetup: null,
+    facilitySetup: {
+      categories: ["Nursing", "Support", "Other"], // ✅ Default categories
+    },
     toolType: "IP",
   })
 
   // Shared Data (from multiple mock files)
-  const [data, setData] = useState<DataState>({ loading: true, positions: [] })
+  const [data, setData] = useState<DataState>({
+    loading: true,
+    positions: [
+      { id: 1, name: "RN", category: "Nursing" },
+      { id: 2, name: "LPN", category: "Nursing" },
+      { id: 3, name: "CNA", category: "Support" },
+      { id: 4, name: "Clerk", category: "Other" },
+    ],
+    categories: ["Nursing", "Support", "Other"],
+  })
 
   // Step control with localStorage persistence
   const [currentStep, setCurrentStepState] = useState(() => {
@@ -88,8 +100,39 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Data Management
   // -----------------------
   const updateData = (key: string, value: any) => {
-    setData((prev) => ({ ...prev, [key]: value }))
+    setData((prev) => {
+      const updated = { ...prev, [key]: value }
+
+      //  When updating positions, extract unique valid categories (string only)
+      if (key === "positions") {
+        const rawCategories = (value as { category?: string }[])
+          .map((v) => v.category)
+          .filter((c): c is string => Boolean(c && c.trim()))
+
+        const uniqueCats: string[] = Array.from(new Set(rawCategories))
+
+        // Sync categories in data and facilitySetup
+        setState((prevState) => ({
+          ...prevState,
+          facilitySetup: {
+            ...(prevState.facilitySetup || {}),
+            categories:
+              uniqueCats.length > 0
+                ? uniqueCats
+                : prevState.facilitySetup?.categories || ["Nursing", "Support", "Other"],
+          },
+        }))
+
+        updated.categories =
+          uniqueCats.length > 0
+            ? uniqueCats
+            : prev.categories || ["Nursing", "Support", "Other"]
+      }
+
+      return updated
+    })
   }
+
 
   const reloadData = async () => {
     try {
@@ -119,6 +162,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         censusOverride,
         gapSummary,
         loading: false,
+        positions: data.positions,
+        categories: data.categories,
       }
 
       setData(merged)
