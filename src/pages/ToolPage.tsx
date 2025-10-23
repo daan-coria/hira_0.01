@@ -4,8 +4,8 @@ import { useNavigate } from "react-router-dom"
 // Step Components
 import FacilityHeader from "@/components/FacilityHeader"
 import PositionSetupPage from "@/pages/PositionSetupPage"
-import AvailabilityConfigCard from "@/components/AvailabilityConfigCard" // ✅ moved up
-import ResourceInputCard from "@/components/ResourceInputCard"
+import ResourceInputCard from "@/components/ResourceInputCard"       
+import AvailabilityConfigCard from "@/components/AvailabilityConfigCard" 
 import ShiftConfigCard from "@/components/ShiftConfigCard"
 import StaffingConfigCard from "@/components/StaffingConfigCard"
 import CensusOverrideCard from "@/components/CensusOverrideCard"
@@ -31,15 +31,15 @@ export default function ToolPage() {
   const stepNames = [
     "Facility Setup",
     "Position Setup",
-    "Availability Configuration", // ✅ moved before Resource Input
-    "Resource Input",
+    "Resource Input",              
+    "Availability Configuration",  
     "Shift Configuration",
     "Staffing Configuration",
     "Census Override",
     "Gap Summary",
   ]
 
-  // ✅ Consistent display for fractional step
+  // For fractional step display
   const getStepLabel = (index: number): string => {
     if (index === 1) return "1.5"
     if (index > 1) return String(index)
@@ -68,6 +68,7 @@ export default function ToolPage() {
     navigate("/setup")
   }
 
+  // --- Step Renderer ---
   const renderStep = () => {
     switch (currentStep) {
       case 0:
@@ -88,9 +89,9 @@ export default function ToolPage() {
       case 1:
         return <PositionSetupPage onNext={handleNext} onPrev={handlePrev} />
       case 2:
-        return <AvailabilityConfigCard onNext={handleNext} onPrev={handlePrev} /> // ✅ now step 2
+        return <ResourceInputCard onNext={handleNext} onPrev={handlePrev} />       // ✅ Step 2
       case 3:
-        return <ResourceInputCard onNext={handleNext} onPrev={handlePrev} /> // ✅ now step 3
+        return <AvailabilityConfigCard onNext={handleNext} onPrev={handlePrev} />  // ✅ Step 3
       case 4:
         return <ShiftConfigCard onNext={handleNext} onPrev={handlePrev} />
       case 5:
@@ -109,9 +110,8 @@ export default function ToolPage() {
       {/* Always show Facility Header */}
       <FacilityHeader />
 
-      {/* ✅ Clickable Step Navigation */}
+      {/* Progress + Step Navigation */}
       <div className="w-full" aria-label="Progress Section">
-        {/* Header */}
         <div className="flex flex-wrap justify-between items-center mb-2">
           <h2 className="text-lg font-semibold text-gray-800">
             Step {getStepLabel(currentStep)} of {totalSteps} —{" "}

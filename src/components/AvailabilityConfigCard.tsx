@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback, useMemo } from "react"
-import CreatableSelect from "react-select/creatable"
 import Select from "react-select"
 import type { StylesConfig, GroupBase } from "react-select"
 import { useApp } from "@/store/AppContext"
@@ -35,11 +34,10 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
     []
   )
 
-  // --- Normalize old data ---
+  // --- Normalize old data for backward compatibility ---
   const normalizeRows = (input: any[]): AvailabilityRow[] => {
     return (input || []).map((r: any) => {
-      // already new structure
-      if (r.range) return r
+      if (r.range) return r // already new structure
 
       const typeGuess =
         r.pto_range ? "PTO" :
@@ -62,7 +60,7 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
     })
   }
 
-  // --- Staff dropdown options (Step 2 data) ---
+  // --- Build dropdown options from Step 2 (resourceInput) ---
   const staffOptions = useMemo(() => {
     if (!Array.isArray(data?.resourceInput)) return []
     return data.resourceInput.map((r: any) => ({
@@ -78,7 +76,7 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
     { value: "Orientation", label: "Orientation" },
   ]
 
-  // --- Load & normalize existing data ---
+  // --- Load & normalize data ---
   useEffect(() => {
     if (Array.isArray(data?.availabilityConfig)) {
       const normalized = normalizeRows(data.availabilityConfig)
@@ -112,7 +110,7 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
     debouncedSave(updated)
   }
 
-  // --- Add new entry row ---
+  // --- Add new availability entry ---
   const handleAdd = () => {
     const newRow: AvailabilityRow = {
       id: Date.now(),
@@ -124,31 +122,6 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
     const updated = [...rows, newRow]
     setRows(updated)
     updateData("availabilityConfig", updated)
-  }
-
-  // --- Add new staff directly ---
-  const handleCreateStaff = (inputValue: string) => {
-    const name = inputValue.trim()
-    if (!name) return
-    const [first, ...rest] = name.split(" ")
-    const last = rest.join(" ")
-
-    const newResource = {
-      id: Date.now(),
-      first_name: first,
-      last_name: last,
-      position: "",
-      unit_fte: 1,
-      availability: "Day",
-      weekend_group: "",
-      vacancy_status: "Filled",
-    }
-
-    const updatedResources = [
-      ...(Array.isArray(data?.resourceInput) ? data.resourceInput : []),
-      newResource,
-    ]
-    updateData("resourceInput", updatedResources)
   }
 
   // --- Custom styles for react-select ---
@@ -198,9 +171,9 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
             <tbody>
               {rows.map((row, i) => (
                 <tr key={row.id || i}>
-                  {/* Staff Dropdown */}
+                  {/* Staff Dropdown (read-only roster) */}
                   <td className="border px-2 py-1 text-gray-700 w-64">
-                    <CreatableSelect
+                    <Select
                       options={staffOptions}
                       value={
                         staffOptions.find((opt) => opt.value === row.staff_name) ||
@@ -214,8 +187,7 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
                         setRows(updated)
                         debouncedSave(updated)
                       }}
-                      onCreateOption={handleCreateStaff}
-                      placeholder="Search or add staff..."
+                      placeholder="Select staff..."
                       isClearable
                       isSearchable
                       styles={customSelectStyles}
@@ -245,7 +217,7 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
                   <td className="border px-2 py-1 text-center">
                     <Input
                       id={`start_${i}`}
-                      label=""
+                      label="Start"
                       type="date"
                       value={row.range?.start || ""}
                       onChange={(e) =>
@@ -259,7 +231,7 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
                   <td className="border px-2 py-1 text-center">
                     <Input
                       id={`end_${i}`}
-                      label=""
+                      label="End"
                       type="date"
                       value={row.range?.end || ""}
                       onChange={(e) => handleRangeChange(i, "end", e.target.value)}
