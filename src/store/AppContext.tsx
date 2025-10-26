@@ -138,6 +138,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       setData((prev) => ({ ...prev, loading: true }))
 
+      // ✅ Automatically detect correct path
+      const basePath =
+        import.meta.env.MODE === "development"
+          ? `${window.location.origin}/mockdata`
+          : "/api/v1"
+
+      // ✅ Load all mock JSON files
       const [
         resourceInput,
         availabilityConfig,
@@ -146,12 +153,47 @@ export function AppProvider({ children }: { children: ReactNode }) {
         censusOverride,
         gapSummary,
       ] = await Promise.all([
-        fetch("/mockdata/resource-input.json").then((r) => r.json()),
-        fetch("/mockdata/availability-config.json").then((r) => r.json()),
-        fetch("/mockdata/staffing-config.json").then((r) => r.json()),
-        fetch("/mockdata/shift-config.json").then((r) => r.json()),
-        fetch("/mockdata/census-override.json").then((r) => r.json()),
-        fetch("/mockdata/gap-summary.json").then((r) => r.json()),
+        fetch(`${basePath}/resource-input.json`)
+          .then((r) => (r.ok ? r.json() : Promise.reject("resource-input.json not found")))
+          .catch((err) => {
+            console.warn("⚠️ Missing resource-input.json:", err)
+            return []
+          }),
+
+        fetch(`${basePath}/availability-config.json`)
+          .then((r) => (r.ok ? r.json() : Promise.reject("availability-config.json not found")))
+          .catch((err) => {
+            console.warn("⚠️ Missing availability-config.json:", err)
+            return []
+          }),
+
+        fetch(`${basePath}/staffing-config.json`)
+          .then((r) => (r.ok ? r.json() : Promise.reject("staffing-config.json not found")))
+          .catch((err) => {
+            console.warn("⚠️ Missing staffing-config.json:", err)
+            return []
+          }),
+
+        fetch(`${basePath}/shift-config.json`)
+          .then((r) => (r.ok ? r.json() : Promise.reject("shift-config.json not found")))
+          .catch((err) => {
+            console.warn("⚠️ Missing shift-config.json:", err)
+            return []
+          }),
+
+        fetch(`${basePath}/census-override.json`)
+          .then((r) => (r.ok ? r.json() : Promise.reject("census-override.json not found")))
+          .catch((err) => {
+            console.warn("⚠️ Missing census-override.json:", err)
+            return []
+          }),
+
+        fetch(`${basePath}/gap-summary.json`)
+          .then((r) => (r.ok ? r.json() : Promise.reject("gap-summary.json not found")))
+          .catch((err) => {
+            console.warn("⚠️ Missing gap-summary.json:", err)
+            return []
+          }),
       ])
 
       const merged = {
@@ -173,6 +215,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setData((prev) => ({ ...prev, loading: false }))
     }
   }
+
 
   // Load mock data on mount
   useEffect(() => {
