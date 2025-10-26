@@ -4,10 +4,10 @@ import { useNavigate } from "react-router-dom"
 // Step Components
 import FacilityHeader from "@/components/FacilityHeader"
 import PositionSetupPage from "@/pages/PositionSetupPage"
-import ShiftConfigCard from "@/components/ShiftConfigCard"              // ✅ moved up
+import ShiftConfigCard from "@/components/ShiftConfigCard"
 import ResourceInputCard from "@/components/ResourceInputCard"
 import AvailabilityConfigCard from "@/components/AvailabilityConfigCard"
-import StaffingConfigCard from "@/components/StaffingConfigCard"
+import PositionStaffingSetupCard from "@/components/PositionStaffingSetupCard"
 import CensusOverrideCard from "@/components/CensusOverrideCard"
 import GapSummaryCard from "@/components/GapSummaryCard"
 
@@ -27,15 +27,15 @@ export default function ToolPage() {
     setCurrentStep,
   } = useApp()
 
-  // ✅ Updated total steps and order
+  // Updated total steps and order
   const totalSteps = 8
   const stepNames = [
     "Facility Setup",
     "Position Setup",
-    "Shift Configuration",           // ✅ now step 2
-    "Resource Input",                // ✅ moved down to step 3
+    "Shift Configuration",
+    "Resource Input",
     "Availability Configuration",
-    "Staffing Configuration",
+    "Position & Staffing Setup", // merged version
     "Census Override",
     "Gap Summary",
   ]
@@ -92,16 +92,18 @@ export default function ToolPage() {
         return <PositionSetupPage onNext={handleNext} onPrev={handlePrev} />
 
       case 2:
-        return <ShiftConfigCard onNext={handleNext} onPrev={handlePrev} />      // ✅ now Step 2
+        return <ShiftConfigCard onNext={handleNext} onPrev={handlePrev} />
 
       case 3:
-        return <ResourceInputCard onNext={handleNext} onPrev={handlePrev} />    // ✅ now Step 3
+        return <ResourceInputCard onNext={handleNext} onPrev={handlePrev} />
 
       case 4:
         return <AvailabilityConfigCard onNext={handleNext} onPrev={handlePrev} />
 
       case 5:
-        return <StaffingConfigCard onNext={handleNext} onPrev={handlePrev} />
+        return (
+          <PositionStaffingSetupCard onNext={handleNext} onPrev={handlePrev} />
+        )
 
       case 6:
         return <CensusOverrideCard onNext={handleNext} onPrev={handlePrev} />

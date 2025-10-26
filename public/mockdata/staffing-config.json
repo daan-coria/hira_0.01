@@ -2,45 +2,53 @@
   {
     "id": 1,
     "role": "RN",
-    "type": "Ratio-Based",
-    "regular_ratio": 4,
+    "type": "Variable",
+    "ratio": 4,
     "max_ratio": 5,
     "include_in_ratio": true,
     "direct_care_percent": 100,
-    "category": "Nursing",
-    "fte": 10
+    "fte": 10,
+    "budgeted_fte": 10,
+    "filled_fte": 8,
+    "open_fte": 2
   },
   {
     "id": 2,
     "role": "LPN",
-    "type": "Ratio-Based",
-    "regular_ratio": 6,
+    "type": "Variable",
+    "ratio": 6,
     "max_ratio": 8,
     "include_in_ratio": true,
     "direct_care_percent": 80,
-    "category": "Nursing",
-    "fte": 7
+    "fte": 7,
+    "budgeted_fte": 6,
+    "filled_fte": 5,
+    "open_fte": 1
   },
   {
     "id": 3,
     "role": "CNA",
-    "type": "Ratio-Based",
-    "regular_ratio": 8,
+    "type": "Variable",
+    "ratio": 8,
     "max_ratio": 10,
     "include_in_ratio": true,
     "direct_care_percent": 90,
-    "category": "Support",
-    "fte": 12
+    "fte": 12,
+    "budgeted_fte": 12,
+    "filled_fte": 11,
+    "open_fte": 1
   },
   {
     "id": 4,
     "role": "Clerk",
-    "type": "Fixed Position",
-    "regular_ratio": "N/A",
+    "type": "Fixed",
+    "ratio": "N/A",
     "max_ratio": "N/A",
     "include_in_ratio": false,
     "direct_care_percent": 0,
-    "category": "Other",
-    "fte": 1
+    "fte": 1,
+    "budgeted_fte": 1,
+    "filled_fte": 1,
+    "open_fte": 0
   }
 ]
