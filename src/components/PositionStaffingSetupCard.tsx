@@ -33,8 +33,8 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const baseURL = import.meta.env.MODE === "development" ? "/mockdata" : "/api"
-
+  const baseURL = `${window.location.origin}/mockdata`
+  
   // ✅ Fallback rows (development mode)
   const fallbackData: Row[] = [
     {
@@ -359,7 +359,7 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
                         aria-label={`Include ${row.role || "role"} in ratio`}
                     />
                     </td>
-                    
+
                     {/* FTE */}
                     <td className="border px-2 py-1 text-right">
                       <Input
