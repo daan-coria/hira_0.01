@@ -26,11 +26,11 @@ export default function ToolPage() {
     setCurrentStep,
   } = useApp()
 
-  // ✅ Total steps reduced to 7
+  // ✅ Total steps now 7 — no more fractional step
   const totalSteps = 7
   const stepNames = [
     "Facility Setup",
-    "Position & Staffing Setup", // merged step 1.5
+    "Position & Staffing Setup",
     "Shift Configuration",
     "Resource Input",
     "Availability Configuration",
@@ -38,12 +38,8 @@ export default function ToolPage() {
     "Gap Summary",
   ]
 
-  // ✅ Updated fractional label logic (only step 1.5)
-  const getStepLabel = (index: number): string => {
-    if (index === 1) return "1.5" // merged Position & Staffing
-    if (index > 1) return String(index)
-    return "1"
-  }
+  // ✅ Simple sequential labels (1–7)
+  const getStepLabel = (index: number): string => String(index + 1)
 
   const progressPercent = ((currentStep + 1) / totalSteps) * 100
 
@@ -60,6 +56,7 @@ export default function ToolPage() {
       "Are you sure you want to reset the wizard and start over? All progress will be lost."
     )
     if (!confirmReset) return
+
     setFacilitySetup({} as any)
     setToolType("IP")
     setCurrentStep(0)

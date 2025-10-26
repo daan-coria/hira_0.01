@@ -248,7 +248,7 @@ export default function PositionSetupPage({ onNext, onPrev }: Props) {
       {/* Section 1: Position Setup */}
       <div className="flex justify-between items-center mb-2">
         <h3 className="text-lg font-semibold text-gray-800">
-          Step 1.5 — Position & Staffing Setup
+          Step 2 — Position & Staffing Setup
         </h3>
         <div className="flex items-center gap-3">
           {savingPos && <span className="text-sm text-gray-500">Saving…</span>}
