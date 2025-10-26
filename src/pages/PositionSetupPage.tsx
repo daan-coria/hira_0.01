@@ -98,7 +98,10 @@ export default function PositionSetupPage({ onNext, onPrev }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const baseURL = import.meta.env.MODE === "development" ? "/mockdata" : "/api"
+  const baseURL =
+    import.meta.env.MODE === "development"
+      ? `${window.location.origin}/mockdata`
+      : "/api/v1"
 
   const debouncedSaveStaff = useCallback(
     debounce((updated: StaffingRow[]) => {
