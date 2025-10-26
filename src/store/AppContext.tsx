@@ -103,7 +103,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setData((prev) => {
       const updated = { ...prev, [key]: value }
 
-      //  When updating positions, extract unique valid categories (string only)
+      // When updating positions, extract unique valid categories
       if (key === "positions") {
         const rawCategories = (value as { category?: string }[])
           .map((v) => v.category)
@@ -111,7 +111,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         const uniqueCats: string[] = Array.from(new Set(rawCategories))
 
-        // Sync categories in data and facilitySetup
+        // Sync categories in both state and data
         setState((prevState) => ({
           ...prevState,
           facilitySetup: {
@@ -119,7 +119,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
             categories:
               uniqueCats.length > 0
                 ? uniqueCats
-                : prevState.facilitySetup?.categories || ["Nursing", "Support", "Other"],
+                : prevState.facilitySetup?.categories || [
+                    "Nursing",
+                    "Support",
+                    "Other",
+                  ],
           },
         }))
 
@@ -133,18 +137,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     })
   }
 
-
+  // -----------------------
+  // Reload Data from /mockdata
+  // -----------------------
   const reloadData = async () => {
     try {
       setData((prev) => ({ ...prev, loading: true }))
 
-      // ✅ Automatically detect correct path
-      const basePath =
-        import.meta.env.MODE === "development"
-          ? `${window.location.origin}/mockdata`
-          : "/api/v1"
+      // ✅ Always works in both dev and prod (served from /public/mockdata)
+      const basePath = `${window.location.origin}/mockdata`
 
-      // ✅ Load all mock JSON files
       const [
         resourceInput,
         availabilityConfig,
@@ -154,42 +156,56 @@ export function AppProvider({ children }: { children: ReactNode }) {
         gapSummary,
       ] = await Promise.all([
         fetch(`${basePath}/resource-input.json`)
-          .then((r) => (r.ok ? r.json() : Promise.reject("resource-input.json not found")))
+          .then((r) =>
+            r.ok ? r.json() : Promise.reject("resource-input.json not found")
+          )
           .catch((err) => {
             console.warn("⚠️ Missing resource-input.json:", err)
             return []
           }),
 
         fetch(`${basePath}/availability-config.json`)
-          .then((r) => (r.ok ? r.json() : Promise.reject("availability-config.json not found")))
+          .then((r) =>
+            r.ok
+              ? r.json()
+              : Promise.reject("availability-config.json not found")
+          )
           .catch((err) => {
             console.warn("⚠️ Missing availability-config.json:", err)
             return []
           }),
 
         fetch(`${basePath}/staffing-config.json`)
-          .then((r) => (r.ok ? r.json() : Promise.reject("staffing-config.json not found")))
+          .then((r) =>
+            r.ok ? r.json() : Promise.reject("staffing-config.json not found")
+          )
           .catch((err) => {
             console.warn("⚠️ Missing staffing-config.json:", err)
             return []
           }),
 
         fetch(`${basePath}/shift-config.json`)
-          .then((r) => (r.ok ? r.json() : Promise.reject("shift-config.json not found")))
+          .then((r) =>
+            r.ok ? r.json() : Promise.reject("shift-config.json not found")
+          )
           .catch((err) => {
             console.warn("⚠️ Missing shift-config.json:", err)
             return []
           }),
 
         fetch(`${basePath}/census-override.json`)
-          .then((r) => (r.ok ? r.json() : Promise.reject("census-override.json not found")))
+          .then((r) =>
+            r.ok ? r.json() : Promise.reject("census-override.json not found")
+          )
           .catch((err) => {
             console.warn("⚠️ Missing census-override.json:", err)
             return []
           }),
 
         fetch(`${basePath}/gap-summary.json`)
-          .then((r) => (r.ok ? r.json() : Promise.reject("gap-summary.json not found")))
+          .then((r) =>
+            r.ok ? r.json() : Promise.reject("gap-summary.json not found")
+          )
           .catch((err) => {
             console.warn("⚠️ Missing gap-summary.json:", err)
             return []
@@ -215,7 +231,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setData((prev) => ({ ...prev, loading: false }))
     }
   }
-
 
   // Load mock data on mount
   useEffect(() => {
