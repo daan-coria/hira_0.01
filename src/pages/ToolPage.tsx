@@ -7,7 +7,6 @@ import PositionSetupPage from "@/pages/PositionSetupPage"
 import ShiftConfigCard from "@/components/ShiftConfigCard"
 import ResourceInputCard from "@/components/ResourceInputCard"
 import AvailabilityConfigCard from "@/components/AvailabilityConfigCard"
-import PositionStaffingSetupCard from "@/components/PositionStaffingSetupCard"
 import CensusOverrideCard from "@/components/CensusOverrideCard"
 import GapSummaryCard from "@/components/GapSummaryCard"
 
@@ -27,22 +26,21 @@ export default function ToolPage() {
     setCurrentStep,
   } = useApp()
 
-  // Updated total steps and order
-  const totalSteps = 8
+  // ✅ Total steps reduced to 7
+  const totalSteps = 7
   const stepNames = [
     "Facility Setup",
-    "Position Setup",
+    "Position & Staffing Setup", // merged step 1.5
     "Shift Configuration",
     "Resource Input",
     "Availability Configuration",
-    "Position & Staffing Setup", // merged version
     "Census Override",
     "Gap Summary",
   ]
 
-  // Fractional label support for step 1.5
+  // ✅ Updated fractional label logic (only step 1.5)
   const getStepLabel = (index: number): string => {
-    if (index === 1) return "1.5" // Position Setup
+    if (index === 1) return "1.5" // merged Position & Staffing
     if (index > 1) return String(index)
     return "1"
   }
@@ -62,7 +60,6 @@ export default function ToolPage() {
       "Are you sure you want to reset the wizard and start over? All progress will be lost."
     )
     if (!confirmReset) return
-
     setFacilitySetup({} as any)
     setToolType("IP")
     setCurrentStep(0)
@@ -83,7 +80,7 @@ export default function ToolPage() {
               onClick={handleNext}
               disabled={!state.facilitySetup}
             >
-              Continue to Position Setup
+              Continue to Position & Staffing Setup
             </Button>
           </Card>
         )
@@ -101,14 +98,9 @@ export default function ToolPage() {
         return <AvailabilityConfigCard onNext={handleNext} onPrev={handlePrev} />
 
       case 5:
-        return (
-          <PositionStaffingSetupCard onNext={handleNext} onPrev={handlePrev} />
-        )
-
-      case 6:
         return <CensusOverrideCard onNext={handleNext} onPrev={handlePrev} />
 
-      case 7:
+      case 6:
         return <GapSummaryCard onPrev={handlePrev} onReset={handleReset} />
 
       default:
