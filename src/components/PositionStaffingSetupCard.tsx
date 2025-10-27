@@ -470,47 +470,7 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
                       />
                     </td>
 
-                    {/* Budgeted FTE */}
-                    <td className="border px-2 py-1 text-right">
-                      <Input
-                        id={`budgeted_${i}`}
-                        type="number"
-                        value={row.budgeted_fte}
-                        onChange={(e) =>
-                          handleChange(
-                            i,
-                            "budgeted_fte",
-                            Number(e.target.value)
-                          )
-                        }
-                        className="!m-0 !p-1 w-20 text-right"
-                      />
-                    </td>
-
-                    {/* Filled FTE */}
-                    <td className="border px-2 py-1 text-right">
-                      <Input
-                        id={`filled_${i}`}
-                        type="number"
-                        value={row.filled_fte}
-                        onChange={(e) =>
-                          handleChange(i, "filled_fte", Number(e.target.value))
-                        }
-                        className="!m-0 !p-1 w-20 text-right"
-                      />
-                    </td>
-
-                    {/* Open FTE */}
-                    <td
-                      className={`border px-2 py-1 text-right font-semibold ${
-                        (row.open_fte ?? 0) > 0
-                          ? "text-red-600"
-                          : "text-gray-700"
-                      }`}
-                    >
-                      {(row.open_fte ?? 0).toFixed(1)}
-                    </td>
-
+                    
                     {/* Actions */}
                     <td className="border px-2 py-1 text-center">
                       <Button
