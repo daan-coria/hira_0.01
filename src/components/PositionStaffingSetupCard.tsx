@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react"
 import { useApp } from "@/store/AppContext"
+import { toast } from "react-hot-toast"
 import Card from "@/components/ui/Card"
 import Button from "@/components/ui/Button"
 import Input from "@/components/ui/Input"
@@ -376,13 +377,24 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
                         type={row.type === "Fixed" ? "text" : "number"}
                         value={row.type === "Fixed" ? "N/A" : row.ratio}
                         disabled={row.type === "Fixed"}
-                        onChange={(e) =>
-                          handleChange(i, "ratio", Number(e.target.value))
-                        }
+                        min={0}
+                        max={Number(row.max_ratio) || undefined}
+                        onChange={(e) => {
+                          const inputValue = Number(e.target.value)
+                          const maxValue = Number(row.max_ratio)
+
+                          if (!isNaN(maxValue) && inputValue > maxValue) {
+                            toast.error(
+                              `The ratio cannot be higher than the Max Ratio (${maxValue}).`,
+                              { duration: 3000 }
+                            )
+                            handleChange(i, "ratio", maxValue)
+                          } else {
+                            handleChange(i, "ratio", inputValue)
+                          }
+                        }}
                         className={`!m-0 !p-1 w-20 text-right ${
-                          row.type === "Fixed"
-                            ? "bg-gray-100 opacity-60"
-                            : ""
+                          row.type === "Fixed" ? "bg-gray-100 opacity-60" : ""
                         }`}
                       />
                     </td>
