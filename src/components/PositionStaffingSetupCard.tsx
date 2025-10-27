@@ -10,6 +10,7 @@ import debounce from "lodash.debounce"
 type Row = {
   id?: number
   role: string
+  category: string
   type: "Variable" | "Fixed"
   ratio: number | string
   max_ratio: number | string
@@ -29,17 +30,21 @@ type Props = {
 export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
   const { state, updateData } = useApp()
   const [rows, setRows] = useState<Row[]>([])
+  const [categories, setCategories] = useState<string[]>(
+    state.facilitySetup?.categories || ["Nursing", "Support", "Other"]
+  )
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const baseURL = `${window.location.origin}/mockdata`
-  
-  // ✅ Fallback rows (development mode)
+
+  // ✅ Fallback dataset
   const fallbackData: Row[] = [
     {
       id: 1,
       role: "RN",
+      category: "Nursing",
       type: "Variable",
       ratio: 4,
       max_ratio: 5,
@@ -53,6 +58,7 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
     {
       id: 2,
       role: "LPN",
+      category: "Nursing",
       type: "Variable",
       ratio: 6,
       max_ratio: 8,
@@ -66,6 +72,7 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
     {
       id: 3,
       role: "CNA",
+      category: "Support",
       type: "Variable",
       ratio: 8,
       max_ratio: 10,
@@ -79,6 +86,7 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
     {
       id: 4,
       role: "Clerk",
+      category: "Other",
       type: "Fixed",
       ratio: "N/A",
       max_ratio: "N/A",
@@ -101,7 +109,7 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
     [updateData]
   )
 
-  // ✅ Load mock or API data
+  // ✅ Load mock data or fallback
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -133,6 +141,7 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
     return parseFloat(((bedCount / ratio) * carePct).toFixed(2))
   }
 
+  // ✅ Handle changes
   const handleChange = (i: number, field: keyof Row, value: any) => {
     const updated = rows.map((r, idx) => {
       if (idx !== i) return r
@@ -142,7 +151,7 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
         if (value === "Fixed") {
           newRow.ratio = "N/A"
           newRow.max_ratio = "N/A"
-        } else if (value === "Variable") {
+        } else {
           newRow.ratio = 1
           newRow.max_ratio = 1
         }
@@ -150,8 +159,7 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
 
       if (newRow.type === "Variable") newRow.fte = calcFTE(newRow)
       if (["budgeted_fte", "filled_fte"].includes(field))
-        newRow.open_fte =
-          (newRow.budgeted_fte || 0) - (newRow.filled_fte || 0)
+        newRow.open_fte = (newRow.budgeted_fte || 0) - (newRow.filled_fte || 0)
 
       return newRow
     })
@@ -159,10 +167,12 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
     debouncedSave(updated)
   }
 
+  // ✅ Add new row
   const addRow = () => {
     const newRow: Row = {
       id: Date.now(),
       role: "",
+      category: "",
       type: "Variable",
       ratio: 1,
       max_ratio: 1,
@@ -178,14 +188,57 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
     debouncedSave(updated)
   }
 
+  // ✅ Add or create custom category
+  const handleCategoryChange = (i: number, value: string) => {
+    if (value === "__add_custom__") {
+      const newCat = prompt("Enter new category name:")
+      if (newCat && !categories.includes(newCat)) {
+        const updatedCats = [...categories, newCat]
+        setCategories(updatedCats)
+        updateData("positions", [
+          ...(rows.map((r) => ({ name: r.role, category: r.category })) || []),
+          { name: "", category: newCat },
+        ])
+        handleChange(i, "category", newCat)
+      }
+    } else {
+      handleChange(i, "category", value)
+    }
+  }
+
+  // ✅ Remove single row
+  const removeRow = (id?: number) => {
+    const updated = rows.filter((r) => r.id !== id)
+    setRows(updated)
+    debouncedSave(updated)
+  }
+
+  // ✅ Clear all and reset to fallback
+  const clearAll = () => {
+    const confirmReset = window.confirm(
+      "Are you sure you want to reset all roles to default?"
+    )
+    if (!confirmReset) return
+    setRows(fallbackData)
+    updateData("staffingConfig", fallbackData)
+  }
+
   return (
     <Card className="p-5 rounded-xl shadow-sm divide-y divide-gray-200">
+      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-800">
           Position & Staffing Setup
         </h3>
         <div className="flex items-center gap-3">
           {saving && <span className="text-sm text-gray-500">Saving…</span>}
+          <Button
+            variant="ghost"
+            onClick={clearAll}
+            className="text-sm text-red-600 border border-red-300 hover:bg-red-50"
+          >
+            Clear All
+          </Button>
           <Button onClick={addRow}>+ Add Role</Button>
         </div>
       </div>
@@ -204,6 +257,7 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
             <thead className="bg-gray-50 text-gray-700">
               <tr>
                 <th className="px-3 py-2 border">Role</th>
+                <th className="px-3 py-2 border">Category</th>
                 <th className="px-3 py-2 border">Type</th>
                 <th className="px-3 py-2 border text-right">
                   <div className="flex items-center justify-end gap-1">
@@ -225,21 +279,33 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
                     <InfoButton text="Auto-calculated based on ratio and bed count." />
                   </div>
                 </th>
-                <th className="px-3 py-2 border text-right">Budgeted FTE</th>
-                <th className="px-3 py-2 border text-right">Filled FTE</th>
+                <th className="px-3 py-2 border text-right">
+                  <div className="flex items-center justify-end gap-1">
+                    Budgeted FTE
+                    <InfoButton text="Approved staffing positions for this role (from finance)." />
+                  </div>
+                </th>
+                <th className="px-3 py-2 border text-right">
+                  <div className="flex items-center justify-end gap-1">
+                    Filled FTE
+                    <InfoButton text="Current filled positions (from HR)." />
+                  </div>
+                </th>
                 <th className="px-3 py-2 border text-right">
                   <div className="flex items-center justify-end gap-1">
                     Open FTE
                     <InfoButton text="Difference between budgeted and filled FTE." />
                   </div>
                 </th>
+                <th className="px-3 py-2 border text-center">Actions</th>
               </tr>
             </thead>
+
             <tbody>
               {rows.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={12}
                     className="text-center py-4 text-gray-500 bg-white"
                   >
                     No roles defined yet.
@@ -255,18 +321,35 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
                   >
                     {/* Role */}
                     <td className="border px-2 py-1">
-                      <Select
-                        id={`role_${i}`}
+                      <Input
                         label=""
+                        id={`role_${i}`}
                         value={row.role}
-                        onChange={(e) => handleChange(i, "role", e.target.value)}
-                        className="!m-0 !p-1"
+                        onChange={(e) =>
+                          handleChange(i, "role", e.target.value)
+                        }
+                        className="!m-0 !p-1 w-full"
+                      />
+                    </td>
+
+                    {/* Category */}
+                    <td className="border px-2 py-1">
+                      <Select
+                        id={`cat_${i}`}
+                        label=""
+                        value={row.category}
+                        onChange={(e) =>
+                          handleCategoryChange(i, e.target.value)
+                        }
+                        className="!m-0 !p-1 w-full"
                       >
-                        <option value="">-- Select Role --</option>
-                        <option value="RN">RN</option>
-                        <option value="LPN">LPN</option>
-                        <option value="CNA">CNA</option>
-                        <option value="Clerk">Clerk</option>
+                        <option value="">-- Select Category --</option>
+                        {categories.map((cat) => (
+                          <option key={cat} value={cat}>
+                            {cat}
+                          </option>
+                        ))}
+                        <option value="__add_custom__">+ Add Custom Category…</option>
                       </Select>
                     </td>
 
@@ -289,7 +372,6 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
                     {/* Ratio */}
                     <td className="border px-2 py-1 text-right">
                       <Input
-                        label=""
                         id={`ratio_${i}`}
                         type={row.type === "Fixed" ? "text" : "number"}
                         value={row.type === "Fixed" ? "N/A" : row.ratio}
@@ -308,7 +390,6 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
                     {/* Max Ratio */}
                     <td className="border px-2 py-1 text-right">
                       <Input
-                        label=""
                         id={`maxratio_${i}`}
                         type={row.type === "Fixed" ? "text" : "number"}
                         value={row.type === "Fixed" ? "N/A" : row.max_ratio}
@@ -327,7 +408,6 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
                     {/* Direct Care % */}
                     <td className="border px-2 py-1 text-right">
                       <Input
-                        label=""
                         id={`dc_${i}`}
                         type="number"
                         min={0}
@@ -346,24 +426,23 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
 
                     {/* Include */}
                     <td className="border px-2 py-1 text-center">
-                    <input
-                        type="checkbox"
-                        id={`include_${i}`}
-                        name={`include_${i}`}
-                        checked={row.include_in_ratio}
-                        onChange={(e) =>
-                        handleChange(i, "include_in_ratio", e.target.checked)
-                        }
-                        className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-                        title={`Include ${row.role || "role"} in ratio`}
-                        aria-label={`Include ${row.role || "role"} in ratio`}
-                    />
+                      <div className="flex items-center justify-center">
+                        <input
+                          type="checkbox"
+                          id={`include_${i}`}
+                          checked={row.include_in_ratio}
+                          onChange={(e) =>
+                            handleChange(i, "include_in_ratio", e.target.checked)
+                          }
+                          className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                          aria-label={`Include ${row.role} in ratio calculations`}
+                        />
+                      </div>
                     </td>
 
                     {/* FTE */}
                     <td className="border px-2 py-1 text-right">
                       <Input
-                        label=""
                         id={`fte_${i}`}
                         type="number"
                         value={row.fte}
@@ -382,7 +461,6 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
                     {/* Budgeted FTE */}
                     <td className="border px-2 py-1 text-right">
                       <Input
-                        label=""
                         id={`budgeted_${i}`}
                         type="number"
                         value={row.budgeted_fte}
@@ -400,7 +478,6 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
                     {/* Filled FTE */}
                     <td className="border px-2 py-1 text-right">
                       <Input
-                        label=""
                         id={`filled_${i}`}
                         type="number"
                         value={row.filled_fte}
@@ -420,6 +497,17 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
                       }`}
                     >
                       {(row.open_fte ?? 0).toFixed(1)}
+                    </td>
+
+                    {/* Actions */}
+                    <td className="border px-2 py-1 text-center">
+                      <Button
+                        variant="ghost"
+                        onClick={() => removeRow(row.id)}
+                        className="text-xs text-red-600 hover:bg-red-50"
+                      >
+                        Remove
+                      </Button>
                     </td>
                   </tr>
                 ))
