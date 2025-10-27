@@ -13,6 +13,7 @@ import GapSummaryCard from "@/components/GapSummaryCard"
 // UI Components
 import Card from "@/components/ui/Card"
 import Button from "@/components/ui/Button"
+import PositionStaffingSetupCard from "@/components/PositionStaffingSetupCard"
 
 export default function ToolPage() {
   const navigate = useNavigate()
@@ -83,7 +84,7 @@ export default function ToolPage() {
         )
 
       case 1:
-        return <PositionSetupPage onNext={handleNext} onPrev={handlePrev} />
+        return <PositionStaffingSetupCard onNext={handleNext} onPrev={handlePrev} />
 
       case 2:
         return <ShiftConfigCard onNext={handleNext} onPrev={handlePrev} />
