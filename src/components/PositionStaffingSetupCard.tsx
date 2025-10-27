@@ -280,24 +280,6 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
                     <InfoButton text="Auto-calculated based on ratio and bed count." />
                   </div>
                 </th>
-                <th className="px-3 py-2 border text-right">
-                  <div className="flex items-center justify-end gap-1">
-                    Budgeted FTE
-                    <InfoButton text="Approved staffing positions for this role (from finance)." />
-                  </div>
-                </th>
-                <th className="px-3 py-2 border text-right">
-                  <div className="flex items-center justify-end gap-1">
-                    Filled FTE
-                    <InfoButton text="Current filled positions (from HR)." />
-                  </div>
-                </th>
-                <th className="px-3 py-2 border text-right">
-                  <div className="flex items-center justify-end gap-1">
-                    Open FTE
-                    <InfoButton text="Difference between budgeted and filled FTE." />
-                  </div>
-                </th>
                 <th className="px-3 py-2 border text-center">Actions</th>
               </tr>
             </thead>
