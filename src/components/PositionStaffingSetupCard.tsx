@@ -17,7 +17,9 @@ type Row = {
   max_ratio: number | string
   include_in_ratio: boolean
   direct_care_percent: number
-  fte: number
+  total_hours_per_week: number | string
+  weekend_rotation: string
+  fte: number | string
   budgeted_fte: number
   filled_fte: number
   open_fte: number
@@ -51,10 +53,12 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
       max_ratio: 5,
       include_in_ratio: true,
       direct_care_percent: 100,
-      fte: 10,
+      fte: "N/A",
       budgeted_fte: 10,
       filled_fte: 8,
       open_fte: 2,
+      total_hours_per_week: 40,
+      weekend_rotation: "Every other weekend",
     },
     {
       id: 2,
@@ -65,10 +69,12 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
       max_ratio: 8,
       include_in_ratio: true,
       direct_care_percent: 80,
-      fte: 7,
+      fte: "N/A",
       budgeted_fte: 6,
       filled_fte: 5,
       open_fte: 1,
+      total_hours_per_week: 40,
+      weekend_rotation: "Every other weekend",
     },
     {
       id: 3,
@@ -79,10 +85,12 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
       max_ratio: 10,
       include_in_ratio: true,
       direct_care_percent: 90,
-      fte: 12,
+      fte: "N/A",
       budgeted_fte: 12,
       filled_fte: 11,
       open_fte: 1,
+      total_hours_per_week: 40,
+      weekend_rotation: "Every other weekend",
     },
     {
       id: 4,
@@ -97,6 +105,8 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
       budgeted_fte: 1,
       filled_fte: 1,
       open_fte: 0,
+      total_hours_per_week: 40,
+      weekend_rotation: "Every other weekend",
     },
   ]
 
@@ -115,14 +125,13 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
     const loadData = async () => {
       try {
         setLoading(true)
-        const url = `${baseURL}/staffing-config.json`
-        const res = await fetch(url)
+        const res = await fetch(`${baseURL}/staffing-config.json`)
         if (!res.ok) throw new Error("Missing staffing config, using fallback")
         const data = await res.json()
         setRows(data)
         updateData("staffingConfig", data)
-      } catch (err) {
-        console.warn("⚠️ Using fallback data", err)
+      } catch {
+        console.warn("⚠️ Using fallback data")
         setRows(fallbackData)
         updateData("staffingConfig", fallbackData)
         setError("Loaded fallback data.")
@@ -148,19 +157,26 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
       if (idx !== i) return r
       const newRow = { ...r, [field]: value }
 
+      // Type logic
       if (field === "type") {
         if (value === "Fixed") {
           newRow.ratio = "N/A"
           newRow.max_ratio = "N/A"
+          newRow.fte = 1
         } else {
           newRow.ratio = 1
           newRow.max_ratio = 1
+          newRow.fte = "N/A"
         }
       }
 
+      // FTE auto-calc for Variable
       if (newRow.type === "Variable") newRow.fte = calcFTE(newRow)
+
+      // Open FTE recalc
       if (["budgeted_fte", "filled_fte"].includes(field))
-        newRow.open_fte = (newRow.budgeted_fte || 0) - (newRow.filled_fte || 0)
+        newRow.open_fte =
+          (newRow.budgeted_fte || 0) - (newRow.filled_fte || 0)
 
       return newRow
     })
@@ -179,7 +195,9 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
       max_ratio: 1,
       include_in_ratio: true,
       direct_care_percent: 100,
-      fte: 0,
+      total_hours_per_week: 40,
+      weekend_rotation: "",
+      fte: "N/A",
       budgeted_fte: 0,
       filled_fte: 0,
       open_fte: 0,
@@ -189,22 +207,16 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
     debouncedSave(updated)
   }
 
-  // ✅ Add or create custom category
+  // ✅ Custom category handler
   const handleCategoryChange = (i: number, value: string) => {
     if (value === "__add_custom__") {
       const newCat = prompt("Enter new category name:")
       if (newCat && !categories.includes(newCat)) {
         const updatedCats = [...categories, newCat]
         setCategories(updatedCats)
-        updateData("positions", [
-          ...(rows.map((r) => ({ name: r.role, category: r.category })) || []),
-          { name: "", category: newCat },
-        ])
         handleChange(i, "category", newCat)
       }
-    } else {
-      handleChange(i, "category", value)
-    }
+    } else handleChange(i, "category", value)
   }
 
   // ✅ Remove single row
@@ -214,12 +226,9 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
     debouncedSave(updated)
   }
 
-  // ✅ Clear all and reset to fallback
+  // ✅ Clear all
   const clearAll = () => {
-    const confirmReset = window.confirm(
-      "Are you sure you want to reset all roles to default?"
-    )
-    if (!confirmReset) return
+    if (!window.confirm("Reset all roles to default?")) return
     setRows(fallbackData)
     updateData("staffingConfig", fallbackData)
   }
@@ -263,7 +272,7 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
                 <th className="px-3 py-2 border text-right">
                   <div className="flex items-center justify-end gap-1">
                     Ratio
-                    <InfoButton text="Editable ratio used in calculations (only for Variable roles)." />
+                    <InfoButton text="Editable ratio (only for Variable roles)." />
                   </div>
                 </th>
                 <th className="px-3 py-2 border text-right">
@@ -276,8 +285,20 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
                 <th className="px-3 py-2 border text-center">Include</th>
                 <th className="px-3 py-2 border text-right">
                   <div className="flex items-center justify-end gap-1">
+                    Total Hours / Week
+                    <InfoButton text="Typical full-time work hours per week (e.g. 36 or 40)." />
+                  </div>
+                </th>
+                <th className="px-3 py-2 border text-right">
+                  <div className="flex items-center justify-end gap-1">
+                    Weekend Rotation
+                    <InfoButton text="Defines how often the position works weekends." />
+                  </div>
+                </th>
+                <th className="px-3 py-2 border text-right">
+                  <div className="flex items-center justify-end gap-1">
                     FTE
-                    <InfoButton text="Auto-calculated based on ratio and bed count." />
+                    <InfoButton text="Editable only for Fixed roles." />
                   </div>
                 </th>
                 <th className="px-3 py-2 border text-center">Actions</th>
@@ -305,7 +326,6 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
                     {/* Role */}
                     <td className="border px-2 py-1">
                       <Input
-                        label=""
                         id={`role_${i}`}
                         value={row.role}
                         onChange={(e) =>
@@ -318,8 +338,8 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
                     {/* Category */}
                     <td className="border px-2 py-1">
                       <Select
+                        label="Category"
                         id={`cat_${i}`}
-                        label=""
                         value={row.category}
                         onChange={(e) =>
                           handleCategoryChange(i, e.target.value)
@@ -332,15 +352,17 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
                             {cat}
                           </option>
                         ))}
-                        <option value="__add_custom__">+ Add Custom Category…</option>
+                        <option value="__add_custom__">
+                          + Add Custom Category…
+                        </option>
                       </Select>
                     </td>
 
                     {/* Type */}
                     <td className="border px-2 py-1">
                       <Select
+                        label="Category"
                         id={`type_${i}`}
-                        label=""
                         value={row.type}
                         onChange={(e) =>
                           handleChange(i, "type", e.target.value as any)
@@ -364,11 +386,9 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
                         onChange={(e) => {
                           const inputValue = Number(e.target.value)
                           const maxValue = Number(row.max_ratio)
-
                           if (!isNaN(maxValue) && inputValue > maxValue) {
                             toast.error(
-                              `The ratio cannot be higher than the Max Ratio (${maxValue}).`,
-                              { duration: 3000 }
+                              `The ratio cannot exceed Max Ratio (${maxValue}).`
                             )
                             handleChange(i, "ratio", maxValue)
                           } else {
@@ -392,9 +412,7 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
                           handleChange(i, "max_ratio", Number(e.target.value))
                         }
                         className={`!m-0 !p-1 w-20 text-right ${
-                          row.type === "Fixed"
-                            ? "bg-gray-100 opacity-60"
-                            : ""
+                          row.type === "Fixed" ? "bg-gray-100 opacity-60" : ""
                         }`}
                       />
                     </td>
@@ -420,39 +438,78 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
 
                     {/* Include */}
                     <td className="border px-2 py-1 text-center">
-                      <div className="flex items-center justify-center">
-                        <input
-                          type="checkbox"
-                          id={`include_${i}`}
-                          checked={row.include_in_ratio}
-                          onChange={(e) =>
-                            handleChange(i, "include_in_ratio", e.target.checked)
-                          }
-                          className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-                          aria-label={`Include ${row.role} in ratio calculations`}
-                        />
-                      </div>
+                      <label className="sr-only" htmlFor={`include_${i}`}>Include in ratio</label>
+                      <input
+                        id={`include_${i}`}
+                        type="checkbox"
+                        checked={row.include_in_ratio}
+                        onChange={(e) =>
+                          handleChange(i, "include_in_ratio", e.target.checked)
+                        }
+                        className="h-4 w-4 text-green-600 border-gray-300 rounded"
+                        aria-label="Include in ratio"
+                      />
+                    </td>
+
+                    {/* Total Hours / Week */}
+                    <td className="border px-2 py-1 text-right">
+                      <Input
+                        id={`hours_${i}`}
+                        type="number"
+                        min={1}
+                        max={168}
+                        value={row.total_hours_per_week}
+                        onChange={(e) =>
+                          handleChange(
+                            i,
+                            "total_hours_per_week",
+                            Number(e.target.value)
+                          )
+                        }
+                        className="!m-0 !p-1 w-20 text-right"
+                      />
+                    </td>
+
+                    {/* Weekend Rotation */}
+                    <td className="border px-2 py-1 text-right">
+                      <Select
+                        label="Category"
+                        id={`weekend_${i}`}
+                        value={row.weekend_rotation}
+                        onChange={(e) =>
+                          handleChange(i, "weekend_rotation", e.target.value)
+                        }
+                        className="!m-0 !p-1 w-40"
+                      >
+                        <option value="">-- Select --</option>
+                        <option value="Every weekend">Every weekend</option>
+                        <option value="Every other weekend">
+                          Every other weekend
+                        </option>
+                        <option value="Every 3rd weekend">
+                          Every 3rd weekend
+                        </option>
+                        <option value="Rotates">Rotates</option>
+                      </Select>
                     </td>
 
                     {/* FTE */}
                     <td className="border px-2 py-1 text-right">
-                      <Input
-                        id={`fte_${i}`}
-                        type="number"
-                        value={row.fte}
-                        disabled={row.type === "Variable"}
-                        onChange={(e) =>
-                          handleChange(i, "fte", Number(e.target.value))
-                        }
-                        className={`!m-0 !p-1 w-20 text-right ${
-                          row.type === "Variable"
-                            ? "bg-gray-100 opacity-60"
-                            : ""
-                        }`}
-                      />
+                      {row.type === "Variable" ? (
+                        <div className="text-gray-400 text-center">N/A</div>
+                      ) : (
+                        <Input
+                          id={`fte_${i}`}
+                          type="number"
+                          value={row.fte}
+                          onChange={(e) =>
+                            handleChange(i, "fte", Number(e.target.value))
+                          }
+                          className="!m-0 !p-1 w-20 text-right"
+                        />
+                      )}
                     </td>
 
-                    
                     {/* Actions */}
                     <td className="border px-2 py-1 text-center">
                       <Button
