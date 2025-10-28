@@ -13,7 +13,7 @@ type Props = {
 export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
   const { updateFacilitySetup } = useApp()
 
-  //  One-to-one Cost Center ↔ Department map
+  // Cost Center ↔ Department mapping
   const costCenterMap: Record<string, string> = {
     "1001": "ICU",
     "1002": "Med-Surg",
@@ -21,6 +21,10 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
     "1004": "Telemetry",
     "1005": "Labor & Delivery",
     "1006": "Rehab",
+    "2001": "Cafeteria",
+    "2002": "Maintenance",
+    "2003": "Finance",
+    "2004": "Administration",
   }
 
   const facilities = [
@@ -40,43 +44,41 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
   })
 
   const [warning, setWarning] = useState<string | null>(null)
+  const [isNursingUnit, setIsNursingUnit] = useState<boolean>(false)
 
-  //  Auto-sync Facility Setup with AppContext
+  // Detect if the department is nursing-related
+  useEffect(() => {
+    const pattern = /(nurse|nursing|icu|med|surg|er|ed|tele|rehab|labor|delivery|inpatient)/i
+    setIsNursingUnit(pattern.test(form.department))
+  }, [form.department])
+
+  // Auto-sync with AppContext
   useEffect(() => {
     updateFacilitySetup({
       facility: form.facility,
       department: form.department,
       costCenter: form.costCenter,
-      bedCount: Number(form.bedCount) || 0,
+      bedCount: isNursingUnit ? Number(form.bedCount) || 0 : 0,
       categories: ["Nursing", "Support", "Other"],
     })
-  }, [form])
+  }, [form, isNursingUnit])
 
   const handleChange = (key: keyof typeof form, value: string) => {
     setForm((prev) => {
       let updated = { ...prev, [key]: value }
+      setWarning(null)
 
-      setWarning(null) // reset previous warning
-
-      //  Two-way sync between Department and Cost Center
+      // Sync Department ↔ Cost Center
       if (key === "department") {
         const match = Object.entries(costCenterMap).find(
           ([cc, dept]) => dept === value
         )
-        if (match) {
-          updated.costCenter = match[0]
-        } else {
-          updated.costCenter = ""
-          setWarning(`No matching Cost Center found for ${value}`)
-        }
+        updated.costCenter = match ? match[0] : ""
+        if (!match) setWarning(`No matching Cost Center found for ${value}`)
       } else if (key === "costCenter") {
         const dept = costCenterMap[value]
-        if (dept) {
-          updated.department = dept
-        } else {
-          updated.department = ""
-          setWarning(`No matching Department found for ${value}`)
-        }
+        updated.department = dept || ""
+        if (!dept) setWarning(`No matching Department found for ${value}`)
       }
 
       return updated
@@ -88,7 +90,7 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
       facility: form.facility,
       department: form.department,
       costCenter: form.costCenter,
-      bedCount: Number(form.bedCount) || 0,
+      bedCount: isNursingUnit ? Number(form.bedCount) || 0 : 0,
       categories: ["Nursing", "Support", "Other"],
     })
 
@@ -144,16 +146,29 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
           ))}
         </Select>
 
-        {/* Bed Count */}
-        <Input
-          id="bedCount"
-          label="Bed Count"
-          type="number"
-          min={0}
-          value={form.bedCount}
-          onChange={(e) => handleChange("bedCount", e.target.value)}
-          placeholder="Enter bed count"
-        />
+        {/* Bed Count (conditional) */}
+        {isNursingUnit ? (
+          <Input
+            id="bedCount"
+            label="Bed Count"
+            type="number"
+            min={0}
+            value={form.bedCount}
+            onChange={(e) => handleChange("bedCount", e.target.value)}
+            placeholder="Enter bed count"
+          />
+        ) : (
+          <div className="col-span-1 flex flex-col justify-end">
+            <label className="text-sm font-medium text-gray-600 mb-1">
+              Bed Count
+            </label>
+            <input
+              className="border border-gray-300 rounded-md px-3 py-2 bg-gray-100 text-gray-400"
+              disabled
+              placeholder="N/A - not applicable"
+            />
+          </div>
+        )}
       </div>
 
       {/* ⚠️ Warning message */}
