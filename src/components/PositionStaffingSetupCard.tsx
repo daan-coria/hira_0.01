@@ -307,7 +307,7 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
                   </td>
                   <td className="border px-2 py-1">
                     <Select
-                      label="Type"
+                      label=""
                       id={`cat_${i}`}
                       value={row.category}
                       onChange={(e) => handleCategoryChange(i, e.target.value)}
@@ -324,7 +324,7 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
                   </td>
                   <td className="border px-2 py-1">
                     <Select
-                      label="Type"
+                      label=""
                       id={`type_${i}`}
                       value={row.type}
                       onChange={(e) =>
