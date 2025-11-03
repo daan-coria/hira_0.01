@@ -17,7 +17,7 @@ type ResourceRow = {
   position: string
   unit_fte: number
   availability: string
-  weekend_group: string
+  weekend_group: "A" | "B" | "C" | "WC" | ""
   vacancy_status: string
 }
 
@@ -28,6 +28,9 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
   const [rows, setRows] = useState<ResourceRow[]>([])
   const [saving, setSaving] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // ✅ Unified weekend groups
+  const weekendGroups = ["A", "B", "C", "WC"]
 
   // ✅ Debounced autosave
   const debouncedSave = useCallback(
@@ -47,13 +50,13 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     if (resourceArray.length > 0) setRows(resourceArray)
   }, [data?.resourceInput])
 
-  // ✅ Positions (fallback)
+  // ✅ Positions from Step 2 (StaffingConfig) or fallback
   const positions =
-    Array.isArray(data.positions) && data.positions.length > 0
-      ? data.positions.map((p: any) => (typeof p === "string" ? p : p?.name || p))
+    Array.isArray(data.staffingConfig) && data.staffingConfig.length > 0
+      ? data.staffingConfig.map((p: any) => p.role)
       : ["RN", "LPN", "CNA", "Clerk"]
 
-  // ✅ Dynamically load shift labels (availability) from ShiftConfig
+  // ✅ Availability options from Step 3 (ShiftConfig)
   const [availabilityOptions, setAvailabilityOptions] = useState<string[]>([])
   useEffect(() => {
     if (Array.isArray(data.shiftConfig)) {
@@ -68,15 +71,13 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     }
   }, [data.shiftConfig])
 
-  // ✅ Filter availability by position type from Step 3
+  // ✅ Filter availability by position type (from StaffingConfig)
   const getFilteredAvailability = (position: string) => {
     if (!Array.isArray(data.staffingConfig)) return availabilityOptions
     const allowedTypes = data.staffingConfig
       .filter((cfg: any) => cfg.role === position)
       .map((cfg: any) => cfg.type)
-    // If no constraint found, show all
     if (allowedTypes.length === 0) return availabilityOptions
-    // Otherwise, only keep matching shift labels
     return availabilityOptions.filter((opt) =>
       allowedTypes.some((type: string) =>
         opt.toLowerCase().includes(type.toLowerCase())
@@ -84,20 +85,20 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     )
   }
 
-  // ✅ Dynamically load weekend groups
-  const [weekendGroups, setWeekendGroups] = useState<string[]>([])
+  // ✅ Weekend group source (from Step 2 or fallback)
+  const [weekendGroupList, setWeekendGroupList] = useState<string[]>(weekendGroups)
   useEffect(() => {
-    if (Array.isArray(data.availabilityConfig)) {
+    if (Array.isArray(data.staffingConfig)) {
       const groups = Array.from(
         new Set(
-          (data.availabilityConfig || [])
-            .map((r: any) => r.weekend_group)
-            .filter((x: string) => x && x.trim())
+          (data.staffingConfig || [])
+            .map((r: any) => r.weekend_rotation)
+            .filter((g: string) => g && weekendGroups.includes(g))
         )
       )
-      setWeekendGroups(groups)
+      if (groups.length > 0) setWeekendGroupList(groups)
     }
-  }, [data.availabilityConfig])
+  }, [data.staffingConfig])
 
   // ✅ Handle inline changes
   const handleChange = (index: number, field: keyof ResourceRow, value: any) => {
@@ -131,7 +132,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     updateData("resourceInput", updated)
   }
 
-  // ✅ CSV Upload Handler
+  // ✅ CSV Upload Handler (weekend groups normalized)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -144,6 +145,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
         const merged = [...rows]
 
         for (const newRow of newRows) {
+          newRow.weekend_group = normalizeGroup(newRow.weekend_group)
           const matchIndex = merged.findIndex(
             (r) =>
               r.employee_id === newRow.employee_id ||
@@ -158,6 +160,18 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
         Swal.fire("Upload Complete", "Roster processed successfully!", "success")
       },
     })
+  }
+
+  // ✅ Normalize weekend group from CSV or legacy data
+  const normalizeGroup = (val: any): "A" | "B" | "C" | "WC" | "" => {
+    if (!val) return ""
+    const t = val.toString().toUpperCase()
+    if (["A", "B", "C", "WC"].includes(t)) return t as any
+    if (t.includes("1")) return "A"
+    if (t.includes("2")) return "B"
+    if (t.includes("3")) return "C"
+    if (t.includes("W")) return "WC"
+    return ""
   }
 
   // ✅ Export CSV
@@ -189,10 +203,8 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
             accept=".csv"
             ref={fileInputRef}
             onChange={handleFileUpload}
-            title="Upload CSV"
-            placeholder="Upload CSV"
-            aria-label="Upload CSV"
             className="hidden"
+            aria-label="Upload CSV"
           />
 
           <Button onClick={() => fileInputRef.current?.click()}>Upload CSV</Button>
@@ -267,22 +279,24 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       isPosted ? "opacity-70" : ""
                     }`}
                   >
+                    {/* Employee ID */}
                     <td className="border px-2 py-1 text-center">
                       <Input
-                        id={`emp_${i}`}
+                        id={`employee_id-${row.id || i}`}
                         value={row.employee_id || ""}
                         onChange={(e) => handleChange(i, "employee_id", e.target.value)}
                         placeholder="ID"
+                        disabled={isPosted}
                         className={`!m-0 !p-1 w-24 text-center ${
                           isPosted ? "bg-gray-100 text-gray-400" : ""
                         }`}
-                        disabled={isPosted}
                       />
                     </td>
 
+                    {/* Vacancy Status */}
                     <td className="border px-2 py-1">
                       <Select
-                        label="Vacancy Status"
+                        label=""
                         id={`vacancy_${i}`}
                         value={row.vacancy_status}
                         onChange={(e) =>
@@ -296,35 +310,39 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       </Select>
                     </td>
 
+                    {/* First Name */}
                     <td className="border px-2 py-1">
                       <Input
-                        id={`fname_${i}`}
+                        id={`first_name-${row.id || i}`}
                         value={row.first_name}
                         onChange={(e) => handleChange(i, "first_name", e.target.value)}
-                        placeholder="First Name"
+                        placeholder="First"
+                        disabled={isPosted}
                         className={`!m-0 !p-1 ${
                           isPosted ? "bg-gray-100 text-gray-400" : ""
                         }`}
-                        disabled={isPosted}
                       />
                     </td>
 
+                    {/* Last Name */}
                     <td className="border px-2 py-1">
                       <Input
-                        id={`lname_${i}`}
+                        id={`last_name-${row.id || i}`}
                         value={row.last_name}
                         onChange={(e) => handleChange(i, "last_name", e.target.value)}
-                        placeholder="Last Name"
+                        placeholder="Last"
+                        disabled={isPosted}
                         className={`!m-0 !p-1 ${
                           isPosted ? "bg-gray-100 text-gray-400" : ""
                         }`}
-                        disabled={isPosted}
                       />
                     </td>
+
+                    {/* Position */}
                     <td className="border px-2 py-1">
                       <Select
-                        label="Position"
-                        id={`pos_${i}`}
+                        label=""
+                        id={`position_${i}`}
                         value={row.position}
                         onChange={(e) => handleChange(i, "position", e.target.value)}
                         className="!m-0 !p-1"
@@ -338,9 +356,10 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       </Select>
                     </td>
 
+                    {/* Unit FTE */}
                     <td className="border px-2 py-1 text-right">
                       <Input
-                        id={`fte_${i}`}
+                        id={`unit_fte-${row.id || i}`}
                         type="number"
                         min={0}
                         step={0.1}
@@ -352,10 +371,11 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       />
                     </td>
 
+                    {/* Availability */}
                     <td className="border px-2 py-1">
                       <Select
-                        label="Availability"
-                        id={`avail_${i}`}
+                        label=""
+                        id={`availability_${i}`}
                         value={row.availability}
                         onChange={(e) =>
                           handleChange(i, "availability", e.target.value)
@@ -365,7 +385,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       >
                         <option value="">
                           {filteredAvailability.length === 0
-                            ? "No shifts for this role"
+                            ? "No shifts for role"
                             : "-- Select Shift --"}
                         </option>
                         {filteredAvailability.map((opt) => (
@@ -376,30 +396,28 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       </Select>
                     </td>
 
+                    {/* Weekend Group */}
                     <td className="border px-2 py-1">
                       <Select
-                        label="Weekend Group"
+                        label=""
                         id={`weekend_${i}`}
                         value={row.weekend_group}
                         onChange={(e) =>
-                          handleChange(i, "weekend_group", e.target.value)
+                          handleChange(i, "weekend_group", e.target.value as any)
                         }
-                        disabled={weekendGroups.length === 0}
+                        disabled={weekendGroupList.length === 0}
                         className="!m-0 !p-1"
                       >
-                        <option value="">
-                          {weekendGroups.length === 0
-                            ? "Define in Step 2"
-                            : "-- Select --"}
-                        </option>
-                        {weekendGroups.map((g) => (
+                        <option value="">-- Select --</option>
+                        {weekendGroupList.map((g) => (
                           <option key={g} value={g}>
-                            {g}
+                            Group {g}
                           </option>
                         ))}
                       </Select>
                     </td>
 
+                    {/* Actions */}
                     <td className="border px-2 py-1 text-center">
                       <Button
                         onClick={() => removeRow(row.id)}

@@ -2,8 +2,8 @@ import { SelectHTMLAttributes, ReactNode } from "react"
 import clsx from "clsx"
 
 type SelectProps = SelectHTMLAttributes<HTMLSelectElement> & {
-  label: string
-  id: string
+  label?: string        // 👈 Make optional
+  id?: string           // 👈 Also make optional (for flexibility)
   children: ReactNode
 }
 

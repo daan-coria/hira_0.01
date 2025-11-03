@@ -1,151 +1,151 @@
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useApp } from "@/store/AppContext"
 import Card from "@/components/ui/Card"
 import Button from "@/components/ui/Button"
 import Input from "@/components/ui/Input"
 import Select from "@/components/ui/Select"
+import InfoButton from "@/components/ui/InfoButton"
 import debounce from "lodash.debounce"
 
-type ShiftConfigRow = {
+type ShiftRow = {
   id?: number
-  role: string
-  shift_block: string
   shift_label: string
-  start_hour: string
-  end_hour: string
-  hours_per_shift: number
+  start_time: string
+  end_time: string
+  hours: number
+  weekend_group: "A" | "B" | "C" | "WC" | ""
 }
 
-type Props = { onNext?: () => void; onPrev?: () => void }
+type Props = {
+  onNext?: () => void
+  onPrev?: () => void
+}
 
 export default function ShiftConfigCard({ onNext, onPrev }: Props) {
-  const { data, updateData } = useApp()
-  const [rows, setRows] = useState<ShiftConfigRow[]>([])
+  const { updateData, data } = useApp()
+  const [rows, setRows] = useState<ShiftRow[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const baseURL = import.meta.env.MODE === "development" ? "/mockdata" : "/api"
+  const baseURL = `${window.location.origin}/mockdata`
+  const weekendGroups = ["A", "B", "C", "WC"]
 
-  // ---- Roles: union of Position Setup + Resource Input (deduped, sorted) ----
-  const roleOptions = useMemo(() => {
-    const fromPositions =
-      Array.isArray(data.positions)
-        ? (data.positions as any[])
-            .map((p) => (typeof p === "string" ? p : p?.name))
-            .filter(Boolean)
-        : []
-
-    const fromResource =
-      Array.isArray(data.resourceInput)
-        ? (data.resourceInput as any[])
-            .map((r) => r?.position)
-            .filter(Boolean)
-        : []
-
-    const unique = Array.from(new Set([...fromPositions, ...fromResource])) as string[]
-    return (unique.length ? unique : ["RN", "LPN", "CNA", "Clerk"]).sort()
-  }, [data.positions, data.resourceInput])
-
-  // ---- Debounced autosave ----
+  // ✅ Debounced save
   const debouncedSave = useCallback(
-    debounce((updated: ShiftConfigRow[]) => {
+    debounce((updated: ShiftRow[]) => {
       setSaving(true)
       updateData("shiftConfig", updated)
       setTimeout(() => setSaving(false), 600)
-    }, 400),
+    }, 500),
     [updateData]
   )
 
-  // ---- Load existing shift config or from mock, then normalize block labels ----
+  // ✅ Load or fallback
   useEffect(() => {
-    if (Array.isArray(data.shiftConfig) && data.shiftConfig.length > 0) {
-      const normalized = normalizeBlocks(data.shiftConfig)
-      setRows(normalized)
-      setLoading(false)
-    } else {
-      fetchShiftConfigs()
+    const loadData = async () => {
+      try {
+        setLoading(true)
+        const res = await fetch(`${baseURL}/shift-config.json`)
+        if (!res.ok) throw new Error("Missing shift config")
+        const data = await res.json()
+        const normalized = data.map((s: ShiftRow) => ({
+          ...s,
+          weekend_group: normalizeGroup(s.weekend_group),
+        }))
+        setRows(normalized)
+        updateData("shiftConfig", normalized)
+      } catch {
+        console.warn("⚠️ Using fallback shifts")
+        setRows(fallbackData)
+        updateData("shiftConfig", fallbackData)
+        setError("Loaded fallback shifts.")
+      } finally {
+        setLoading(false)
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    loadData()
   }, [])
 
-  const fetchShiftConfigs = async () => {
-    try {
-      setLoading(true)
-      const res = await fetch(`${baseURL}/shift-config.json`)
-      if (!res.ok) throw new Error("Failed to load shift configurations")
-      const json = (await res.json()) as ShiftConfigRow[]
-      const normalized = normalizeBlocks(json)
-      setRows(normalized)
-      updateData("shiftConfig", normalized)
-    } catch (e) {
-      // start empty; user will add rows
-      setRows([])
-      updateData("shiftConfig", [])
-    } finally {
-      setLoading(false)
-    }
+  // ✅ Normalize any previous text values
+  const normalizeGroup = (val: any): "A" | "B" | "C" | "WC" | "" => {
+    if (!val) return ""
+    const t = val.toString().toUpperCase()
+    if (["A", "B", "C", "WC"].includes(t)) return t as any
+    if (t.includes("1")) return "A"
+    if (t.includes("2")) return "B"
+    if (t.includes("3")) return "C"
+    if (t.includes("W")) return "WC"
+    return ""
   }
 
-  // ---- Normalize/repair shift_block labels to Day 1..N when missing/invalid ----
-  const normalizeBlocks = (input: ShiftConfigRow[]): ShiftConfigRow[] =>
-    input.map((r, idx) => ({
-      ...r,
-      shift_block:
-        r?.shift_block && /\S/.test(r.shift_block) ? r.shift_block : `Day ${idx + 1}`,
-    }))
+  // ✅ Fallback shifts
+  const fallbackData: ShiftRow[] = [
+    {
+      id: 1,
+      shift_label: "Day Shift",
+      start_time: "07:00",
+      end_time: "15:00",
+      hours: 8,
+      weekend_group: "A",
+    },
+    {
+      id: 2,
+      shift_label: "Evening Shift",
+      start_time: "15:00",
+      end_time: "23:00",
+      hours: 8,
+      weekend_group: "B",
+    },
+    {
+      id: 3,
+      shift_label: "Night Shift",
+      start_time: "23:00",
+      end_time: "07:00",
+      hours: 8,
+      weekend_group: "C",
+    },
+    {
+      id: 4,
+      shift_label: "Weekend Coverage",
+      start_time: "07:00",
+      end_time: "19:00",
+      hours: 12,
+      weekend_group: "WC",
+    },
+  ]
 
-  // ---- Hours calc (handles overnight) ----
-  const calcHours = (start: string, end: string) => {
-    if (!start || !end) return 0
-    const s = Number(start)
-    const e = Number(end)
-    if (isNaN(s) || isNaN(e)) return 0
-    const diff = e >= s ? e - s : 24 - s + e
-    return diff === 0 ? 24 : diff
-  }
-
-  // ---- Change handler ----
-  const handleChange = (index: number, field: keyof ShiftConfigRow, value: any) => {
-    const updated = rows.map((r, i) => {
-      if (i !== index) return r
-      const next = { ...r, [field]: value }
-      if (field === "start_hour" || field === "end_hour") {
-        next.hours_per_shift = calcHours(next.start_hour, next.end_hour)
-      }
-      return next
-    })
+  // ✅ Handle change
+  const handleChange = (i: number, field: keyof ShiftRow, value: any) => {
+    const updated = rows.map((r, idx) => (idx === i ? { ...r, [field]: value } : r))
     setRows(updated)
     debouncedSave(updated)
   }
 
-  // ---- Next "Day N" based on existing highest N (robust after reload/deletes) ----
-  const nextBlockName = () => {
-    const maxN =
-      rows.reduce((max, r) => {
-        const m = /(\d+)$/.exec(r.shift_block || "")
-        return Math.max(max, m ? parseInt(m[1], 10) : 0)
-      }, 0) || 0
-    return `Day ${maxN + 1}`
-  }
-
   const addRow = () => {
-    const newRow: ShiftConfigRow = {
+    const newRow: ShiftRow = {
       id: Date.now(),
-      role: "",
-      shift_block: nextBlockName(),
       shift_label: "",
-      start_hour: "",
-      end_hour: "",
-      hours_per_shift: 0,
+      start_time: "",
+      end_time: "",
+      hours: 8,
+      weekend_group: "",
     }
     const updated = [...rows, newRow]
     setRows(updated)
     debouncedSave(updated)
   }
 
+  const removeRow = (id?: number) => {
+    const updated = rows.filter((r) => r.id !== id)
+    setRows(updated)
+    updateData("shiftConfig", updated)
+  }
+
   return (
-    <Card className="p-4 space-y-4">
-      <div className="flex justify-between items-center mb-2">
+    <Card className="p-5 rounded-xl shadow-sm divide-y divide-gray-200">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-800">Shift Configuration</h3>
         <div className="flex items-center gap-3">
           {saving && <span className="text-sm text-gray-500">Saving…</span>}
@@ -153,111 +153,116 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
         </div>
       </div>
 
+      {error && (
+        <p className="text-yellow-700 bg-yellow-50 px-3 py-1 rounded mb-2">{error}</p>
+      )}
+
       {loading ? (
-        <p className="text-gray-500">Loading shift configurations...</p>
+        <p className="text-gray-500">Loading shift configuration...</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="min-w-full border border-gray-200 text-sm">
-            <thead className="bg-gray-50">
+          <table className="min-w-full text-sm border border-gray-200 rounded-md">
+            <thead className="bg-gray-50 text-gray-700">
               <tr>
-                <th className="px-3 py-2 border">Role</th>
-                <th className="px-3 py-2 border">Shift Block</th>
                 <th className="px-3 py-2 border">Shift Label</th>
-                <th className="px-3 py-2 border text-right">Start Hour</th>
-                <th className="px-3 py-2 border text-right">End Hour</th>
-                <th className="px-3 py-2 border text-right">Hours / Shift</th>
+                <th className="px-3 py-2 border">Start Time</th>
+                <th className="px-3 py-2 border">End Time</th>
+                <th className="px-3 py-2 border text-right">Hours</th>
+                <th className="px-3 py-2 border text-right">
+                  <div className="flex items-center justify-end gap-1">
+                    Weekend Group
+                    <InfoButton text="Assign this shift to a weekend group (A, B, C or WC)." />
+                  </div>
+                </th>
+                <th className="px-3 py-2 border text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {rows.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="text-center py-4 text-gray-500">
-                    No shifts defined yet.
+              {rows.map((row, i) => (
+                <tr
+                  key={row.id || i}
+                  className={`${i % 2 === 0 ? "bg-white" : "bg-gray-50"} hover:bg-gray-100`}
+                >
+                  <td className="border px-2 py-1">
+                    <Input
+                      id={`label_${i}`}
+                      value={row.shift_label}
+                      onChange={(e) => handleChange(i, "shift_label", e.target.value)}
+                      placeholder="Shift Label"
+                      className="!m-0 !p-1 w-full"
+                    />
+                  </td>
+                  <td className="border px-2 py-1 text-center">
+                    <Input
+                      id={`start_${i}`}
+                      type="time"
+                      value={row.start_time}
+                      onChange={(e) => handleChange(i, "start_time", e.target.value)}
+                      className="!m-0 !p-1 w-28 text-center"
+                    />
+                  </td>
+                  <td className="border px-2 py-1 text-center">
+                    <Input
+                      id={`end_${i}`}
+                      type="time"
+                      value={row.end_time}
+                      onChange={(e) => handleChange(i, "end_time", e.target.value)}
+                      className="!m-0 !p-1 w-28 text-center"
+                    />
+                  </td>
+                  <td className="border px-2 py-1 text-right">
+                    <Input
+                      id={`hours_${i}`}
+                      type="number"
+                      value={row.hours}
+                      min={1}
+                      max={24}
+                      onChange={(e) => handleChange(i, "hours", Number(e.target.value))}
+                      className="!m-0 !p-1 w-20 text-right"
+                    />
+                  </td>
+                  <td className="border px-2 py-1 text-right">
+                    <Select
+                      label="Weekend Group"
+                      id={`weekend_${i}`}
+                      value={row.weekend_group}
+                      onChange={(e) =>
+                        handleChange(i, "weekend_group", e.target.value as any)
+                      }
+                      className="!m-0 !p-1 w-28"
+                    >
+                      <option value="">-- Select --</option>
+                      {weekendGroups.map((g) => (
+                        <option key={g} value={g}>
+                          Group {g}
+                        </option>
+                      ))}
+                    </Select>
+                  </td>
+                  <td className="border px-2 py-1 text-center">
+                    <Button
+                      variant="ghost"
+                      onClick={() => removeRow(row.id)}
+                      className="text-xs text-red-600 hover:bg-red-50"
+                    >
+                      Remove
+                    </Button>
                   </td>
                 </tr>
-              ) : (
-                rows.map((row, i) => (
-                  <tr key={row.id || i}>
-                    {/* Role */}
-                    <td className="border px-2 py-1">
-                      <Select
-                        id={`role_${i}`}
-                        label=""
-                        value={row.role}
-                        onChange={(e) => handleChange(i, "role", e.target.value)}
-                        className="!m-0 !p-1"
-                      >
-                        <option value="">-- Select Role --</option>
-                        {roleOptions.map((role) => (
-                          <option key={role} value={role}>
-                            {role}
-                          </option>
-                        ))}
-                      </Select>
-                    </td>
-
-                    {/* Shift Block (auto-incremented but editable) */}
-                    <td className="border px-2 py-1">
-                      <Input
-                        id={`block_${i}`}
-                        value={row.shift_block}
-                        onChange={(e) => handleChange(i, "shift_block", e.target.value)}
-                        className="!m-0 !p-1 w-28"
-                      />
-                    </td>
-
-                    {/* Shift Label (free text) */}
-                    <td className="border px-2 py-1">
-                      <Input
-                        id={`label_${i}`}
-                        value={row.shift_label}
-                        placeholder="e.g. Day, Night, Custom"
-                        onChange={(e) => handleChange(i, "shift_label", e.target.value)}
-                        className="!m-0 !p-1 w-32"
-                      />
-                    </td>
-
-                    {/* Start / End hour */}
-                    <td className="border px-2 py-1 text-right">
-                      <Input
-                        id={`start_${i}`}
-                        type="number"
-                        min={0}
-                        max={23}
-                        value={row.start_hour}
-                        onChange={(e) => handleChange(i, "start_hour", e.target.value)}
-                        placeholder="Start"
-                        className="!m-0 !p-1 w-20 text-right"
-                      />
-                    </td>
-                    <td className="border px-2 py-1 text-right">
-                      <Input
-                        id={`end_${i}`}
-                        type="number"
-                        min={0}
-                        max={23}
-                        value={row.end_hour}
-                        onChange={(e) => handleChange(i, "end_hour", e.target.value)}
-                        placeholder="End"
-                        className="!m-0 !p-1 w-20 text-right"
-                      />
-                    </td>
-
-                    {/* Hours / Shift */}
-                    <td className="border px-2 py-1 text-right bg-gray-50">
-                      {row.hours_per_shift ? row.hours_per_shift.toFixed(1) : "-"}
-                    </td>
-                  </tr>
-                ))
-              )}
+              ))}
             </tbody>
           </table>
         </div>
       )}
 
+      {/* Navigation */}
       <div className="flex justify-between mt-6">
-        <Button variant="ghost" onClick={onPrev}>← Previous</Button>
-        <Button variant="primary" onClick={onNext}>Next →</Button>
+        <Button variant="ghost" onClick={onPrev}>
+          ← Previous
+        </Button>
+        <Button variant="primary" onClick={onNext}>
+          Next →
+        </Button>
       </div>
     </Card>
   )
