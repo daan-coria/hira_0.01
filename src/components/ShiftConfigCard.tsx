@@ -216,7 +216,7 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                   </td>
 
                   <td className="border px-2 py-1 text-right">
-                    {row.total_hours.toFixed(2)}
+                    {Number(row.total_hours || 0).toFixed(2)}
                   </td>
 
                   {/* Shift Type */}
