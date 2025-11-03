@@ -5,7 +5,6 @@ import Card from "@/components/ui/Card"
 import Button from "@/components/ui/Button"
 import Input from "@/components/ui/Input"
 import Select from "@/components/ui/Select"
-import InfoButton from "@/components/ui/InfoButton"
 import debounce from "lodash.debounce"
 
 type Row = {
@@ -18,7 +17,7 @@ type Row = {
   include_in_ratio: boolean
   direct_care_percent: number
   total_hours_per_week: number | string
-  weekend_rotation: "A" | "B" | "C" | "WC" | ""
+  weekend_rotation: string | number | ""
   fte: number | string
   budgeted_fte: number
   filled_fte: number
@@ -42,9 +41,6 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
 
   const baseURL = `${window.location.origin}/mockdata`
 
-  // ✅ Unified Weekend Groups
-  const weekendGroups = ["A", "B", "C", "WC"]
-
   // ✅ Fallback dataset
   const fallbackData: Row[] = [
     {
@@ -61,7 +57,7 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
       filled_fte: 8,
       open_fte: 2,
       total_hours_per_week: 40,
-      weekend_rotation: "A",
+      weekend_rotation: 1,
     },
     {
       id: 2,
@@ -77,7 +73,7 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
       filled_fte: 5,
       open_fte: 1,
       total_hours_per_week: 40,
-      weekend_rotation: "B",
+      weekend_rotation: 2,
     },
     {
       id: 3,
@@ -93,7 +89,7 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
       filled_fte: 11,
       open_fte: 1,
       total_hours_per_week: 40,
-      weekend_rotation: "C",
+      weekend_rotation: 3,
     },
     {
       id: 4,
@@ -109,7 +105,7 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
       filled_fte: 1,
       open_fte: 0,
       total_hours_per_week: 40,
-      weekend_rotation: "WC",
+      weekend_rotation: "",
     },
   ]
 
@@ -123,6 +119,18 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
     [updateData]
   )
 
+  // ✅ Normalize legacy text values (for backward compatibility)
+  // Use a hoisted function declaration so the loader can call it without temporal-dead-zone issues
+  function normalizeWeekend(val: any): string | number | "" {
+    if (!val) return ""
+    const text = val.toString().toLowerCase()
+    if (["1", "a", "every weekend"].includes(text)) return 1
+    if (["2", "b", "every other weekend"].includes(text)) return 2
+    if (["3", "c", "every third weekend"].includes(text)) return 3
+    if (["rotate", "wc"].some((k) => text.includes(k))) return ""
+    return ""
+  }
+
   // ✅ Load mock data or fallback
   useEffect(() => {
     const loadData = async () => {
@@ -131,7 +139,6 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
         const res = await fetch(`${baseURL}/staffing-config.json`)
         if (!res.ok) throw new Error("Missing staffing config, using fallback")
         const data = await res.json()
-        // Normalize legacy weekend formats
         const normalized = data.map((r: Row) => ({
           ...r,
           weekend_rotation: normalizeWeekend(r.weekend_rotation),
@@ -150,16 +157,7 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
     loadData()
   }, [])
 
-  // ✅ Normalize legacy text values (for backward compatibility)
-  const normalizeWeekend = (val: any): "A" | "B" | "C" | "WC" | "" => {
-    if (!val) return ""
-    const text = val.toString().toLowerCase()
-    if (text.includes("every other")) return "B"
-    if (text.includes("every 3rd")) return "C"
-    if (text.includes("every weekend")) return "A"
-    if (text.includes("rotate") || text.includes("wc")) return "WC"
-    return weekendGroups.includes(val) ? (val as any) : ""
-  }
+  
 
   // ✅ FTE calculation
   const calcFTE = (row: Row): number => {
@@ -286,7 +284,7 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
                 <th className="px-3 py-2 border text-right">Direct Care %</th>
                 <th className="px-3 py-2 border text-center">Include</th>
                 <th className="px-3 py-2 border text-right">Hours/Week</th>
-                <th className="px-3 py-2 border text-right">Weekend Group</th>
+                <th className="px-3 py-2 border text-right">Weekend Rotation</th>
                 <th className="px-3 py-2 border text-right">FTE</th>
                 <th className="px-3 py-2 border text-center">Actions</th>
               </tr>
@@ -307,7 +305,6 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
                   </td>
                   <td className="border px-2 py-1">
                     <Select
-                      label=""
                       id={`cat_${i}`}
                       value={row.category}
                       onChange={(e) => handleCategoryChange(i, e.target.value)}
@@ -324,7 +321,6 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
                   </td>
                   <td className="border px-2 py-1">
                     <Select
-                      label=""
                       id={`type_${i}`}
                       value={row.type}
                       onChange={(e) =>
@@ -369,10 +365,10 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
                   </td>
                   <td className="border px-2 py-1 text-center">
                     <input
-                      aria-label={`Include ${row.role || 'role ' + (i + 1)} in ratio`}
-                      title={`Include ${row.role || 'role ' + (i + 1)} in ratio`}
                       id={`include_${i}`}
                       type="checkbox"
+                      title={`Include ${row.role || "role " + (i + 1)} in ratio`}
+                      aria-label={`Include ${row.role || "role " + (i + 1)} in ratio`}
                       checked={row.include_in_ratio}
                       onChange={(e) =>
                         handleChange(i, "include_in_ratio", e.target.checked)
@@ -388,33 +384,30 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
                       max={168}
                       value={row.total_hours_per_week}
                       onChange={(e) =>
-                        handleChange(
-                          i,
-                          "total_hours_per_week",
-                          Number(e.target.value)
-                        )
+                        handleChange(i, "total_hours_per_week", Number(e.target.value))
                       }
                       className="!m-0 !p-1 w-20 text-right"
                     />
                   </td>
-                  {/* ✅ Unified weekend dropdown */}
+
+                  {/* ✅ Weekend rotation (numbers only) */}
                   <td className="border px-2 py-1 text-right">
                     <Select
                       id={`weekend_${i}`}
                       value={row.weekend_rotation}
                       onChange={(e) =>
-                        handleChange(i, "weekend_rotation", e.target.value as any)
+                        handleChange(i, "weekend_rotation", e.target.value)
                       }
-                      className="!m-0 !p-1 w-28"
+                      className="!m-0 !p-1 w-20 text-right"
                     >
-                      <option value="">-- Select --</option>
-                      {weekendGroups.map((g) => (
-                        <option key={g} value={g}>
-                          Group {g}
-                        </option>
-                      ))}
+                      <option value="">--</option>
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                      <option value="Rotate">Rotate</option>
                     </Select>
                   </td>
+
                   <td className="border px-2 py-1 text-right">
                     {row.type === "Variable" ? (
                       <div className="text-gray-400 text-center">N/A</div>
@@ -428,6 +421,7 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
                       />
                     )}
                   </td>
+
                   <td className="border px-2 py-1 text-center">
                     <Button
                       variant="ghost"
