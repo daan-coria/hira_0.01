@@ -44,7 +44,12 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
     const arr = Array.isArray(data?.availabilityConfig)
       ? (data.availabilityConfig as AvailabilityRow[])
       : []
-    if (arr.length > 0) setRows(arr)
+    // ✅ Ensure every row has a defined range object
+    const normalized = arr.map((r) => ({
+      ...r,
+      range: r.range || { start: "", end: "" },
+    }))
+    setRows(normalized)
   }, [data?.availabilityConfig])
 
   // ✅ Handle change
