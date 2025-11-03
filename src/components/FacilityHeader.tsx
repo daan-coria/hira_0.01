@@ -150,7 +150,7 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
         {isNursingUnit ? (
           <Input
             id="bedCount"
-            label="Bed Count"
+            label="Capacity"
             type="number"
             min={0}
             value={form.bedCount}
