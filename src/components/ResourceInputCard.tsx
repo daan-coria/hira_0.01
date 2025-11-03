@@ -47,12 +47,10 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     if (resourceArray.length > 0) setRows(resourceArray)
   }, [data?.resourceInput])
 
-  // ✅ Positions (fallback if none exist)
+  // ✅ Positions (fallback)
   const positions =
     Array.isArray(data.positions) && data.positions.length > 0
-      ? data.positions.map((p: any) =>
-          typeof p === "string" ? p : p?.name || p
-        )
+      ? data.positions.map((p: any) => (typeof p === "string" ? p : p?.name || p))
       : ["RN", "LPN", "CNA", "Clerk"]
 
   // ✅ Dynamically load shift labels (availability) from ShiftConfig
@@ -68,9 +66,25 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
       )
       setAvailabilityOptions(labels)
     }
-  }, [data.shiftConfig]) // 👈 live sync from Step 2 (ShiftConfig)
+  }, [data.shiftConfig])
 
-  // ✅ Dynamically load weekend groups from AvailabilityConfig
+  // ✅ Filter availability by position type from Step 3
+  const getFilteredAvailability = (position: string) => {
+    if (!Array.isArray(data.staffingConfig)) return availabilityOptions
+    const allowedTypes = data.staffingConfig
+      .filter((cfg: any) => cfg.role === position)
+      .map((cfg: any) => cfg.type)
+    // If no constraint found, show all
+    if (allowedTypes.length === 0) return availabilityOptions
+    // Otherwise, only keep matching shift labels
+    return availabilityOptions.filter((opt) =>
+      allowedTypes.some((type: string) =>
+        opt.toLowerCase().includes(type.toLowerCase())
+      )
+    )
+  }
+
+  // ✅ Dynamically load weekend groups
   const [weekendGroups, setWeekendGroups] = useState<string[]>([])
   useEffect(() => {
     if (Array.isArray(data.availabilityConfig)) {
@@ -83,7 +97,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
       )
       setWeekendGroups(groups)
     }
-  }, [data.availabilityConfig]) // 👈 live sync from Step 2 (AvailabilityConfig)
+  }, [data.availabilityConfig])
 
   // ✅ Handle inline changes
   const handleChange = (index: number, field: keyof ResourceRow, value: any) => {
@@ -175,8 +189,10 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
             accept=".csv"
             ref={fileInputRef}
             onChange={handleFileUpload}
+            title="Upload CSV"
+            placeholder="Upload CSV"
+            aria-label="Upload CSV"
             className="hidden"
-            aria-label="Upload CSV File"
           />
 
           <Button onClick={() => fileInputRef.current?.click()}>Upload CSV</Button>
@@ -228,148 +244,174 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-3 py-2 border">Employee ID</th>
+                <th className="px-3 py-2 border">Vacancy Status</th>
                 <th className="px-3 py-2 border">First Name</th>
                 <th className="px-3 py-2 border">Last Name</th>
                 <th className="px-3 py-2 border">Position</th>
                 <th className="px-3 py-2 border text-right">Unit FTE</th>
                 <th className="px-3 py-2 border">Availability</th>
                 <th className="px-3 py-2 border">Weekend Group</th>
-                <th className="px-3 py-2 border">Vacancy Status</th>
                 <th className="px-3 py-2 border text-center">Actions</th>
               </tr>
             </thead>
+
             <tbody>
-              {rows.map((row, i) => (
-                <tr key={row.id || i} className="odd:bg-white even:bg-gray-50 hover:bg-gray-100">
-                  <td className="border px-2 py-1 text-center">
-                    <Input
-                      id={`emp_${i}`}
-                      label="" // hidden
-                      value={row.employee_id || ""}
-                      onChange={(e) => handleChange(i, "employee_id", e.target.value)}
-                      placeholder="Employee ID"
-                      className="!m-0 !p-1 w-24 text-center"
-                    />
-                  </td>
-                  <td className="border px-2 py-1">
-                    <Input
-                      id={`fname_${i}`}
-                      label="" // hidden
-                      value={row.first_name}
-                      onChange={(e) => handleChange(i, "first_name", e.target.value)}
-                      placeholder="First Name"
-                      className="!m-0 !p-1"
-                    />
-                  </td>
-                  <td className="border px-2 py-1">
-                    <Input
-                      id={`lname_${i}`}
-                      label="" // hidden
-                      value={row.last_name}
-                      onChange={(e) => handleChange(i, "last_name", e.target.value)}
-                      placeholder="Last Name"
-                      className="!m-0 !p-1"
-                    />
-                  </td>
+              {rows.map((row, i) => {
+                const isPosted = row.vacancy_status === "Posted"
+                const filteredAvailability = getFilteredAvailability(row.position)
 
-                  <td className="border px-2 py-1">
-                    <Select
-                      id={`pos_${i}`}
-                      label="" // hidden
-                      value={row.position}
-                      onChange={(e) => handleChange(i, "position", e.target.value)}
-                      className="!m-0 !p-1"
-                    >
-                      <option value="">-- Select --</option>
-                      {positions.map((p) => (
-                        <option key={p} value={p}>
-                          {p}
+                return (
+                  <tr
+                    key={row.id || i}
+                    className={`odd:bg-white even:bg-gray-50 hover:bg-gray-100 ${
+                      isPosted ? "opacity-70" : ""
+                    }`}
+                  >
+                    <td className="border px-2 py-1 text-center">
+                      <Input
+                        id={`emp_${i}`}
+                        value={row.employee_id || ""}
+                        onChange={(e) => handleChange(i, "employee_id", e.target.value)}
+                        placeholder="ID"
+                        className={`!m-0 !p-1 w-24 text-center ${
+                          isPosted ? "bg-gray-100 text-gray-400" : ""
+                        }`}
+                        disabled={isPosted}
+                      />
+                    </td>
+
+                    <td className="border px-2 py-1">
+                      <Select
+                        label="Vacancy Status"
+                        id={`vacancy_${i}`}
+                        value={row.vacancy_status}
+                        onChange={(e) =>
+                          handleChange(i, "vacancy_status", e.target.value)
+                        }
+                        className="!m-0 !p-1"
+                      >
+                        <option value="">-- Select Status --</option>
+                        <option value="Filled">Filled</option>
+                        <option value="Posted">Posted</option>
+                      </Select>
+                    </td>
+
+                    <td className="border px-2 py-1">
+                      <Input
+                        id={`fname_${i}`}
+                        value={row.first_name}
+                        onChange={(e) => handleChange(i, "first_name", e.target.value)}
+                        placeholder="First Name"
+                        className={`!m-0 !p-1 ${
+                          isPosted ? "bg-gray-100 text-gray-400" : ""
+                        }`}
+                        disabled={isPosted}
+                      />
+                    </td>
+
+                    <td className="border px-2 py-1">
+                      <Input
+                        id={`lname_${i}`}
+                        value={row.last_name}
+                        onChange={(e) => handleChange(i, "last_name", e.target.value)}
+                        placeholder="Last Name"
+                        className={`!m-0 !p-1 ${
+                          isPosted ? "bg-gray-100 text-gray-400" : ""
+                        }`}
+                        disabled={isPosted}
+                      />
+                    </td>
+                    <td className="border px-2 py-1">
+                      <Select
+                        label="Position"
+                        id={`pos_${i}`}
+                        value={row.position}
+                        onChange={(e) => handleChange(i, "position", e.target.value)}
+                        className="!m-0 !p-1"
+                      >
+                        <option value="">-- Select --</option>
+                        {positions.map((p) => (
+                          <option key={p} value={p}>
+                            {p}
+                          </option>
+                        ))}
+                      </Select>
+                    </td>
+
+                    <td className="border px-2 py-1 text-right">
+                      <Input
+                        id={`fte_${i}`}
+                        type="number"
+                        min={0}
+                        step={0.1}
+                        value={row.unit_fte}
+                        onChange={(e) =>
+                          handleChange(i, "unit_fte", Number(e.target.value))
+                        }
+                        className="!m-0 !p-1 w-20 text-right"
+                      />
+                    </td>
+
+                    <td className="border px-2 py-1">
+                      <Select
+                        label="Availability"
+                        id={`avail_${i}`}
+                        value={row.availability}
+                        onChange={(e) =>
+                          handleChange(i, "availability", e.target.value)
+                        }
+                        disabled={filteredAvailability.length === 0}
+                        className="!m-0 !p-1"
+                      >
+                        <option value="">
+                          {filteredAvailability.length === 0
+                            ? "No shifts for this role"
+                            : "-- Select Shift --"}
                         </option>
-                      ))}
-                    </Select>
-                  </td>
+                        {filteredAvailability.map((opt) => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                      </Select>
+                    </td>
 
-                  <td className="border px-2 py-1 text-right">
-                    <Input
-                      id={`fte_${i}`}
-                      label="" // hidden
-                      type="number"
-                      min={0}
-                      step={0.1}
-                      value={row.unit_fte}
-                      onChange={(e) => handleChange(i, "unit_fte", Number(e.target.value))}
-                      className="!m-0 !p-1 w-20 text-right"
-                    />
-                  </td>
-
-                  <td className="border px-2 py-1">
-                    <Select
-                      id={`avail_${i}`}
-                      label="" // hidden
-                      value={row.availability}
-                      onChange={(e) => handleChange(i, "availability", e.target.value)}
-                      disabled={availabilityOptions.length === 0}
-                      className="!m-0 !p-1"
-                    >
-                      <option value="">
-                        {availabilityOptions.length === 0
-                          ? "Define in Step 2"
-                          : "-- Select Shift --"}
-                      </option>
-                      {availabilityOptions.map((opt) => (
-                        <option key={opt} value={opt}>
-                          {opt}
+                    <td className="border px-2 py-1">
+                      <Select
+                        label="Weekend Group"
+                        id={`weekend_${i}`}
+                        value={row.weekend_group}
+                        onChange={(e) =>
+                          handleChange(i, "weekend_group", e.target.value)
+                        }
+                        disabled={weekendGroups.length === 0}
+                        className="!m-0 !p-1"
+                      >
+                        <option value="">
+                          {weekendGroups.length === 0
+                            ? "Define in Step 2"
+                            : "-- Select --"}
                         </option>
-                      ))}
-                    </Select>
-                  </td>
+                        {weekendGroups.map((g) => (
+                          <option key={g} value={g}>
+                            {g}
+                          </option>
+                        ))}
+                      </Select>
+                    </td>
 
-                  <td className="border px-2 py-1">
-                    <Select
-                      id={`weekend_${i}`}
-                      label="" // hidden
-                      value={row.weekend_group}
-                      onChange={(e) => handleChange(i, "weekend_group", e.target.value)}
-                      disabled={weekendGroups.length === 0}
-                      className="!m-0 !p-1"
-                    >
-                      <option value="">
-                        {weekendGroups.length === 0 ? "Define in Step 2" : "-- Select --"}
-                      </option>
-                      {weekendGroups.map((g) => (
-                        <option key={g} value={g}>
-                          {g}
-                        </option>
-                      ))}
-                    </Select>
-                  </td>
-
-                  <td className="border px-2 py-1">
-                    <Select
-                      id={`vacancy_${i}`}
-                      label="" // hidden
-                      value={row.vacancy_status}
-                      onChange={(e) => handleChange(i, "vacancy_status", e.target.value)}
-                      className="!m-0 !p-1"
-                    >
-                      <option value="">-- Select Status --</option>
-                      <option value="Filled">Filled</option>
-                      <option value="Open">Open</option>
-                      <option value="Posted">Posted</option>
-                    </Select>
-                  </td>
-
-                  <td className="border px-2 py-1 text-center">
-                    <Button
-                      onClick={() => removeRow(row.id)}
-                      variant="ghost"
-                      className="!px-2 !py-1 text-xs text-red-600"
-                    >
-                      Remove
-                    </Button>
-                  </td>
-                </tr>
-              ))}
+                    <td className="border px-2 py-1 text-center">
+                      <Button
+                        onClick={() => removeRow(row.id)}
+                        variant="ghost"
+                        className="!px-2 !py-1 text-xs text-red-600"
+                      >
+                        Remove
+                      </Button>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
