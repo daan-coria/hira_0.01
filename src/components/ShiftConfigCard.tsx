@@ -238,19 +238,48 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                   {/* Days checklist */}
                   <td className="border px-2 py-1 text-center">
                     {row.shift_type === "weekday_shift" && (
-                      <div className="flex flex-wrap gap-1 justify-center">
-                        {daysOfWeek.map((d) => (
-                          <label key={d} className="flex items-center gap-1 text-xs">
-                            <input
-                              type="checkbox"
-                              checked={row.days?.includes(d)}
-                              onChange={() => toggleDay(i, d)}
-                            />
-                            {d.slice(0, 3)}
-                          </label>
-                        ))}
-                      </div>
+                      <>
+                        {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"].every(d =>
+                          row.days?.includes(d)
+                        ) && row.days?.length === 5 ? (
+                          <span className="text-gray-400 text-xs italic">Weekdays</span>
+                        ) : (
+                          <div className="flex flex-wrap gap-1 justify-center">
+                            {daysOfWeek.map((d) => (
+                              <label key={d} className="flex items-center gap-1 text-xs">
+                                <input
+                                  type="checkbox"
+                                  checked={row.days?.includes(d)}
+                                  onChange={() => {
+                                    toggleDay(i, d)
+                                    // Auto-replace with "Weekdays" when all 5 weekdays selected
+                                    const selectedDays = new Set(row.days || [])
+                                    if (selectedDays.has(d)) selectedDays.delete(d)
+                                    else selectedDays.add(d)
+                                    const weekdays = [
+                                      "Monday",
+                                      "Tuesday",
+                                      "Wednesday",
+                                      "Thursday",
+                                      "Friday",
+                                    ]
+                                    if (weekdays.every(day => selectedDays.has(day)) && selectedDays.size === 5) {
+                                      const updated = rows.map((r, idx) =>
+                                        idx === i ? { ...r, days: weekdays } : r
+                                      )
+                                      setRows(updated)
+                                      debouncedSave(updated)
+                                    }
+                                  }}
+                                />
+                                {d.slice(0, 3)}
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </>
                     )}
+
                     {row.shift_type === "weekend_shift" && (
                       <span className="text-gray-400 text-xs italic">Weekend</span>
                     )}
