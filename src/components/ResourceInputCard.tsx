@@ -378,39 +378,26 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       <Select
                         id={`availability_${i}`}
                         value={row.availability}
-                        onChange={(e) =>
-                          handleChange(i, "availability", e.target.value)
-                        }
+                        onChange={(e) => handleChange(i, "availability", e.target.value)}
                         className="!m-0 !p-1"
                       >
-                        <option value="">
-                          {filteredAvailability.length === 0
-                            ? "No shifts for role"
-                            : "-- Select Shift --"}
-                        </option>
-                        {filteredAvailability.map((opt) => (
-                          <option key={opt} value={opt}>
-                            {opt}
-                          </option>
-                        ))}
-                      </Select>
-                    </td>
+                        <option value="">-- Select Shift --</option>
+                        {(() => {
+                          // Combine filtered shifts + fallback options
+                          const uniqueOptions = Array.from(
+                            new Set([
+                              ...filteredAvailability,
+                              "Day",
+                              "Night",
+                            ])
+                          )
 
-                    <td className="border px-2 py-1">
-                      <Select
-                        id={`weekend_${i}`}
-                        value={row.weekend_group}
-                        onChange={(e) =>
-                          handleChange(i, "weekend_group", e.target.value as any)
-                        }
-                        className="!m-0 !p-1"
-                      >
-                        <option value="">-- Select --</option>
-                        {weekendGroupList.map((g) => (
-                          <option key={g} value={g}>
-                            Group {g}
-                          </option>
-                        ))}
+                          return uniqueOptions.map((opt) => (
+                            <option key={opt} value={opt}>
+                              {opt}
+                            </option>
+                          ))
+                        })()}
                       </Select>
                     </td>
 
