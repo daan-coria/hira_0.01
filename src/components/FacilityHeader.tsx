@@ -160,7 +160,7 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
         ) : (
           <div className="col-span-1 flex flex-col justify-end">
             <label className="text-sm font-medium text-gray-600 mb-1">
-              Bed Count
+                Capacity
             </label>
             <input
               className="border border-gray-300 rounded-md px-3 py-2 bg-gray-100 text-gray-400"
