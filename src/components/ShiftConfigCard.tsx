@@ -238,29 +238,26 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                     {Number(row.total_hours || 0).toFixed(2)}
                   </td>
 
-                  {/* Days multiselect */}
-                  <td className="border px-2 py-1 text-center">
-                    <select
-                      multiple
-                      title="Select days for this shift"
-                      aria-label="Select days for this shift"
-                      className="w-40 text-xs border rounded-md p-1 bg-white focus:ring-1 focus:ring-green-500"
-                      value={row.days || []}
-                      onChange={(e) => {
-                        const selected = Array.from(
-                          e.target.selectedOptions,
-                          (opt) => opt.value
-                        )
-                        handleDaysChange(i, selected)
-                      }}
-                    >
-                      {daysOfWeek.map((d) => (
-                        <option key={d} value={d}>
-                          {d}
-                        </option>
+                  {/* Days checkboxes */}
+                  <td className="border px-2 py-1 text-left align-top">
+                    <div className="flex flex-col gap-1">
+                      {daysOfWeek.map((day) => (
+                        <label key={day} className="flex items-center gap-1 text-xs">
+                          <input
+                            type="checkbox"
+                            checked={row.days?.includes(day) || false}
+                            onChange={(e) => {
+                              const selected = e.target.checked
+                                ? [...(row.days || []), day]
+                                : (row.days || []).filter((d) => d !== day)
+                              handleDaysChange(i, selected)
+                            }}
+                            className="rounded text-green-600 focus:ring-green-500"
+                          />
+                          {day}
+                        </label>
                       ))}
-                    </select>
-
+                    </div>
                     {row.days && row.days.length > 0 && (
                       <div className="mt-1 text-gray-500 text-xs italic">
                         {getDaySummary(row.days)}
@@ -268,34 +265,28 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                     )}
                   </td>
 
-                  {/* Roles multiselect */}
-                  <td className="border px-2 py-1 text-center">
-                    <select
-                      multiple
-                      title="Select roles for this shift"
-                      aria-label="Select roles for this shift"
-                      value={row.roles || []}
-                      onChange={(e) => {
-                        const selected = Array.from(
-                          e.target.selectedOptions,
-                          (opt) => opt.value
-                        )
-                        handleChange(i, "roles", selected)
-                      }}
-                      className="w-36 rounded-md border border-gray-300 bg-white text-xs p-1 focus:outline-none focus:ring-1 focus:ring-green-500"
-                    >
-                      {availableRoles.map((r) => (
-                        <option
-                          key={r}
-                          value={r}
-                          className="hover:bg-green-50 cursor-pointer"
-                        >
-                          {r}
-                        </option>
+                  {/* Roles checkboxes */}
+                  <td className="border px-2 py-1 text-left align-top">
+                    <div className="flex flex-col gap-1">
+                      {availableRoles.map((role) => (
+                        <label key={role} className="flex items-center gap-1 text-xs">
+                          <input
+                            type="checkbox"
+                            checked={row.roles?.includes(role) || false}
+                            onChange={(e) => {
+                              const selected = e.target.checked
+                                ? [...(row.roles || []), role]
+                                : (row.roles || []).filter((r) => r !== role)
+                              handleChange(i, "roles", selected)
+                            }}
+                            className="rounded text-green-600 focus:ring-green-500"
+                          />
+                          {role}
+                        </label>
                       ))}
-                    </select>
+                    </div>
                     {(!row.roles || row.roles.length === 0) && (
-                      <div className="text-gray-400 text-xs italic">Select…</div>
+                      <div className="text-gray-400 text-xs italic mt-1">Select…</div>
                     )}
                   </td>
 
