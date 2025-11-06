@@ -3,14 +3,16 @@ import { useApp } from "@/store/AppContext"
 import Card from "@/components/ui/Card"
 import Button from "@/components/ui/Button"
 import Input from "@/components/ui/Input"
-import InfoButton from "@/components/ui/InfoButton" // ✅ mobile-friendly info tooltips
+import InfoButton from "@/components/ui/InfoButton"
 import debounce from "lodash.debounce"
 
-type CensusRow = {
+type DemandRow = {
   id?: number
+  facility: string
+  cc: string
   date: string
   hour: string
-  census: number
+  demand_value: number
 }
 
 type Props = {
@@ -20,40 +22,42 @@ type Props = {
 
 export default function CensusOverrideCard({ onNext, onPrev }: Props) {
   const { data, updateData } = useApp()
-  const [rows, setRows] = useState<CensusRow[]>([])
+  const [rows, setRows] = useState<DemandRow[]>([])
   const [saving, setSaving] = useState(false)
 
   const debouncedSave = useCallback(
-    debounce((updated: CensusRow[]) => {
+    debounce((updated: DemandRow[]) => {
       setSaving(true)
-      updateData("censusOverride", updated)
+      updateData("demand", updated)
       setTimeout(() => setSaving(false), 600)
     }, 500),
     [updateData]
   )
 
   useEffect(() => {
-    const censusData = Array.isArray(data?.censusOverride)
-      ? data.censusOverride
-      : []
-    setRows(censusData)
-  }, [data?.censusOverride])
+    const existing = Array.isArray(data?.demand) ? data.demand : []
+    setRows(existing)
+  }, [data?.demand])
 
   const handleAdd = () => {
-    const newRow: CensusRow = {
+    const newRow: DemandRow = {
       id: Date.now(),
+      facility: "",
+      cc: "",
       date: "",
       hour: "",
-      census: 0,
+      demand_value: 0,
     }
     const updated = [...rows, newRow]
     setRows(updated)
-    updateData("censusOverride", updated)
+    updateData("demand", updated)
   }
 
-  const handleChange = (index: number, field: keyof CensusRow, value: string) => {
+  const handleChange = (index: number, field: keyof DemandRow, value: string) => {
     const updated = rows.map((r, i) =>
-      i === index ? { ...r, [field]: field === "census" ? Number(value) : value } : r
+      i === index
+        ? { ...r, [field]: field === "demand_value" ? Number(value) : value }
+        : r
     )
     setRows(updated)
     debouncedSave(updated)
@@ -62,16 +66,15 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
   return (
     <Card className="p-4 space-y-4">
       <div className="flex justify-between items-center mb-2">
-        <h3 className="text-lg font-semibold text-gray-800">Census Override</h3>
+        <h3 className="text-lg font-semibold text-gray-800">Demand</h3>
         <div className="flex items-center gap-3">
           {saving && <span className="text-sm text-gray-500">Saving…</span>}
           <Button onClick={handleAdd}>+ Add Row</Button>
         </div>
       </div>
 
-      {/* Table */}
       {rows.length === 0 ? (
-        <p className="text-gray-500">No census data available yet.</p>
+        <p className="text-gray-500">No demand data available yet.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full border border-gray-200 text-sm">
@@ -79,32 +82,66 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
               <tr>
                 <th className="px-3 py-2 border text-center">
                   <div className="flex items-center justify-center gap-1">
+                    Facility
+                    <InfoButton text="The facility or department where demand is recorded." />
+                  </div>
+                </th>
+                <th className="px-3 py-2 border text-center">
+                  <div className="flex items-center justify-center gap-1">
+                    CC
+                    <InfoButton text="Cost Center or unit code associated with this demand record." />
+                  </div>
+                </th>
+                <th className="px-3 py-2 border text-center">
+                  <div className="flex items-center justify-center gap-1">
                     Date
-                    <InfoButton text="The calendar day for which the census count applies." />
+                    <InfoButton text="The calendar day for the demand record." />
                   </div>
                 </th>
                 <th className="px-3 py-2 border text-center">
                   <div className="flex items-center justify-center gap-1">
                     Hour
-                    <InfoButton text="Time of day (in 24-hour format) when the census was recorded." />
+                    <InfoButton text="Time of day (24-hour format) when demand was measured." />
                   </div>
                 </th>
                 <th className="px-3 py-2 border text-center">
                   <div className="flex items-center justify-center gap-1">
-                    Census
-                    <InfoButton text="Total number of occupied beds or patients at that date and hour." />
+                    Demand Value
+                    <InfoButton text="The numerical value representing demand (e.g., census, workload, or volume)." />
                   </div>
                 </th>
                 <th className="px-3 py-2 border text-center">Actions</th>
               </tr>
             </thead>
+
             <tbody>
               {rows.map((row, i) => (
                 <tr
                   key={row.id || i}
                   className="odd:bg-white even:bg-gray-50 hover:bg-gray-100 transition-colors"
                 >
-                  {/* Date */}
+                  <td className="border px-2 py-1 text-center">
+                    <Input
+                      id={`facility_${i}`}
+                      label=""
+                      value={row.facility}
+                      onChange={(e) => handleChange(i, "facility", e.target.value)}
+                      placeholder="Facility name"
+                      className="!m-0 !p-1 w-full"
+                    />
+                  </td>
+
+                  <td className="border px-2 py-1 text-center">
+                    <Input
+                      id={`cc_${i}`}
+                      label=""
+                      value={row.cc}
+                      onChange={(e) => handleChange(i, "cc", e.target.value)}
+                      placeholder="CC code"
+                      className="!m-0 !p-1 w-full"
+                    />
+                  </td>
+
                   <td className="border px-2 py-1 text-center">
                     <Input
                       id={`date_${i}`}
@@ -116,7 +153,6 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                     />
                   </td>
 
-                  {/* Hour */}
                   <td className="border px-2 py-1 text-center">
                     <Input
                       id={`hour_${i}`}
@@ -128,19 +164,19 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                     />
                   </td>
 
-                  {/* Census */}
                   <td className="border px-2 py-1 text-right">
                     <Input
-                      id={`census_${i}`}
+                      id={`demand_value_${i}`}
                       label=""
                       type="number"
-                      value={row.census}
-                      onChange={(e) => handleChange(i, "census", e.target.value)}
+                      value={row.demand_value}
+                      onChange={(e) =>
+                        handleChange(i, "demand_value", e.target.value)
+                      }
                       className="!m-0 !p-1 w-24 text-right"
                     />
                   </td>
 
-                  {/* Remove Button */}
                   <td className="border px-2 py-1 text-center">
                     <Button
                       variant="ghost"
@@ -148,7 +184,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                       onClick={() =>
                         setRows((prev) => {
                           const updated = prev.filter((_, idx) => idx !== i)
-                          updateData("censusOverride", updated)
+                          updateData("demand", updated)
                           return updated
                         })
                       }
@@ -163,7 +199,6 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
         </div>
       )}
 
-      {/* Navigation */}
       <div className="flex justify-between mt-6">
         <Button variant="ghost" onClick={onPrev}>
           ← Previous

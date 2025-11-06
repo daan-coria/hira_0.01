@@ -35,7 +35,7 @@ export default function ToolPage() {
     "Shift Configuration",
     "Resource Input",
     "Availability Configuration",
-    "Census Override",
+    "Demand",
     "Gap Summary",
   ]
 
