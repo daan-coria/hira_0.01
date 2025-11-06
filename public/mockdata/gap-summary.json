@@ -2,37 +2,37 @@
   {
     "id": 1,
     "unit": "Emergency Department",
-    "requiredFTE": 42,
-    "actualFTE": 40,
-    "gapFTE": -2,
-    "overUnder": "Understaffed",
-    "percentGap": -4.8
+    "required_fte": 42,
+    "actual_fte": 40,
+    "gap_fte": -2,
+    "status": "Understaffed",
+    "percent_gap": -4.8
   },
   {
     "id": 2,
     "unit": "ICU",
-    "requiredFTE": 20,
-    "actualFTE": 19,
-    "gapFTE": -1,
-    "overUnder": "Understaffed",
-    "percentGap": -5.0
+    "required_fte": 20,
+    "actual_fte": 19,
+    "gap_fte": -1,
+    "status": "Understaffed",
+    "percent_gap": -5.0
   },
   {
     "id": 3,
     "unit": "Med/Surg",
-    "requiredFTE": 36,
-    "actualFTE": 37,
-    "gapFTE": 1,
-    "overUnder": "Overstaffed",
-    "percentGap": 2.8
+    "required_fte": 36,
+    "actual_fte": 37,
+    "gap_fte": 1,
+    "status": "Overstaffed",
+    "percent_gap": 2.8
   },
   {
     "id": 4,
     "unit": "Pediatrics",
-    "requiredFTE": 18,
-    "actualFTE": 18,
-    "gapFTE": 0,
-    "overUnder": "Balanced",
-    "percentGap": 0.0
+    "required_fte": 18,
+    "actual_fte": 18,
+    "gap_fte": 0,
+    "status": "Balanced",
+    "percent_gap": 0.0
   }
 ]

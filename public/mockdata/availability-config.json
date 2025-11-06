@@ -1,42 +1,47 @@
 [
   {
     "id": 1,
+    "employee_id": "EMP001",
     "staff_name": "Emily Nguyen",
-    "weekend_group": "A",
-    "pto_days": 2,
-    "loa_days": 0,
-    "available_shifts": 10
+    "type": "PTO",
+    "range": { "start": "2025-11-01", "end": "2025-11-02" },
+    "days": 2,
+    "weekend_group": "A"
   },
   {
     "id": 2,
+    "employee_id": "EMP002",
     "staff_name": "Michael Lopez",
-    "weekend_group": "B",
-    "pto_days": 1,
-    "loa_days": 0,
-    "available_shifts": 11
+    "type": "PTO",
+    "range": { "start": "2025-11-04", "end": "2025-11-04" },
+    "days": 1,
+    "weekend_group": "B"
   },
   {
     "id": 3,
+    "employee_id": "EMP003",
     "staff_name": "Sarah Johnson",
-    "weekend_group": "A",
-    "pto_days": 0,
-    "loa_days": 3,
-    "available_shifts": 9
+    "type": "LOA",
+    "range": { "start": "2025-11-10", "end": "2025-11-12" },
+    "days": 3,
+    "weekend_group": "A"
   },
   {
     "id": 4,
+    "employee_id": "EMP004",
     "staff_name": "David Martinez",
-    "weekend_group": "C",
-    "pto_days": 0,
-    "loa_days": 0,
-    "available_shifts": 12
+    "type": "Orientation",
+    "range": { "start": "2025-11-01", "end": "2025-11-12" },
+    "days": 12,
+    "weekend_group": "C"
   },
   {
     "id": 5,
+    "employee_id": "EMP005",
     "staff_name": "Olivia Green",
-    "weekend_group": "WC",
-    "pto_days": 2,
-    "loa_days": 1,
-    "available_shifts": 8
+    "type": "PTO",
+    "range": { "start": "2025-11-06", "end": "2025-11-07" },
+    "days": 2,
+    "weekend_group": "WC"
   }
 ]

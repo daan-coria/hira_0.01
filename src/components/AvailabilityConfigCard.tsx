@@ -12,11 +12,12 @@ type DateRange = { start: string; end: string }
 
 type AvailabilityRow = {
   id?: number
+  employee_id?: string
   staff_name: string
   type: "PTO" | "LOA" | "Orientation" | ""
   range: DateRange
   days: number
-  weekend_group: "A" | "B" | "C" | "WC" | ""
+  weekend_group?: string // kept internally, not shown
 }
 
 type Props = { onNext?: () => void; onPrev?: () => void }
@@ -26,8 +27,13 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
   const [rows, setRows] = useState<AvailabilityRow[]>([])
   const [saving, setSaving] = useState(false)
 
-  // ✅ Unified weekend groups
-  const weekendGroups = ["A", "B", "C", "WC"]
+  // ✅ Pull staff list from Step 4 (Resource Input)
+  const staffOptions =
+    (data?.resourceInput || []).map((r: any) => ({
+      label: `${r.first_name} ${r.last_name}`,
+      value: r.employee_id,
+      weekend_group: r.weekend_group,
+    })) || []
 
   // ✅ Debounced autosave
   const debouncedSave = useCallback(
@@ -44,7 +50,6 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
     const arr = Array.isArray(data?.availabilityConfig)
       ? (data.availabilityConfig as AvailabilityRow[])
       : []
-    // ✅ Ensure every row has a defined range object
     const normalized = arr.map((r) => ({
       ...r,
       range: r.range || { start: "", end: "" },
@@ -52,18 +57,49 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
     setRows(normalized)
   }, [data?.availabilityConfig])
 
-  // ✅ Handle change
+  // ✅ Handle general field change
   const handleChange = (index: number, field: keyof AvailabilityRow, value: any) => {
     const updated = rows.map((r, i) => (i === index ? { ...r, [field]: value } : r))
     setRows(updated)
     debouncedSave(updated)
   }
 
-  // ✅ Handle date range change
-  const handleRangeChange = (index: number, key: keyof DateRange, value: string) => {
+  // ✅ Handle staff selection (connect to employee ID + weekend group)
+  const handleStaffSelect = (index: number, employeeId: string) => {
+    const selected = staffOptions.find((s) => s.value === employeeId)
+    if (!selected) return
+
     const updated = rows.map((r, i) =>
-      i === index ? { ...r, range: { ...r.range, [key]: value } } : r
+      i === index
+        ? {
+            ...r,
+            staff_name: selected.label,
+            employee_id: selected.value,
+            weekend_group: selected.weekend_group || "",
+          }
+        : r
     )
+    setRows(updated)
+    debouncedSave(updated)
+  }
+
+  // ✅ Handle date range and auto-calculate days
+  const handleRangeChange = (index: number, key: keyof DateRange, value: string) => {
+    const updated = rows.map((r, i) => {
+      if (i !== index) return r
+      const newRange = { ...r.range, [key]: value }
+
+      // Auto-calculate number of days
+      const start = new Date(newRange.start)
+      const end = new Date(newRange.end)
+      const days =
+        !isNaN(start.getTime()) && !isNaN(end.getTime())
+          ? Math.max(0, (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24) + 1)
+          : 0
+
+      return { ...r, range: newRange, days }
+    })
+
     setRows(updated)
     debouncedSave(updated)
   }
@@ -72,6 +108,7 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
   const addRow = () => {
     const newRow: AvailabilityRow = {
       id: Date.now(),
+      employee_id: "",
       staff_name: "",
       type: "",
       range: { start: "", end: "" },
@@ -90,7 +127,7 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
     updateData("availabilityConfig", updated)
   }
 
-  // ✅ Clear all
+  // ✅ Clear all rows
   const clearAll = () => {
     if (rows.length === 0) return
     Swal.fire({
@@ -117,7 +154,11 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
         <h3 className="text-lg font-semibold text-gray-800">Availability Configuration</h3>
         <div className="flex items-center gap-3">
           {saving && <span className="text-sm text-gray-500">Saving…</span>}
-          <Button variant="ghost" onClick={clearAll} className="border border-red-400 text-red-600 hover:bg-red-50">
+          <Button
+            variant="ghost"
+            onClick={clearAll}
+            className="border border-red-400 text-red-600 hover:bg-red-50"
+          >
             🗑 Clear All
           </Button>
           <Button onClick={addRow} className="bg-green-600 hover:bg-green-700">
@@ -139,7 +180,6 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
                 <th className="px-3 py-2 border">Start Date</th>
                 <th className="px-3 py-2 border">End Date</th>
                 <th className="px-3 py-2 border text-right">Days</th>
-                <th className="px-3 py-2 border">Weekend Group</th>
                 <th className="px-3 py-2 border text-center">Actions</th>
               </tr>
             </thead>
@@ -147,15 +187,22 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
             <tbody>
               {rows.map((row, i) => (
                 <tr key={row.id || i} className="odd:bg-white even:bg-gray-50 hover:bg-gray-100">
-                  {/* Staff Name */}
+                  {/* Staff Name Dropdown */}
                   <td className="border px-2 py-1">
-                    <Input
+                    <Select
                       id={`staff_${i}`}
-                      value={row.staff_name}
-                      onChange={(e) => handleChange(i, "staff_name", e.target.value)}
-                      placeholder="Full name"
+                      label=""
+                      value={row.employee_id || ""}
+                      onChange={(e) => handleStaffSelect(i, e.target.value)}
                       className="!m-0 !p-1"
-                    />
+                    >
+                      <option value="">-- Select Staff --</option>
+                      {staffOptions.map((s) => (
+                        <option key={s.value} value={s.value}>
+                          {s.label}
+                        </option>
+                      ))}
+                    </Select>
                   </td>
 
                   {/* Type */}
@@ -196,38 +243,15 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
                     />
                   </td>
 
-                  {/* Days */}
+                  {/* Days (auto-calculated, readonly) */}
                   <td className="border px-2 py-1 text-right">
                     <Input
                       id={`days_${i}`}
                       type="number"
-                      min={0}
                       value={row.days}
-                      onChange={(e) =>
-                        handleChange(i, "days", Number(e.target.value))
-                      }
-                      className="!m-0 !p-1 w-20 text-right"
+                      readOnly
+                      className="!m-0 !p-1 w-20 text-right bg-gray-50"
                     />
-                  </td>
-
-                  {/* Weekend Group */}
-                  <td className="border px-2 py-1">
-                    <Select
-                      id={`weekend_${i}`}
-                      label=""
-                      value={row.weekend_group}
-                      onChange={(e) =>
-                        handleChange(i, "weekend_group", e.target.value as any)
-                      }
-                      className="!m-0 !p-1"
-                    >
-                      <option value="">-- Select --</option>
-                      {weekendGroups.map((g) => (
-                        <option key={g} value={g}>
-                          Group {g}
-                        </option>
-                      ))}
-                    </Select>
                   </td>
 
                   {/* Actions */}

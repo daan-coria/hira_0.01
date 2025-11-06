@@ -17,6 +17,30 @@ type FacilitySetup = {
   categories?: string[]
 }
 
+// Resource Input row (Step 4)
+export type ResourceInputRow = {
+  id?: number
+  employee_id: string
+  first_name: string
+  last_name: string
+  position: string
+  unit_fte: number
+  availability?: string
+  weekend_group?: "A" | "B" | "C" | "WC" | ""
+  vacancy_status?: string
+}
+
+// Availability Configuration row (Step 5)
+export type AvailabilityConfigRow = {
+  id?: number
+  employee_id?: string
+  staff_name: string
+  type: "PTO" | "LOA" | "Orientation" | ""
+  range: { start: string; end: string }
+  days: number
+  weekend_group?: string
+}
+
 type AppState = {
   facilitySetup?: FacilitySetup | null
   toolType: "IP" | "ED"
@@ -24,8 +48,8 @@ type AppState = {
 
 type DataState = {
   loading: boolean
-  resourceInput?: any[]
-  availabilityConfig?: any[]
+  resourceInput?: ResourceInputRow[]
+  availabilityConfig?: AvailabilityConfigRow[]
   staffingConfig?: any[]
   shiftConfig?: any[]
   censusOverride?: any[]
@@ -65,7 +89,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Core App State
   const [state, setState] = useState<AppState>({
     facilitySetup: {
-      categories: ["Nursing", "Support", "Other"], // ✅ Default categories
+      categories: ["Nursing", "Support", "Other"],
     },
     toolType: "IP",
   })
@@ -103,7 +127,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setData((prev) => {
       const updated = { ...prev, [key]: value }
 
-      // When updating positions, extract unique valid categories
       if (key === "positions") {
         const rawCategories = (value as { category?: string }[])
           .map((v) => v.category)
@@ -143,8 +166,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const reloadData = async () => {
     try {
       setData((prev) => ({ ...prev, loading: true }))
-
-      // ✅ Always works in both dev and prod (served from /public/mockdata)
       const basePath = `${window.location.origin}/mockdata`
 
       const [
@@ -163,7 +184,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
             console.warn("⚠️ Missing resource-input.json:", err)
             return []
           }),
-
         fetch(`${basePath}/availability-config.json`)
           .then((r) =>
             r.ok
@@ -174,7 +194,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
             console.warn("⚠️ Missing availability-config.json:", err)
             return []
           }),
-
         fetch(`${basePath}/staffing-config.json`)
           .then((r) =>
             r.ok ? r.json() : Promise.reject("staffing-config.json not found")
@@ -183,7 +202,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
             console.warn("⚠️ Missing staffing-config.json:", err)
             return []
           }),
-
         fetch(`${basePath}/shift-config.json`)
           .then((r) =>
             r.ok ? r.json() : Promise.reject("shift-config.json not found")
@@ -192,7 +210,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
             console.warn("⚠️ Missing shift-config.json:", err)
             return []
           }),
-
         fetch(`${basePath}/census-override.json`)
           .then((r) =>
             r.ok ? r.json() : Promise.reject("census-override.json not found")
@@ -201,7 +218,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
             console.warn("⚠️ Missing census-override.json:", err)
             return []
           }),
-
         fetch(`${basePath}/gap-summary.json`)
           .then((r) =>
             r.ok ? r.json() : Promise.reject("gap-summary.json not found")
@@ -212,7 +228,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           }),
       ])
 
-      const merged = {
+      const merged: DataState = {
         resourceInput,
         availabilityConfig,
         staffingConfig,
