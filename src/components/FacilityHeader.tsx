@@ -155,7 +155,7 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
             min={0}
             value={form.bedCount}
             onChange={(e) => handleChange("bedCount", e.target.value)}
-            placeholder="Enter bed count"
+            placeholder=""
           />
         ) : (
           <div className="col-span-1 flex flex-col justify-end">
