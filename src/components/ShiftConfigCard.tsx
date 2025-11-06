@@ -16,6 +16,7 @@ type ShiftRow = {
   total_hours: number
   shift_type: "weekday_shift" | "weekend_shift" | ""
   days?: string[]
+  roles?: string[]
 }
 
 type Props = { onNext?: () => void; onPrev?: () => void }
@@ -28,6 +29,12 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
   const daysOfWeek = [
     "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
   ]
+
+  // ✅ Pull roles from Position/Staffing step
+  const availableRoles =
+    Array.isArray(data?.positionStaffing) && data.positionStaffing.length > 0
+      ? data.positionStaffing.map((r: any) => r.role)
+      : ["RN", "LPN", "CNA", "Clerk"]
 
   // ✅ Debounced autosave
   const debouncedSave = useCallback(
@@ -46,7 +53,7 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
     if (arr.length > 0) setRows(arr)
   }, [data?.shiftConfig])
 
-  // ✅ Calculate total hours based on start/end
+  // ✅ Calculate total hours based on start/end (24-hour logic)
   const calculateHours = (start: string, end: string) => {
     if (!start || !end) return 0
     const [sH, sM] = start.split(":").map(Number)
@@ -54,7 +61,7 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
     const startDate = new Date(0, 0, 0, sH, sM)
     const endDate = new Date(0, 0, 0, eH, eM)
     let diff = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60)
-    if (diff < 0) diff += 24 // handle overnight shifts
+    if (diff < 0) diff += 24 // overnight shift
     return parseFloat(diff.toFixed(2))
   }
 
@@ -64,12 +71,10 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
       if (idx !== i) return r
       const newRow = { ...r, [field]: value }
 
-      // Auto-calc total hours
       if (field === "start_time" || field === "end_time") {
         newRow.total_hours = calculateHours(newRow.start_time, newRow.end_time)
       }
 
-      // Reset days if weekend selected
       if (field === "shift_type" && value === "weekend_shift") {
         newRow.days = []
       }
@@ -103,6 +108,7 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
       total_hours: 0,
       shift_type: "",
       days: [],
+      roles: [],
     }
     const updated = [...rows, newRow]
     setRows(updated)
@@ -164,11 +170,12 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-3 py-2 border">Shift Label</th>
-                <th className="px-3 py-2 border">Start Time</th>
-                <th className="px-3 py-2 border">End Time</th>
+                <th className="px-3 py-2 border">Start (24h)</th>
+                <th className="px-3 py-2 border">End (24h)</th>
                 <th className="px-3 py-2 border text-right">Total Hours</th>
                 <th className="px-3 py-2 border text-center">Shift Type</th>
                 <th className="px-3 py-2 border text-center">Days</th>
+                <th className="px-3 py-2 border text-center">Roles</th>
                 <th className="px-3 py-2 border text-center">Actions</th>
               </tr>
             </thead>
@@ -195,6 +202,7 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                     <Input
                       id={`start_${i}`}
                       type="time"
+                      step="1800"
                       value={row.start_time}
                       onChange={(e) =>
                         handleChange(i, "start_time", e.target.value)
@@ -207,6 +215,7 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                     <Input
                       id={`end_${i}`}
                       type="time"
+                      step="1800"
                       value={row.end_time}
                       onChange={(e) =>
                         handleChange(i, "end_time", e.target.value)
@@ -219,7 +228,6 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                     {Number(row.total_hours || 0).toFixed(2)}
                   </td>
 
-                  {/* Shift Type */}
                   <td className="border px-2 py-1 text-center">
                     <Select
                       id={`type_${i}`}
@@ -235,54 +243,53 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                     </Select>
                   </td>
 
-                  {/* Days checklist */}
+                  {/* Days */}
                   <td className="border px-2 py-1 text-center">
                     {row.shift_type === "weekday_shift" && (
-                      <>
-                        {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"].every(d =>
-                          row.days?.includes(d)
-                        ) && row.days?.length === 5 ? (
-                          <span className="text-gray-400 text-xs italic">Weekdays</span>
-                        ) : (
-                          <div className="flex flex-wrap gap-1 justify-center">
-                            {daysOfWeek.map((d) => (
-                              <label key={d} className="flex items-center gap-1 text-xs">
-                                <input
-                                  type="checkbox"
-                                  checked={row.days?.includes(d)}
-                                  onChange={() => {
-                                    toggleDay(i, d)
-                                    // Auto-replace with "Weekdays" when all 5 weekdays selected
-                                    const selectedDays = new Set(row.days || [])
-                                    if (selectedDays.has(d)) selectedDays.delete(d)
-                                    else selectedDays.add(d)
-                                    const weekdays = [
-                                      "Monday",
-                                      "Tuesday",
-                                      "Wednesday",
-                                      "Thursday",
-                                      "Friday",
-                                    ]
-                                    if (weekdays.every(day => selectedDays.has(day)) && selectedDays.size === 5) {
-                                      const updated = rows.map((r, idx) =>
-                                        idx === i ? { ...r, days: weekdays } : r
-                                      )
-                                      setRows(updated)
-                                      debouncedSave(updated)
-                                    }
-                                  }}
-                                />
-                                {d.slice(0, 3)}
-                              </label>
-                            ))}
-                          </div>
-                        )}
-                      </>
+                      <div className="flex flex-wrap gap-1 justify-center">
+                        {daysOfWeek.slice(0, 5).map((d) => (
+                          <label key={d} className="flex items-center gap-1 text-xs">
+                            <input
+                              type="checkbox"
+                              checked={row.days?.includes(d)}
+                              onChange={() => toggleDay(i, d)}
+                            />
+                            {d.slice(0, 3)}
+                          </label>
+                        ))}
+                      </div>
                     )}
 
                     {row.shift_type === "weekend_shift" && (
                       <span className="text-gray-400 text-xs italic">Weekend</span>
                     )}
+                  </td>
+
+                  {/* ✅ Roles multiselect - styled to match current UI */}
+                  <td className="border px-2 py-1 text-center">
+                    <div className="relative">
+                      <select
+                        multiple
+                        title="Select roles for this shift"
+                        value={row.roles || []}
+                        onChange={(e) => {
+                          const selected = Array.from(e.target.selectedOptions, (opt) => opt.value)
+                          handleChange(i, "roles", selected)
+                        }}
+                        className="w-36 rounded-md border border-gray-300 bg-white text-xs p-1 focus:outline-none focus:ring-1 focus:ring-green-500"
+                      >
+                        {availableRoles.map((r) => (
+                          <option key={r} value={r} className="hover:bg-green-50 cursor-pointer">
+                            {r}
+                          </option>
+                        ))}
+                      </select>
+                      {(!row.roles || row.roles.length === 0) && (
+                        <span className="absolute inset-0 text-gray-400 text-xs flex items-center justify-center pointer-events-none">
+                          Select…
+                        </span>
+                      )}
+                    </div>
                   </td>
 
                   <td className="border px-2 py-1 text-center">
