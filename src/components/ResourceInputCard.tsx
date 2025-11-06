@@ -148,7 +148,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     updateData("resourceInput", updated)
   }
 
-  // ✅ CSV Upload Handler (with duplicate ID logic)
+  // ✅ CSV Upload Handler (fixed duplicate + empty row logic)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -161,27 +161,48 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
         let merged = [...rows]
 
         for (const newRow of newRows) {
+          // Normalize weekend group
           newRow.weekend_group = normalizeGroup(newRow.weekend_group)
-          const matchIndex = merged.findIndex((r) => r.employee_id === newRow.employee_id)
+
+          // Skip completely empty rows
+          if (
+            !newRow.employee_id &&
+            !newRow.first_name &&
+            !newRow.last_name &&
+            !newRow.position
+          )
+            continue
+
+          const matchIndex = merged.findIndex(
+            (r) => r.employee_id === newRow.employee_id
+          )
 
           if (matchIndex >= 0) {
             const existing = merged[matchIndex]
             const differs =
               existing.first_name !== newRow.first_name ||
               existing.last_name !== newRow.last_name ||
-              existing.position !== newRow.position
+              existing.position !== newRow.position ||
+              existing.unit_fte !== newRow.unit_fte ||
+              existing.shift !== newRow.shift ||
+              existing.weekend_group !== newRow.weekend_group ||
+              existing.vacancy_status !== newRow.vacancy_status
 
             if (differs) {
               const result = await Swal.fire({
                 title: "Duplicate ID in CSV",
-                text: `ID ${newRow.employee_id} already exists with different details. Overwrite?`,
+                text: `Employee ID ${newRow.employee_id} already exists but has different details. Overwrite existing entry?`,
                 icon: "warning",
                 showCancelButton: true,
                 confirmButtonText: "Yes, overwrite",
                 cancelButtonText: "No, skip",
               })
-              if (result.isConfirmed) merged[matchIndex] = { ...existing, ...newRow }
+
+              if (result.isConfirmed) {
+                merged[matchIndex] = { ...existing, ...newRow }
+              }
             }
+            // ✅ If identical, skip silently
           } else {
             merged.push({ ...newRow, id: Date.now() })
           }
@@ -190,20 +211,22 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
         setRows(merged)
         updateData("resourceInput", merged)
         Swal.fire("Upload Complete", "Roster processed successfully!", "success")
+        if (fileInputRef.current) fileInputRef.current.value = ""
       },
     })
   }
 
-  const normalizeGroup = (val: any): "A" | "B" | "C" | "WC" | "" => {
-    if (!val) return ""
-    const t = val.toString().toUpperCase()
-    if (["A", "B", "C", "WC"].includes(t)) return t as any
-    if (t.includes("1")) return "A"
-    if (t.includes("2")) return "B"
-    if (t.includes("3")) return "C"
-    if (t.includes("W")) return "WC"
-    return ""
-  }
+
+    const normalizeGroup = (val: any): "A" | "B" | "C" | "WC" | "" => {
+      if (!val) return ""
+      const t = val.toString().toUpperCase()
+      if (["A", "B", "C", "WC"].includes(t)) return t as any
+      if (t.includes("1")) return "A"
+      if (t.includes("2")) return "B"
+      if (t.includes("3")) return "C"
+      if (t.includes("W")) return "WC"
+      return ""
+    }
 
   // ✅ Export CSV (renamed columns)
   const handleExport = () => {
