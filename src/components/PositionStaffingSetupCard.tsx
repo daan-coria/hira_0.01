@@ -17,7 +17,7 @@ type Row = {
   include_in_ratio: boolean
   direct_care_percent: number
   total_hours_per_week: number | string
-  weekend_rotation: string | number | ""
+  weekend_rotation: number | ""
   fte: number | string
   budgeted_fte: number
   filled_fte: number
@@ -41,7 +41,7 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
 
   const baseURL = `${window.location.origin}/mockdata`
 
-  // ✅ Fallback dataset
+  // 🗂️ Fallback dataset
   const fallbackData: Row[] = [
     {
       id: 1,
@@ -109,29 +109,39 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
     },
   ]
 
-  // ✅ Debounced save
+  // 🧭 Mappings between numeric code and backend label
+  const weekendLabels: Record<number, string> = {
+    1: "Every weekend",
+    2: "Every other weekend",
+    3: "Every third weekend",
+  }
+
+  // 🧩 Normalize incoming weekend values
+  function normalizeWeekend(val: any): number | "" {
+    if (!val) return ""
+    const text = val.toString().toLowerCase()
+    if (text.includes("every weekend") || text === "1") return 1
+    if (text.includes("every other weekend") || text === "2") return 2
+    if (text.includes("every third weekend") || text === "3") return 3
+    return ""
+  }
+
+  // 💾 Debounced save with backend label mapping
   const debouncedSave = useCallback(
     debounce((updated: Row[]) => {
+      const withLabels = updated.map((r) => ({
+        ...r,
+        weekend_rotation:
+          weekendLabels[r.weekend_rotation as number] || "",
+      }))
       setSaving(true)
-      updateData("staffingConfig", updated)
+      updateData("staffingConfig", withLabels)
       setTimeout(() => setSaving(false), 600)
     }, 600),
     [updateData]
   )
 
-  // ✅ Normalize legacy text values (for backward compatibility)
-  // Use a hoisted function declaration so the loader can call it without temporal-dead-zone issues
-  function normalizeWeekend(val: any): string | number | "" {
-    if (!val) return ""
-    const text = val.toString().toLowerCase()
-    if (["1", "a", "every weekend"].includes(text)) return 1
-    if (["2", "b", "every other weekend"].includes(text)) return 2
-    if (["3", "c", "every third weekend"].includes(text)) return 3
-    if (["rotate", "wc"].some((k) => text.includes(k))) return ""
-    return ""
-  }
-
-  // ✅ Load mock data or fallback
+  // 📥 Load mock data or fallback
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -157,9 +167,7 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
     loadData()
   }, [])
 
-  
-
-  // ✅ FTE calculation
+  // 🔢 FTE calculation
   const calcFTE = (row: Row): number => {
     const bedCount = state.facilitySetup?.bedCount || 0
     const ratio = typeof row.ratio === "number" ? row.ratio : 0
@@ -168,12 +176,32 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
     return parseFloat(((bedCount / ratio) * carePct).toFixed(2))
   }
 
-  // ✅ Handle changes
+  // ✏️ Handle change
   const handleChange = (i: number, field: keyof Row, value: any) => {
     const updated = rows.map((r, idx) => {
       if (idx !== i) return r
-      const newRow = { ...r, [field]: value }
+      const newRow = { ...r }
 
+      // 🛑 Prevent negatives
+      if (
+        ["ratio", "max_ratio", "fte", "budgeted_fte", "filled_fte", "open_fte"].includes(field)
+      ) {
+        if (Number(value) < 0) {
+          toast.error("Values cannot be negative")
+          return r
+        }
+      }
+
+      // 🧮 Ratio logic
+      if (field === "ratio" && Number(value) > Number(r.max_ratio)) {
+        toast.error("Ratio cannot exceed Max Ratio")
+        return r
+      }
+
+      (newRow as Record<keyof Row, any>)[field] = value
+
+
+      // 🧱 Type logic
       if (field === "type") {
         if (value === "Fixed") {
           newRow.ratio = "N/A"
@@ -187,17 +215,18 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
       }
 
       if (newRow.type === "Variable") newRow.fte = calcFTE(newRow)
-
       if (["budgeted_fte", "filled_fte"].includes(field))
         newRow.open_fte =
           (newRow.budgeted_fte || 0) - (newRow.filled_fte || 0)
 
       return newRow
     })
+
     setRows(updated)
     debouncedSave(updated)
   }
 
+  // ➕ Add, remove, clear
   const addRow = () => {
     const newRow: Row = {
       id: Date.now(),
@@ -245,7 +274,6 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
 
   return (
     <Card className="p-5 rounded-xl shadow-sm divide-y divide-gray-200">
-      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-800">
           Position & Staffing Setup
@@ -332,6 +360,8 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
                       <option value="Fixed">Fixed</option>
                     </Select>
                   </td>
+
+                  {/* Ratio & Max Ratio */}
                   <td className="border px-2 py-1 text-right">
                     <Input
                       id={`ratio_${i}`}
@@ -352,6 +382,7 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
                       className="!m-0 !p-1 w-20 text-right"
                     />
                   </td>
+
                   <td className="border px-2 py-1 text-right">
                     <Input
                       id={`dc_${i}`}
@@ -363,12 +394,12 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
                       className="!m-0 !p-1 w-20 text-right"
                     />
                   </td>
+
                   <td className="border px-2 py-1 text-center">
                     <input
                       id={`include_${i}`}
                       type="checkbox"
                       title={`Include ${row.role || "role " + (i + 1)} in ratio`}
-                      aria-label={`Include ${row.role || "role " + (i + 1)} in ratio`}
                       checked={row.include_in_ratio}
                       onChange={(e) =>
                         handleChange(i, "include_in_ratio", e.target.checked)
@@ -376,6 +407,7 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
                       className="h-4 w-4 text-green-600 border-gray-300 rounded"
                     />
                   </td>
+
                   <td className="border px-2 py-1 text-right">
                     <Input
                       id={`hours_${i}`}
@@ -390,13 +422,13 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
                     />
                   </td>
 
-                  {/* ✅ Weekend rotation (numbers only) */}
+                  {/* Simplified weekend rotation (1–3 numeric codes) */}
                   <td className="border px-2 py-1 text-right">
                     <Select
                       id={`weekend_${i}`}
                       value={row.weekend_rotation}
                       onChange={(e) =>
-                        handleChange(i, "weekend_rotation", e.target.value)
+                        handleChange(i, "weekend_rotation", Number(e.target.value))
                       }
                       className="!m-0 !p-1 w-20 text-right"
                     >
@@ -404,7 +436,6 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
                       <option value="1">1</option>
                       <option value="2">2</option>
                       <option value="3">3</option>
-                      <option value="Rotate">Rotate</option>
                     </Select>
                   </td>
 
