@@ -11,12 +11,12 @@ import "sweetalert2/dist/sweetalert2.min.css"
 
 type ResourceRow = {
   id?: number
-  employee_id?: string
+  employee_id?: string // still stored separately for DB
   first_name: string
   last_name: string
   position: string
   unit_fte: number
-  availability: string
+  shift: string
   weekend_group: "A" | "B" | "C" | "WC" | ""
   vacancy_status: string
 }
@@ -55,8 +55,8 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
       ? data.staffingConfig.map((p: any) => p.role)
       : ["RN", "LPN", "CNA", "Clerk"]
 
-  // ✅ Availability options from Step 3 (ShiftConfig)
-  const [availabilityOptions, setAvailabilityOptions] = useState<string[]>([])
+  // ✅ Shifts from Step 3 (ShiftConfig)
+  const [shiftOptions, setShiftOptions] = useState<string[]>([])
   useEffect(() => {
     if (Array.isArray(data.shiftConfig)) {
       const labels = Array.from(
@@ -66,20 +66,20 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
             .filter((x: string) => x && x.trim())
         )
       )
-      setAvailabilityOptions(labels)
+      setShiftOptions(labels)
     }
   }, [data.shiftConfig])
 
-  // ✅ Filter availability by position type
-  const getFilteredAvailability = (position: string) => {
+  // ✅ Filter shifts by position type
+  const getFilteredShifts = (position: string) => {
     if (!Array.isArray(data.staffingConfig) || !Array.isArray(data.shiftConfig))
-      return availabilityOptions
+      return shiftOptions
 
     const positionType = data.staffingConfig.find(
       (cfg: any) => cfg.role === position
     )?.type
 
-    if (!positionType) return availabilityOptions
+    if (!positionType) return shiftOptions
 
     return (data.shiftConfig || [])
       .filter((shift: any) =>
@@ -103,9 +103,50 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     }
   }, [data.staffingConfig])
 
-  // ✅ Handle changes
-  const handleChange = (index: number, field: keyof ResourceRow, value: any) => {
-    const updated = rows.map((r, i) => (i === index ? { ...r, [field]: value } : r))
+  // ✅ Handle changes (with duplicate ID check)
+  const handleChange = async (index: number, field: keyof ResourceRow, value: any) => {
+    const updated = [...rows]
+    const prevValue = updated[index][field]
+    updated[index] = { ...updated[index], [field]: value }
+
+    // Duplicate ID logic
+    if (field === "employee_id" || field === "id") {
+      const duplicateIndex = updated.findIndex(
+        (r, i) => i !== index && r.employee_id === value
+      )
+
+      if (duplicateIndex !== -1) {
+        const existing = updated[duplicateIndex]
+        const current = updated[index]
+        const differs =
+          existing.first_name !== current.first_name ||
+          existing.last_name !== current.last_name ||
+          existing.position !== current.position
+
+        if (differs) {
+          const result = await Swal.fire({
+            title: "Duplicate ID Detected",
+            text: "An entry with this ID already exists but has different details. Do you want to overwrite it?",
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonText: "Yes, overwrite",
+            cancelButtonText: "No, keep both",
+          })
+
+          if (result.isConfirmed) {
+            // overwrite existing
+            updated[duplicateIndex] = { ...current }
+            Swal.fire("Overwritten", "Existing record updated successfully.", "success")
+          } else {
+            // revert value
+            if (typeof prevValue !== "undefined") {
+              (updated[index] as Record<string, any>)[field] = prevValue
+            }
+          }
+        }
+      }
+    }
+
     setRows(updated)
     debouncedSave(updated)
   }
@@ -119,7 +160,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
       last_name: "",
       position: "",
       unit_fte: 1,
-      availability: "",
+      shift: "",
       weekend_group: "",
       vacancy_status: "",
     }
@@ -135,7 +176,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     updateData("resourceInput", updated)
   }
 
-  // ✅ CSV Upload Handler
+  // ✅ CSV Upload Handler (with duplicate ID logic)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -145,17 +186,35 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
       skipEmptyLines: true,
       complete: async (results) => {
         const newRows = results.data as ResourceRow[]
-        const merged = [...rows]
+        let merged = [...rows]
+
         for (const newRow of newRows) {
           newRow.weekend_group = normalizeGroup(newRow.weekend_group)
-          const matchIndex = merged.findIndex(
-            (r) =>
-              r.employee_id === newRow.employee_id ||
-              (r.first_name === newRow.first_name && r.last_name === newRow.last_name)
-          )
-          if (matchIndex >= 0) merged[matchIndex] = { ...merged[matchIndex], ...newRow }
-          else merged.push({ ...newRow, id: Date.now() })
+          const matchIndex = merged.findIndex((r) => r.employee_id === newRow.employee_id)
+
+          if (matchIndex >= 0) {
+            const existing = merged[matchIndex]
+            const differs =
+              existing.first_name !== newRow.first_name ||
+              existing.last_name !== newRow.last_name ||
+              existing.position !== newRow.position
+
+            if (differs) {
+              const result = await Swal.fire({
+                title: "Duplicate ID in CSV",
+                text: `ID ${newRow.employee_id} already exists with different details. Overwrite?`,
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonText: "Yes, overwrite",
+                cancelButtonText: "No, skip",
+              })
+              if (result.isConfirmed) merged[matchIndex] = { ...existing, ...newRow }
+            }
+          } else {
+            merged.push({ ...newRow, id: Date.now() })
+          }
         }
+
         setRows(merged)
         updateData("resourceInput", merged)
         Swal.fire("Upload Complete", "Roster processed successfully!", "success")
@@ -174,13 +233,24 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     return ""
   }
 
-  // ✅ Export CSV
+  // ✅ Export CSV (renamed columns)
   const handleExport = () => {
     if (rows.length === 0) {
       Swal.fire("No Data", "There are no rows to export.", "info")
       return
     }
-    const csv = Papa.unparse(rows.map(({ id, ...r }) => r))
+    const csv = Papa.unparse(
+      rows.map(({ id, ...r }) => ({
+        ID: r.employee_id || "",
+        First_Name: r.first_name,
+        Last_Name: r.last_name,
+        Position: r.position,
+        Unit_FTE: r.unit_fte,
+        Shift: r.shift,
+        Weekend_Group: r.weekend_group,
+        Vacancy_Status: r.vacancy_status,
+      }))
+    )
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
     const link = document.createElement("a")
     const url = URL.createObjectURL(blob)
@@ -256,12 +326,12 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-3 py-2 border">Vacancy Status</th>
-                <th className="px-3 py-2 border">Employee ID</th>
+                <th className="px-3 py-2 border">ID</th>
                 <th className="px-3 py-2 border">First Name</th>
                 <th className="px-3 py-2 border">Last Name</th>
                 <th className="px-3 py-2 border">Position</th>
                 <th className="px-3 py-2 border text-right">Unit FTE</th>
-                <th className="px-3 py-2 border">Availability</th>
+                <th className="px-3 py-2 border">Shift</th>
                 <th className="px-3 py-2 border">Weekend Group</th>
                 <th className="px-3 py-2 border text-center">Actions</th>
               </tr>
@@ -270,12 +340,12 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
             <tbody>
               {rows.map((row, i) => {
                 const isPosted = row.vacancy_status === "Posted"
-                const filteredAvailability = getFilteredAvailability(row.position)
+                const filteredShifts = getFilteredShifts(row.position)
 
                 return (
                   <tr
                     key={row.id || i}
-                    className={`odd:bg-white even:bg-gray-50 hover:bg-gray-100`}
+                    className="odd:bg-white even:bg-gray-50 hover:bg-gray-100"
                   >
                     {/* Vacancy Status */}
                     <td className="border px-2 py-1">
@@ -293,7 +363,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       </Select>
                     </td>
 
-                    {/* Employee ID (locked when Posted) */}
+                    {/* ID (editable always) */}
                     <td className="border px-2 py-1 text-center">
                       <Input
                         id={`employee_id-${i}`}
@@ -302,14 +372,11 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                           handleChange(i, "employee_id", e.target.value)
                         }
                         placeholder="ID"
-                        disabled={isPosted}
-                        className={`!m-0 !p-1 w-24 text-center ${
-                          isPosted ? "bg-gray-100 text-gray-400" : ""
-                        }`}
+                        className="!m-0 !p-1 w-24 text-center"
                       />
                     </td>
 
-                    {/* First Name (locked when Posted) */}
+                    {/* First Name */}
                     <td className="border px-2 py-1">
                       <Input
                         id={`first_name-${i}`}
@@ -325,7 +392,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       />
                     </td>
 
-                    {/* Last Name (locked when Posted) */}
+                    {/* Last Name */}
                     <td className="border px-2 py-1">
                       <Input
                         id={`last_name-${i}`}
@@ -341,7 +408,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       />
                     </td>
 
-                    {/* Editable fields remain open even if Posted */}
+                    {/* Position */}
                     <td className="border px-2 py-1">
                       <Select
                         id={`position_${i}`}
@@ -360,6 +427,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       </Select>
                     </td>
 
+                    {/* Unit FTE */}
                     <td className="border px-2 py-1 text-right">
                       <Input
                         id={`fte-${i}`}
@@ -374,33 +442,45 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       />
                     </td>
 
+                    {/* Shift */}
                     <td className="border px-2 py-1">
                       <Select
-                        id={`availability_${i}`}
-                        value={row.availability}
-                        onChange={(e) => handleChange(i, "availability", e.target.value)}
+                        id={`shift_${i}`}
+                        value={row.shift}
+                        onChange={(e) => handleChange(i, "shift", e.target.value)}
                         className="!m-0 !p-1"
                       >
                         <option value="">-- Select Shift --</option>
-                        {(() => {
-                          // Combine filtered shifts + fallback options
-                          const uniqueOptions = Array.from(
-                            new Set([
-                              ...filteredAvailability,
-                              "Day",
-                              "Night",
-                            ])
-                          )
-
-                          return uniqueOptions.map((opt) => (
+                        {Array.from(new Set([...filteredShifts, "Day", "Night"])).map(
+                          (opt) => (
                             <option key={opt} value={opt}>
                               {opt}
                             </option>
-                          ))
-                        })()}
+                          )
+                        )}
                       </Select>
                     </td>
 
+                    {/* Weekend Group (moved to end) */}
+                    <td className="border px-2 py-1 text-center">
+                      <Select
+                        id={`weekend_${i}`}
+                        value={row.weekend_group}
+                        onChange={(e) =>
+                          handleChange(i, "weekend_group", e.target.value)
+                        }
+                        className="!m-0 !p-1"
+                      >
+                        <option value="">-- Select --</option>
+                        {weekendGroupList.map((g) => (
+                          <option key={g} value={g}>
+                            {g}
+                          </option>
+                        ))}
+                      </Select>
+                    </td>
+
+                    {/* Actions */}
                     <td className="border px-2 py-1 text-center">
                       <Button
                         onClick={() => removeRow(row.id)}
