@@ -148,7 +148,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     updateData("resourceInput", updated)
   }
 
-  // ✅ CSV Upload Handler (fixed duplicate + empty row logic)
+  // ✅ CSV Upload Handler (fixed header mapping + duplicate logic)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -157,13 +157,23 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
       header: true,
       skipEmptyLines: true,
       complete: async (results) => {
-        const newRows = results.data as ResourceRow[]
+        const rawData = results.data as any[]
+
+        // Map CSV headers (from exported names) → internal keys
+        const newRows: ResourceRow[] = rawData.map((row) => ({
+          employee_id: row.ID || row.employee_id || "",
+          first_name: row.First_Name || row.first_name || "",
+          last_name: row.Last_Name || row.last_name || "",
+          position: row.Position || row.position || "",
+          unit_fte: Number(row.Unit_FTE || row.unit_fte || 0),
+          shift: row.Shift || row.shift || "",
+          weekend_group: normalizeGroup(row.Weekend_Group || row.weekend_group),
+          vacancy_status: row.Vacancy_Status || row.vacancy_status || "",
+        }))
+
         let merged = [...rows]
 
         for (const newRow of newRows) {
-          // Normalize weekend group
-          newRow.weekend_group = normalizeGroup(newRow.weekend_group)
-
           // Skip completely empty rows
           if (
             !newRow.employee_id &&
@@ -202,7 +212,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                 merged[matchIndex] = { ...existing, ...newRow }
               }
             }
-            // ✅ If identical, skip silently
           } else {
             merged.push({ ...newRow, id: Date.now() })
           }
@@ -215,6 +224,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
       },
     })
   }
+
 
 
     const normalizeGroup = (val: any): "A" | "B" | "C" | "WC" | "" => {
