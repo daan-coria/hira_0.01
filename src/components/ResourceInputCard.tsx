@@ -55,68 +55,66 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
       ? (data.resourceInput as ResourceRow[])
       : []
 
-    // ✅ Mock employee list (replace with real DB later)
     const mockEmployees: ResourceRow[] = [
-      {
-        id: 1,
-        employee_id: "EMP001",
-        first_name: "Emily",
-        last_name: "Nguyen",
-        position: "RN",
-        unit_fte: 1,
-        shift: "Day",
-        weekend_group: "A",
-        vacancy_status: "Filled",
-      },
-      {
-        id: 2,
-        employee_id: "EMP002",
-        first_name: "Michael",
-        last_name: "Lopez",
-        position: "CNA",
-        unit_fte: 0.8,
-        shift: "Night",
-        weekend_group: "B",
-        vacancy_status: "Posted",
-      },
-      {
-        id: 3,
-        employee_id: "EMP003",
-        first_name: "Sarah",
-        last_name: "Johnson",
-        position: "LPN",
-        unit_fte: 1,
-        shift: "Day",
-        weekend_group: "C",
-        vacancy_status: "Filled",
-      },
-    ]
+        {
+          id: 1,
+          employee_id: "EMP001",
+          first_name: "Emily",
+          last_name: "Nguyen",
+          position: "RN",
+          unit_fte: 1,
+          shift: "Day",
+          weekend_group: "A",
+          vacancy_status: "Filled",
+        },
+        {
+          id: 2,
+          employee_id: "EMP002",
+          first_name: "Michael",
+          last_name: "Lopez",
+          position: "CNA",
+          unit_fte: 0.8,
+          shift: "Night",
+          weekend_group: "B",
+          vacancy_status: "Posted",
+        },
+        {
+          id: 3,
+          employee_id: "EMP003",
+          first_name: "Sarah",
+          last_name: "Johnson",
+          position: "LPN",
+          unit_fte: 1,
+          shift: "Day",
+          weekend_group: "C",
+          vacancy_status: "Filled",
+        },
+      ]
 
-    // ✅ Merge mock data with any existing stored data
+    //Merge mock data with any existing stored data
     const merged = [
       ...mockEmployees.filter(
-        (mock) =>
-          !resourceArray.some((e) => e.employee_id === mock.employee_id)
+        (mock) => !resourceArray.some((e) => e.employee_id === mock.employee_id)
       ),
       ...resourceArray,
     ]
 
     setRows(merged)
     updateData("resourceInput", merged)
-  }, [data?.resourceInput])
+    }, []) 
 
-  // Positions from Step 2
-  const positions =
-    Array.isArray(data.staffingConfig) && data.staffingConfig.length > 0
-      ? data.staffingConfig.map((p: any) => p.role)
-      : ["RN", "LPN", "CNA", "Clerk"]
+    // Positions from Step 2
+    const positions =
+      Array.isArray(data.staffingConfig) && data.staffingConfig.length > 0
+        ? data.staffingConfig.map((p: any) => p.role)
+        : ["RN", "LPN", "CNA", "Clerk"]
 
-  // Filter shifts by role 
-  const getFilteredShifts = (position: string) => {
-    if (!Array.isArray(data.shiftConfig)) return []
-    return (data.shiftConfig || [])
-      .filter((shift: any) => shift.roles?.includes(position))
-      .map((shift: any) => shift.shift_label)
+    // Filter shifts by role 
+    const getFilteredShifts = (position: string) => {
+      if (!Array.isArray(data.shiftConfig)) return []
+      return (data.shiftConfig || [])
+        .filter((shift: any) => shift.roles?.includes(position))
+        .map((shift: any) => shift.shift_label)
   }
 
   // Weekend group list 
@@ -195,8 +193,10 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
   }
 
   // Remove row
-  const removeRow = (id?: number) => {
-    const updated = rows.filter((r) => r.id !== id)
+  const removeRow = (id?: number, employee_id?: string) => {
+    const updated = rows.filter(
+      (r) => r.id !== id && r.employee_id !== employee_id
+    )
     setRows(updated)
     updateData("resourceInput", updated)
   }
@@ -597,7 +597,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     {/* Actions */}
                     <td className="border px-2 py-1 text-center">
                       <Button
-                        onClick={() => removeRow(row.id)}
+                        onClick={() => removeRow(row.id, row.employee_id)}
                         variant="ghost"
                         className="!px-2 !py-1 text-xs text-red-600"
                       >
