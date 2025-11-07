@@ -49,43 +49,69 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     [updateData]
   )
 
-  // ✅ Initialize from stored data + fetch all DB employees
+  // ✅ Initialize from stored data + load all mock employees
   useEffect(() => {
     const resourceArray = Array.isArray(data?.resourceInput)
       ? (data.resourceInput as ResourceRow[])
       : []
-    if (resourceArray.length > 0) setRows(resourceArray)
 
-    // ✅ NEW: Fetch all employees from DB
-    async function loadAllEmployees() {
-      try {
-        const res = await fetch("/api/v1/resources")
-        if (!res.ok) throw new Error("Failed to fetch resources")
-        const dbEmployees = await res.json()
+    // ✅ Mock employee list (replace with real DB later)
+    const mockEmployees: ResourceRow[] = [
+      {
+        id: 1,
+        employee_id: "EMP001",
+        first_name: "Emily",
+        last_name: "Nguyen",
+        position: "RN",
+        unit_fte: 1,
+        shift: "Day",
+        weekend_group: "A",
+        vacancy_status: "Filled",
+      },
+      {
+        id: 2,
+        employee_id: "EMP002",
+        first_name: "Michael",
+        last_name: "Lopez",
+        position: "CNA",
+        unit_fte: 0.8,
+        shift: "Night",
+        weekend_group: "B",
+        vacancy_status: "Posted",
+      },
+      {
+        id: 3,
+        employee_id: "EMP003",
+        first_name: "Sarah",
+        last_name: "Johnson",
+        position: "LPN",
+        unit_fte: 1,
+        shift: "Day",
+        weekend_group: "C",
+        vacancy_status: "Filled",
+      },
+    ]
 
-        const merged = [
-          ...dbEmployees.filter(
-            (dbEmp: any) =>
-              !resourceArray.some((e) => e.employee_id === dbEmp.employee_id)
-          ),
-          ...resourceArray,
-        ]
-        setRows(merged)
-        updateData("resourceInput", merged)
-      } catch (err) {
-        console.error("Error loading employees:", err)
-      }
-    }
-    loadAllEmployees()
+    // ✅ Merge mock data with any existing stored data
+    const merged = [
+      ...mockEmployees.filter(
+        (mock) =>
+          !resourceArray.some((e) => e.employee_id === mock.employee_id)
+      ),
+      ...resourceArray,
+    ]
+
+    setRows(merged)
+    updateData("resourceInput", merged)
   }, [data?.resourceInput])
 
-  // ✅ Positions from Step 2
+  // Positions from Step 2
   const positions =
     Array.isArray(data.staffingConfig) && data.staffingConfig.length > 0
       ? data.staffingConfig.map((p: any) => p.role)
       : ["RN", "LPN", "CNA", "Clerk"]
 
-  // ✅ Filter shifts by role (unchanged)
+  // Filter shifts by role 
   const getFilteredShifts = (position: string) => {
     if (!Array.isArray(data.shiftConfig)) return []
     return (data.shiftConfig || [])
@@ -93,7 +119,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
       .map((shift: any) => shift.shift_label)
   }
 
-  // ✅ Weekend group list (unchanged)
+  // Weekend group list 
   const [weekendGroupList, setWeekendGroupList] = useState<string[]>(weekendGroups)
   useEffect(() => {
     if (Array.isArray(data.staffingConfig)) {
@@ -108,7 +134,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     }
   }, [data.staffingConfig])
 
-  // ✅ Handle changes (unchanged)
+  // Handle changes 
   const handleChange = async (index: number, field: keyof ResourceRow, value: any) => {
     const updated = [...rows]
     const prevValue = updated[index][field]
@@ -150,7 +176,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     debouncedSave(updated)
   }
 
-  // ✅ Add new row
+  // Add new row
   const addRow = () => {
     const newRow: ResourceRow = {
       id: Date.now(),
@@ -168,14 +194,14 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     debouncedSave(updated)
   }
 
-  // ✅ Remove row
+  // Remove row
   const removeRow = (id?: number) => {
     const updated = rows.filter((r) => r.id !== id)
     setRows(updated)
     updateData("resourceInput", updated)
   }
 
-  // ✅ CSV Upload Handler (fixed header mapping + duplicate logic)
+  // CSV Upload Handler (fixed header mapping + duplicate logic)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
