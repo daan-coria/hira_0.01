@@ -452,7 +452,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
             </thead>
 
             <tbody>
-              {rows.map((row, i) => {
+              {filteredRows.map((row, i) => {
                 const isPosted = row.vacancy_status === "Posted"
                 const filteredShifts = getFilteredShifts(row.position)
 
