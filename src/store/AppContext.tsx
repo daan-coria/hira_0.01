@@ -11,10 +11,12 @@ import React, {
 // -----------------------
 type FacilitySetup = {
   facility?: string
+  functionalArea?: string
   department?: string
   costCenter?: string
   bedCount?: number
   categories?: string[]
+  source?: string
 }
 
 // Resource Input row (Step 4)
