@@ -236,7 +236,10 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
       base = base.filter((r) => String(r.year) === String(selectedYear));
     }
     if (selectedDay) {
-      base = base.filter((r) => r.date === selectedDay);
+      base = base.filter((r) => {
+        const [year, month, day] = r.date.split("-");
+        return `${month}-${day}` === selectedDay;
+      });
     }
     return base;
   }, [rows, selectedYear, selectedDay]);
@@ -324,8 +327,16 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
               type="date"
               title="Select specific day"
               className="border rounded p-1 text-sm"
-              value={selectedDay}
-              onChange={(e) => setSelectedDay(e.target.value)}
+              value={selectedDay ? `${selectedYear}-${selectedDay}` : ""}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val) {
+                  const [, month, day] = val.split("-");
+                  setSelectedDay(`${month}-${day}`);
+                } else {
+                  setSelectedDay("");
+                }
+              }}
               min={`${selectedYear || 2024}-01-01`}
               max={`${selectedYear || 2025}-12-31`}
             />
@@ -338,17 +349,14 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                   ? "text-red-500 border-red-300 hover:bg-red-50"
                   : "text-gray-400 border-gray-200 cursor-not-allowed"
               }`}
-              title={
-                selectedDay
-                  ? "Clear selected day"
-                  : "No day selected to clear"
-              }
+              title={selectedDay ? "Clear selected day" : "No day selected to clear"}
             >
               Clear
             </button>
         </div>
       </div>
     </div>
+    
       {/* 🧾 Table with pagination */}
       {rows.length === 0 ? (
         <p className="text-gray-500">Upload a file to display demand data.</p>
