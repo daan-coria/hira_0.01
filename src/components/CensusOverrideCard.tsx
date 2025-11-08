@@ -440,25 +440,41 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
         </p>
       )}
 
-      {/* 📊 Normalized Chart */}
-      {normalizedData.length > 0 && (
-        <div className="mt-6 h-80">
+      {/* 📊 Demand Chart */}
+      <div className="mt-6 h-80">
+        {filteredRows.length === 0 ? (
+          <p className="text-center text-gray-500 italic mt-10">
+            ⚠️ No demand data available. Upload a file or adjust filters.
+          </p>
+        ) : (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
               data={
                 selectedDay
-                  ? rows.filter((r) => r.date === selectedDay) 
-                  : normalizedData 
+                  ? rows.filter((r) => {
+                      const [year, month, day] = r.date.split("-");
+                      return (
+                        String(r.year) === String(selectedYear) &&
+                        `${month}-${day}` === selectedDay
+                      );
+                    })
+                  : normalizedData.length > 0
+                  ? normalizedData
+                  : rows
               }
             >
               <CartesianGrid strokeDasharray="3 3" />
-
-              {/* --- X Axis --- */}
               <XAxis
-                dataKey={selectedDay ? "hour" : "date"}
+                dataKey={
+                  selectedDay
+                    ? "hour"
+                    : normalizedData.length > 0
+                    ? "date"
+                    : "hour"
+                }
                 tickFormatter={(v) =>
                   selectedDay
-                    ? v // show 00:00–23:00
+                    ? v
                     : new Date(v).toLocaleDateString(undefined, {
                         month: "short",
                         day: "numeric",
@@ -470,20 +486,16 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                   offset: -5,
                 }}
               />
-
-              {/* --- Y Axis --- */}
               <YAxis
                 label={{
-                  value: "Average Demand",
+                  value: "Demand",
                   angle: -90,
                   position: "insideLeft",
                 }}
-                domain={["auto", "auto"]}
                 tickFormatter={(v: number | string) =>
                   typeof v === "number" ? v.toFixed(0) : v
                 }
               />
-
               <Tooltip
                 labelFormatter={(v) =>
                   selectedDay
@@ -499,7 +511,6 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
 
               {/* --- Line(s) --- */}
               {selectedDay ? (
-                // Single line for that day
                 <Line
                   type="monotone"
                   dataKey="demand_value"
@@ -508,7 +519,6 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                   dot
                 />
               ) : (
-                // Aggregated by series for the selected year
                 Array.from(new Set(normalizedData.map((r) => r.series))).map(
                   (series, idx) => (
                     <Line
@@ -525,8 +535,8 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
               )}
             </LineChart>
           </ResponsiveContainer>
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="flex justify-between mt-6">
         <button className="btn btn-ghost" onClick={onPrev}>
