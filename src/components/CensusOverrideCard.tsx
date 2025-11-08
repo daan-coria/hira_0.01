@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react"
 import { useApp } from "@/store/AppContext"
 import Card from "@/components/ui/Card"
-import Input from "@/components/ui/Input"
 import InfoButton from "@/components/ui/InfoButton"
 import * as XLSX from "xlsx"
 import {
@@ -14,6 +13,51 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts"
+
+// Converts Excel serial date (days since 1899-12-30) → YYYY-MM-DD
+function excelSerialToISODate(v: unknown): string {
+  if (typeof v === "number") {
+    const base = Date.UTC(1899, 11, 30)
+    const ms = v * 86400 * 1000
+    const d = new Date(base + ms)
+    const yyyy = d.getUTCFullYear()
+    const mm = String(d.getUTCMonth() + 1).padStart(2, "0")
+    const dd = String(d.getUTCDate()).padStart(2, "0")
+    return `${yyyy}-${mm}-${dd}`
+  }
+  if (typeof v === "string") {
+    const d = new Date(v)
+    if (!isNaN(d.getTime())) {
+      const yyyy = d.getFullYear()
+      const mm = String(d.getMonth() + 1).padStart(2, "0")
+      const dd = String(d.getDate()).padStart(2, "0")
+      return `${yyyy}-${mm}-${dd}`
+    }
+  }
+  return ""
+}
+
+// Converts Excel time (fraction of day or "h:mm:ss AM/PM") → HH:MM 24-hour
+function excelTimeToHHMM(v: unknown): string {
+  if (typeof v === "number") {
+    const totalSec = Math.round((v % 1) * 86400)
+    const hh = Math.floor(totalSec / 3600)
+    const mm = Math.floor((totalSec % 3600) / 60)
+    return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`
+  }
+  if (typeof v === "string") {
+    const match = v.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/i)
+    if (match) {
+      let hh = parseInt(match[1], 10)
+      const mm = parseInt(match[2], 10)
+      const period = match[3]?.toUpperCase()
+      if (period === "AM" && hh === 12) hh = 0
+      if (period === "PM" && hh !== 12) hh += 12
+      return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`
+    }
+  }
+  return ""
+}
 
 type DemandRow = {
   id?: number
@@ -31,12 +75,10 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
   const { data, updateData } = useApp()
   const [rows, setRows] = useState<DemandRow[]>([])
 
-  // Load saved data (if available)
   useEffect(() => {
     if (Array.isArray(data?.demand)) setRows(data.demand)
   }, [data?.demand])
 
-  // Handle Excel file upload
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -44,44 +86,33 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
     const buffer = await file.arrayBuffer()
     const workbook = XLSX.read(buffer, { type: "array" })
     const sheet = workbook.Sheets[workbook.SheetNames[0]]
-    const json = XLSX.utils.sheet_to_json(sheet, { defval: "" }) as any[]
+    const rowsRaw = XLSX.utils.sheet_to_json(sheet, { defval: "" }) as any[]
 
-    if (!json.length) {
-      console.error("No data found in Excel sheet.")
-      return
-    }
+    const parsed: DemandRow[] = rowsRaw.map((r: any, i: number) => {
+      const unit = r.unit ?? ""
+      const fac = r.fac ?? ""
+      const eventDate = r.event_date ?? r.Date ?? ""
+      const hourStart = r.hour_start ?? r.Hour ?? ""
+      const patients = r.patients_present ?? r.Demand ?? 0
 
-    // Inspect column names
-    console.log("Detected columns:", Object.keys(json[0]))
+      const dateISO = excelSerialToISODate(eventDate)
+      const hour24 = excelTimeToHHMM(hourStart)
 
-    // Try to infer matching columns even if headers differ slightly
-    const getField = (row: any, keys: string[]) => {
-      const foundKey = Object.keys(row).find(
-        (k) => keys.some((target) => k.toLowerCase().includes(target.toLowerCase()))
-      )
-      return foundKey ? row[foundKey] : ""
-    }
-
-    const parsed: DemandRow[] = json.map((r, i) => {
-      const dateStr = getField(r, ["date", "day"])
-      const d = new Date(dateStr)
       return {
         id: i,
-        facility: getField(r, ["facility", "unit", "department"]),
-        cc: getField(r, ["cc", "cost", "center"]),
-        date: dateStr,
-        hour: getField(r, ["hour", "time"]),
-        demand_value: Number(getField(r, ["demand", "census", "value"])) || 0,
-        year: d.getFullYear(),
+        facility: String(unit || fac).trim(),
+        cc: "",
+        date: dateISO,
+        hour: hour24,
+        demand_value: Number(patients) || 0,
+        year: dateISO ? new Date(dateISO).getFullYear() : undefined,
       }
     })
 
-    console.log("Parsed rows:", parsed.slice(0, 5))
     setRows(parsed)
     updateData("demand", parsed)
   }
 
-  // Prepare chart data
   const chartData = rows.map((r) => ({
     x: new Date(r.date).toLocaleDateString(undefined, {
       month: "short",
@@ -92,8 +123,6 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
   }))
 
   const uniqueYears = [...new Set(chartData.map((d) => d.year))]
-
-  // Auto color generator per year
   const colors = ["#4f46e5", "#22c55e", "#eab308", "#ef4444", "#06b6d4"]
 
   return (
@@ -120,43 +149,35 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                 <tr>
                   <th className="px-3 py-2 border text-center">
                     <div className="flex items-center justify-center gap-1">
-                      Facility
-                      <InfoButton text="Facility or department name." />
+                      Facility <InfoButton text="Facility or department name." />
                     </div>
                   </th>
                   <th className="px-3 py-2 border text-center">
                     <div className="flex items-center justify-center gap-1">
-                      CC
-                      <InfoButton text="Cost center or unit code." />
+                      CC <InfoButton text="Cost center or unit code." />
                     </div>
                   </th>
                   <th className="px-3 py-2 border text-center">
                     <div className="flex items-center justify-center gap-1">
-                      Date
-                      <InfoButton text="Date of the demand record." />
+                      Date <InfoButton text="Date of the demand record." />
                     </div>
                   </th>
                   <th className="px-3 py-2 border text-center">
                     <div className="flex items-center justify-center gap-1">
-                      Hour
-                      <InfoButton text="Hour of the day (24-hour format)." />
+                      Hour <InfoButton text="Hour of the day (24-hour format)." />
                     </div>
                   </th>
                   <th className="px-3 py-2 border text-center">
                     <div className="flex items-center justify-center gap-1">
-                      Demand Value
+                      Demand Value{" "}
                       <InfoButton text="Recorded demand or census count." />
                     </div>
                   </th>
                 </tr>
               </thead>
-
               <tbody>
                 {rows.map((row, i) => (
-                  <tr
-                    key={row.id || i}
-                    className="odd:bg-white even:bg-gray-50 hover:bg-gray-100 transition-colors"
-                  >
+                  <tr key={row.id || i} className="odd:bg-white even:bg-gray-50">
                     <td className="border px-2 py-1 text-center">{row.facility}</td>
                     <td className="border px-2 py-1 text-center">{row.cc}</td>
                     <td className="border px-2 py-1 text-center">{row.date}</td>
