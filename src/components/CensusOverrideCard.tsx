@@ -223,24 +223,33 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
   </p>
 )}
   console.log("📋 Table visible rows:", rows.filter(r => String(r.year) === String(selectedYear)).length);
-  // --- Pagination logic ---
+  
+  // 🗓️ Day filter + pagination combined
+  const [selectedDay, setSelectedDay] = useState<string>("");
   const [page, setPage] = useState(1);
-  const rowsPerPage = 24;
+  const rowsPerPage = 200;
 
+  // Combine filtering (by year + day)
   const filteredRows = useMemo(() => {
-    return rows.filter((r) =>
-      selectedYear ? String(r.year) === String(selectedYear) : true
-    );
-  }, [rows, selectedYear]);
+    let base = rows;
+    if (selectedYear) {
+      base = base.filter((r) => String(r.year) === String(selectedYear));
+    }
+    if (selectedDay) {
+      base = base.filter((r) => r.date === selectedDay);
+    }
+    return base;
+  }, [rows, selectedYear, selectedDay]);
 
+  // Pagination math
   const totalPages = Math.ceil(filteredRows.length / rowsPerPage);
   const startIdx = (page - 1) * rowsPerPage;
   const visibleRows = filteredRows.slice(startIdx, startIdx + rowsPerPage);
 
-  // Reset page when switching years
+  // Reset page when year/day changes
   useEffect(() => {
     setPage(1);
-  }, [selectedYear]);
+  }, [selectedYear, selectedDay]);
 
   // Auto-scroll to top on page change
   useEffect(() => {
@@ -251,6 +260,8 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
     `📋 Table visible rows: ${visibleRows.length} / ${filteredRows.length} (page ${page}/${totalPages})`
   );
 
+
+  
   return (
     <Card className="p-4 space-y-4">
       <div className="flex justify-between items-center mb-3">
@@ -313,9 +324,81 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
         </div>
       </div>
       
+      <div className="flex flex-wrap gap-4 mb-4 items-end">
+        {/* Year filter */}
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">
+            Year
+          </label>
+          <select
+            title="Select Year"
+            className="border rounded p-1 text-sm"
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(e.target.value)}
+          >
+            <option value="">Select year</option>
+            {years.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Series filter */}
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">
+            Series
+          </label>
+          <select
+            title="Select Series"
+            className="border rounded p-1 text-sm"
+            value={selectedSeries}
+            onChange={(e) => setSelectedSeries(e.target.value)}
+          >
+            {seriesOptions.map((s) => (
+              <option key={s} value={s}>
+                {s.charAt(0).toUpperCase() + s.slice(1)}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* 🗓️ Day picker */}
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">
+            Day
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              title="Select specific day"
+              className="border rounded p-1 text-sm"
+              value={selectedDay}
+              onChange={(e) => setSelectedDay(e.target.value)}
+              min={`${selectedYear || 2024}-01-01`}
+              max={`${selectedYear || 2025}-12-31`}
+            />
+            {selectedDay && (
+              <button
+                onClick={() => setSelectedDay("")}
+                className="text-xs text-red-500 border border-red-300 rounded px-2 py-1 hover:bg-red-50 transition"
+                title="Clear selected day"
+              >
+                Clear
+              </button>
+            )}
+        </div>
+      </div>
+    </div>
+    
       {/* 🧾 Table with pagination */}
       {rows.length === 0 ? (
         <p className="text-gray-500">Upload a file to display demand data.</p>
+      ) : filteredRows.length === 0 && selectedDay ? (
+        <p className="text-red-500">
+          ⚠️ No data found for {selectedDay}. Try another date.
+        </p>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full border border-gray-200 text-sm">
@@ -387,7 +470,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
       )}
 
       {/* 📊 Normalized Chart: X = Month, Lines = Day of Week */}
-      {normalizedData.length > 0 && (
+      {normalizedData.length >=  0 && (
         <div className="mt-6 h-96">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
