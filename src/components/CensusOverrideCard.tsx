@@ -46,20 +46,37 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
     const sheet = workbook.Sheets[workbook.SheetNames[0]]
     const json = XLSX.utils.sheet_to_json(sheet, { defval: "" }) as any[]
 
+    if (!json.length) {
+      console.error("No data found in Excel sheet.")
+      return
+    }
+
+    // Inspect column names
+    console.log("Detected columns:", Object.keys(json[0]))
+
+    // Try to infer matching columns even if headers differ slightly
+    const getField = (row: any, keys: string[]) => {
+      const foundKey = Object.keys(row).find(
+        (k) => keys.some((target) => k.toLowerCase().includes(target.toLowerCase()))
+      )
+      return foundKey ? row[foundKey] : ""
+    }
+
     const parsed: DemandRow[] = json.map((r, i) => {
-      const dateStr = r.Date || r.date || ""
+      const dateStr = getField(r, ["date", "day"])
       const d = new Date(dateStr)
       return {
         id: i,
-        facility: r.Facility || r.facility || "",
-        cc: r.CC || r.cc || "",
+        facility: getField(r, ["facility", "unit", "department"]),
+        cc: getField(r, ["cc", "cost", "center"]),
         date: dateStr,
-        hour: r.Hour || r.hour || "",
-        demand_value: Number(r["Demand Value"] || r.Demand || r.demand_value || 0),
+        hour: getField(r, ["hour", "time"]),
+        demand_value: Number(getField(r, ["demand", "census", "value"])) || 0,
         year: d.getFullYear(),
       }
     })
 
+    console.log("Parsed rows:", parsed.slice(0, 5))
     setRows(parsed)
     updateData("demand", parsed)
   }
