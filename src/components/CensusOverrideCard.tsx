@@ -345,8 +345,8 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                   setSelectedDay("");
                 }
               }}
-              min={`${selectedYear || 2024}-01-01`}
-              max={`${selectedYear || 2025}-12-31`}
+              min={`${selectedYear || 2024}-09-24`}
+              max={`${selectedYear || 2025}-06-30`}
             />
             <button
               onClick={() => setSelectedDay("")}
