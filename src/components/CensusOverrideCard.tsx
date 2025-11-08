@@ -95,11 +95,11 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
     }
 
     console.log("🔍 Excel columns detected:", Object.keys(rowsRaw[0]));
+    console.log("🧩 Raw first row values:", rowsRaw[0]);
 
     const parsed: DemandRow[] = rowsRaw.map((r: any, i: number) => {
-      // Handle case-insensitive keys
       const keys = Object.keys(r).reduce((acc: any, k) => {
-        acc[k.toLowerCase()] = r[k];
+        acc[k.trim().toLowerCase()] = r[k];
         return acc;
       }, {});
 
@@ -107,16 +107,18 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
       const unit = keys["unit"] || "";
       const eventDate = keys["event_date"] || "";
       const hourStart = keys["hour_start"] || "";
-      const patientsRaw = keys["patients_present"] ?? 0;
+
+      // ✅ Handle anything that *sounds like* "patients_present"
+      const demandKey = Object.keys(keys).find((k) => k.includes("patient"));
+      const patientsRaw = demandKey ? keys[demandKey] : 0;
 
       const dateISO = excelSerialToISODate(eventDate);
       const hour24 = excelTimeToHHMM(hourStart);
 
-      // Handle possible string, number, or empty formats for patients_present
       let demandValue = 0;
       if (typeof patientsRaw === "number") {
         demandValue = patientsRaw;
-      } else if (typeof patientsRaw === "string" && patientsRaw.trim() !== "") {
+      } else if (typeof patientsRaw === "string") {
         const parsedVal = parseFloat(patientsRaw.replace(/[^\d.-]/g, ""));
         if (!isNaN(parsedVal)) demandValue = parsedVal;
       }
@@ -132,6 +134,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
         year: dateISO ? new Date(dateISO).getFullYear() : undefined,
       };
     });
+
 
     console.log("✅ Parsed first few rows:", parsed.slice(0, 5));
     setRows(parsed);
