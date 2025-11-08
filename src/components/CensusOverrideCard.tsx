@@ -286,45 +286,85 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
         </div>
       </div>
 
-      {/* 🧾 Table */}
+      {/* 🧾 Table with pagination */}
       {rows.length === 0 ? (
         <p className="text-gray-500">Upload a file to display demand data.</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full border border-gray-200 text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-3 py-2 border text-center">Facility</th>
-                <th className="px-3 py-2 border text-center">Unit</th>
-                <th className="px-3 py-2 border text-center">CC</th>
-                <th className="px-3 py-2 border text-center">Date</th>
-                <th className="px-3 py-2 border text-center">Hour</th>
-                <th className="px-3 py-2 border text-center">Demand Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows
-                .filter((r) =>
-                  selectedYear ? String(r.year) === String(selectedYear) : true
-                )
-                .slice(0, 100) // show first 100 for performance
-                .map((row, i) => (
-                  <tr
-                    key={row.id || i}
-                    className="odd:bg-white even:bg-gray-50 hover:bg-gray-100 transition-colors"
+        <>
+          {(() => {
+            const filteredRows = rows.filter((r) =>
+              selectedYear ? String(r.year) === String(selectedYear) : true
+            );
+            const rowsPerPage = 200;
+            const [page, setPage] = useState(1);
+            const totalPages = Math.ceil(filteredRows.length / rowsPerPage);
+            const startIdx = (page - 1) * rowsPerPage;
+            const visibleRows = filteredRows.slice(startIdx, startIdx + rowsPerPage);
+
+            useEffect(() => {
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }, [page]);
+
+            console.log(
+              `📋 Table visible rows: ${visibleRows.length} / ${filteredRows.length} (page ${page}/${totalPages})`
+            );
+
+            return (
+              <div className="overflow-x-auto">
+                <table className="min-w-full border border-gray-200 text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-3 py-2 border text-center">Facility</th>
+                      <th className="px-3 py-2 border text-center">Unit</th>
+                      <th className="px-3 py-2 border text-center">CC</th>
+                      <th className="px-3 py-2 border text-center">Date</th>
+                      <th className="px-3 py-2 border text-center">Hour</th>
+                      <th className="px-3 py-2 border text-center">Demand Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleRows.map((row, i) => (
+                      <tr
+                        key={row.id || i}
+                        className="odd:bg-white even:bg-gray-50 hover:bg-gray-100 transition-colors"
+                      >
+                        <td className="border px-2 py-1 text-center">{row.facility}</td>
+                        <td className="border px-2 py-1 text-center">{row.unit}</td>
+                        <td className="border px-2 py-1 text-center">{row.cc}</td>
+                        <td className="border px-2 py-1 text-center">{row.date}</td>
+                        <td className="border px-2 py-1 text-center">{row.hour}</td>
+                        <td className="border px-2 py-1 text-right">{row.demand_value}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {/* Pagination controls */}
+                <div className="flex justify-center items-center gap-4 mt-3">
+                  <button
+                    disabled={page === 1}
+                    onClick={() => setPage((p) => p - 1)}
+                    className="px-3 py-1 border rounded disabled:opacity-50 hover:bg-gray-100 transition"
                   >
-                    <td className="border px-2 py-1 text-center">{row.facility}</td>
-                    <td className="border px-2 py-1 text-center">{row.unit}</td>
-                    <td className="border px-2 py-1 text-center">{row.cc}</td>
-                    <td className="border px-2 py-1 text-center">{row.date}</td>
-                    <td className="border px-2 py-1 text-center">{row.hour}</td>
-                    <td className="border px-2 py-1 text-right">{row.demand_value}</td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
+                    ← Prev
+                  </button>
+                  <span className="text-sm text-gray-600">
+                    Page {page} of {totalPages} ({filteredRows.length} total rows)
+                  </span>
+                  <button
+                    disabled={page === totalPages}
+                    onClick={() => setPage((p) => p + 1)}
+                    className="px-3 py-1 border rounded disabled:opacity-50 hover:bg-gray-100 transition"
+                  >
+                    Next →
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
+        </>
       )}
+
 
       {normalizedData.length === 0 && selectedYear && (
         <p className="text-red-500 text-sm">
