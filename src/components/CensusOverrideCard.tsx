@@ -16,50 +16,43 @@ import {
 
 // Excel serial or US-style string (9/25/2024) → ISO date YYYY-MM-DD
 function excelSerialToISODate(v: unknown): string {
-  // Numeric Excel serial (e.g., 45559)
   if (typeof v === "number") {
-    const base = Date.UTC(1899, 11, 30);
-    const ms = v * 86400 * 1000;
-    const d = new Date(base + ms);
+    const base = Date.UTC(1899, 11, 30)
+    const ms = v * 86400 * 1000
+    const d = new Date(base + ms)
     return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(
       d.getUTCDate()
-    ).padStart(2, "0")}`;
+    ).padStart(2, "0")}`
   }
 
-  // Excel exports localized text like "9/25/2024" or "9/25/2024 12:00:00 AM"
   if (typeof v === "string") {
-    // Strip possible time suffixes
-    const clean = v.split(" ")[0].trim();
-    const parts = clean.split(/[\/\-]/); // handle 9/25/2024 or 2024-09-25
-
+    const clean = v.split(" ")[0].trim()
+    const parts = clean.split(/[\/\-]/)
     let yyyy = 0,
       mm = 0,
-      dd = 0;
+      dd = 0
 
     if (parts.length === 3) {
       if (parts[0].length === 4) {
-        // yyyy-mm-dd
-        yyyy = parseInt(parts[0]);
-        mm = parseInt(parts[1]);
-        dd = parseInt(parts[2]);
+        yyyy = parseInt(parts[0])
+        mm = parseInt(parts[1])
+        dd = parseInt(parts[2])
       } else {
-        // mm/dd/yyyy or m/d/yyyy
-        mm = parseInt(parts[0]);
-        dd = parseInt(parts[1]);
-        yyyy = parseInt(parts[2]);
+        mm = parseInt(parts[0])
+        dd = parseInt(parts[1])
+        yyyy = parseInt(parts[2])
       }
     }
 
     if (yyyy && mm && dd) {
-      return `${yyyy}-${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
+      return `${yyyy}-${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`
     }
   }
 
-  return "";
+  return ""
 }
 
-
-// --- Excel time (fraction or AM/PM string) -> 24h HH:MM ---
+// Excel time (fraction or AM/PM string) -> 24h HH:MM
 function excelTimeToHHMM(v: unknown): string {
   if (typeof v === "number") {
     const totalSec = Math.round((v % 1) * 86400)
@@ -108,6 +101,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+
     const buffer = await file.arrayBuffer()
     const workbook = XLSX.read(buffer, { type: "array" })
     const sheet = workbook.Sheets[workbook.SheetNames[0]]
@@ -148,11 +142,17 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
       }
     })
 
+    // ✅ Debug: show parsed results
+    console.log("📘 Parsed demand rows (first 20):", parsed.slice(0, 20))
+    console.log(
+      "📅 Unique parsed dates:",
+      Array.from(new Set(parsed.map((r) => r.date))).sort()
+    )
+
     setRows(parsed)
     updateData("demand", parsed)
   }
 
-  // 🧮 Compute available years & series for filters
   const years = Array.from(new Set(rows.map((r) => r.year))).filter(Boolean)
   const seriesOptions = ["facility", "unit"]
 
@@ -160,21 +160,26 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
   const normalizedData = useMemo(() => {
     if (!selectedYear) return []
 
-    // Filter by selected year and group per series + date
     const filtered = rows.filter((r) => r.year?.toString() === selectedYear)
     const groups: Record<string, { total: number; count: number }> = {}
 
     filtered.forEach((r) => {
       const seriesKey = selectedSeries === "facility" ? r.facility : r.unit
       const key = `${seriesKey}-${r.date}`
-
       if (!groups[key]) groups[key] = { total: 0, count: 0 }
       groups[key].total += r.demand_value
       groups[key].count += 1
     })
 
-    // Return one point per series per date (avg per day)
-    return Object.entries(groups).map(([key, v]) => {
+    console.log("🧮 Normalization groups built:", Object.keys(groups).length)
+    console.log(
+      "📊 Sample groups:",
+      Object.entries(groups)
+        .slice(0, 5)
+        .map(([k, v]) => ({ key: k, avg: v.total / v.count }))
+    )
+
+    const normalized = Object.entries(groups).map(([key, v]) => {
       const [seriesKey, date] = key.split("-")
       return {
         series: seriesKey,
@@ -182,10 +187,15 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
         avgDemand: v.total / v.count,
       }
     })
+
+    console.log("✅ Normalized data (first 10 points):", normalized.slice(0, 10))
+    return normalized
   }, [rows, selectedYear, selectedSeries])
 
-
   const colors = ["#4f46e5", "#22c55e", "#eab308", "#ef4444", "#06b6d4"]
+
+  // ✅ Log what’s about to be sent to the chart
+  console.log("🎨 Chart data sample:", normalizedData.slice(0, 10))
 
   return (
     <Card className="p-4 space-y-4">
@@ -204,10 +214,14 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
       {/* 🧭 Filter controls */}
       <div className="flex gap-4 mb-4">
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">
+          <label
+            htmlFor="yearSelect"
+            className="block text-xs font-medium text-gray-500 mb-1"
+          >
             Year
           </label>
           <select
+            id="yearSelect"
             title="Select Year"
             className="border rounded p-1 text-sm"
             value={selectedYear}
@@ -223,10 +237,14 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">
+          <label
+            htmlFor="seriesSelect"
+            className="block text-xs font-medium text-gray-500 mb-1"
+          >
             Series
           </label>
           <select
+            id="seriesSelect"
             title="Select Series"
             className="border rounded p-1 text-sm"
             value={selectedSeries}
@@ -258,7 +276,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
               </tr>
             </thead>
             <tbody>
-              {rows.slice(0, 30).map((row, i) => (
+              {rows.slice(0, 50).map((row, i) => (
                 <tr
                   key={row.id || i}
                   className="odd:bg-white even:bg-gray-50 hover:bg-gray-100 transition-colors"
@@ -321,7 +339,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                     dataKey="avgDemand"
                     name={`${series}`}
                     data={normalizedData.filter((r) => r.series === series)}
-                    stroke={["#4f46e5", "#22c55e", "#eab308", "#ef4444", "#06b6d4"][idx % 5]}
+                    stroke={colors[idx % colors.length]}
                     dot={false}
                   />
                 )
