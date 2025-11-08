@@ -13,7 +13,7 @@ export default function LoginPage() {
     if (!login(password)) {
       setError("Invalid password")
     } else {
-      navigate("/") // ✅ Use React Router navigation instead of window.location
+      navigate("/") // Use React Router navigation instead of window.location
     }
   }
 

@@ -13,8 +13,6 @@
     "allowJs": false,
     "strict": true,
     "forceConsistentCasingInFileNames": true,
-
-    // ✅ Correct base and alias
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]

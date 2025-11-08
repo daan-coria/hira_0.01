@@ -10,7 +10,7 @@ const TooltipContext = createContext<TooltipContextType | null>(null)
 export function TooltipProvider({ children }: { children: ReactNode }) {
   const [activeId, setActiveId] = useState<string | null>(null)
 
-  // 🧠 Auto-close when tapping/clicking anywhere outside
+  //  Auto-close when tapping/clicking anywhere outside
   useEffect(() => {
     const handleClickOutside = () => setActiveId(null)
     document.addEventListener("click", handleClickOutside)
