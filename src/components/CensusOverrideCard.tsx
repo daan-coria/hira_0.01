@@ -81,26 +81,45 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
 
   // --- Excel Upload Handler ---
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-    const buffer = await file.arrayBuffer()
-    const workbook = XLSX.read(buffer, { type: "array" })
-    const sheet = workbook.Sheets[workbook.SheetNames[0]]
-    const rowsRaw = XLSX.utils.sheet_to_json(sheet, { defval: "" }) as any[]
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: "array" });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rowsRaw = XLSX.utils.sheet_to_json(sheet, { defval: "" }) as any[];
+
+    if (!rowsRaw.length) {
+      console.error("❌ No data found in Excel file");
+      return;
+    }
+
+    console.log("🔍 Excel columns detected:", Object.keys(rowsRaw[0]));
 
     const parsed: DemandRow[] = rowsRaw.map((r: any, i: number) => {
-      const facility = r.fac ?? ""
-      const unit = r.unit ?? ""
-      const eventDate = r.event_date ?? ""
-      const hourStart = r.hour_start ?? ""
-      const patientsRaw = r.patients_present ?? 0
+      // Handle case-insensitive keys
+      const keys = Object.keys(r).reduce((acc: any, k) => {
+        acc[k.toLowerCase()] = r[k];
+        return acc;
+      }, {});
 
-      const dateISO = excelSerialToISODate(eventDate)
-      const hour24 = excelTimeToHHMM(hourStart)
+      const facility = keys["fac"] || "";
+      const unit = keys["unit"] || "";
+      const eventDate = keys["event_date"] || "";
+      const hourStart = keys["hour_start"] || "";
+      const patientsRaw = keys["patients_present"] ?? 0;
 
-      // Force numeric conversion for Demand Value
-      const demandValue = Number(patientsRaw) || parseFloat(String(patientsRaw)) || 0
+      const dateISO = excelSerialToISODate(eventDate);
+      const hour24 = excelTimeToHHMM(hourStart);
+
+      // Handle possible string, number, or empty formats for patients_present
+      let demandValue = 0;
+      if (typeof patientsRaw === "number") {
+        demandValue = patientsRaw;
+      } else if (typeof patientsRaw === "string" && patientsRaw.trim() !== "") {
+        const parsedVal = parseFloat(patientsRaw.replace(/[^\d.-]/g, ""));
+        if (!isNaN(parsedVal)) demandValue = parsedVal;
+      }
 
       return {
         id: i,
@@ -111,12 +130,14 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
         hour: hour24,
         demand_value: demandValue,
         year: dateISO ? new Date(dateISO).getFullYear() : undefined,
-      }
-    })
+      };
+    });
 
-    setRows(parsed)
-    updateData("demand", parsed)
-  }
+    console.log("✅ Parsed first few rows:", parsed.slice(0, 5));
+    setRows(parsed);
+    updateData("demand", parsed);
+  };
+
 
   // --- Chart Data ---
   const chartData = rows.map((r) => ({
