@@ -14,26 +14,50 @@ import {
   ResponsiveContainer,
 } from "recharts"
 
-// --- Excel date serial -> ISO string (YYYY-MM-DD) ---
+// Excel serial or US-style string (9/25/2024) → ISO date YYYY-MM-DD
 function excelSerialToISODate(v: unknown): string {
+  // Numeric Excel serial (e.g., 45559)
   if (typeof v === "number") {
-    const base = Date.UTC(1899, 11, 30)
-    const ms = v * 86400 * 1000
-    const d = new Date(base + ms)
+    const base = Date.UTC(1899, 11, 30);
+    const ms = v * 86400 * 1000;
+    const d = new Date(base + ms);
     return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(
       d.getUTCDate()
-    ).padStart(2, "0")}`
+    ).padStart(2, "0")}`;
   }
+
+  // Excel exports localized text like "9/25/2024" or "9/25/2024 12:00:00 AM"
   if (typeof v === "string") {
-    const d = new Date(v)
-    if (!isNaN(d.getTime())) {
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-        d.getDate()
-      ).padStart(2, "0")}`
+    // Strip possible time suffixes
+    const clean = v.split(" ")[0].trim();
+    const parts = clean.split(/[\/\-]/); // handle 9/25/2024 or 2024-09-25
+
+    let yyyy = 0,
+      mm = 0,
+      dd = 0;
+
+    if (parts.length === 3) {
+      if (parts[0].length === 4) {
+        // yyyy-mm-dd
+        yyyy = parseInt(parts[0]);
+        mm = parseInt(parts[1]);
+        dd = parseInt(parts[2]);
+      } else {
+        // mm/dd/yyyy or m/d/yyyy
+        mm = parseInt(parts[0]);
+        dd = parseInt(parts[1]);
+        yyyy = parseInt(parts[2]);
+      }
+    }
+
+    if (yyyy && mm && dd) {
+      return `${yyyy}-${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
     }
   }
-  return ""
+
+  return "";
 }
+
 
 // --- Excel time (fraction or AM/PM string) -> 24h HH:MM ---
 function excelTimeToHHMM(v: unknown): string {
@@ -260,18 +284,35 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
             <LineChart data={normalizedData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis
-                dataKey="month"
-                tickFormatter={(v) => `M${v}`}
-                label={{ value: "Month", position: "insideBottom", offset: -5 }}
+                dataKey="date"
+                tickFormatter={(v) =>
+                  new Date(v).toLocaleDateString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                  })
+                }
+                label={{
+                  value: "Date",
+                  position: "insideBottom",
+                  offset: -5,
+                }}
               />
               <YAxis
                 label={{
-                  value: "Avg Demand",
+                  value: "Average Demand",
                   angle: -90,
                   position: "insideLeft",
                 }}
               />
-              <Tooltip />
+              <Tooltip
+                labelFormatter={(v) =>
+                  new Date(v).toLocaleDateString(undefined, {
+                    weekday: "short",
+                    month: "short",
+                    day: "numeric",
+                  })
+                }
+              />
               <Legend />
               {Array.from(new Set(normalizedData.map((r) => r.series))).map(
                 (series, idx) => (
@@ -281,7 +322,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                     dataKey="avgDemand"
                     name={`${series}`}
                     data={normalizedData.filter((r) => r.series === series)}
-                    stroke={colors[idx % colors.length]}
+                    stroke={["#4f46e5", "#22c55e", "#eab308", "#ef4444", "#06b6d4"][idx % 5]}
                     dot={false}
                   />
                 )
