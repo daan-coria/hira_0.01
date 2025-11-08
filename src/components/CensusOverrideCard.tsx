@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useApp } from "@/store/AppContext"
 import Card from "@/components/ui/Card"
 import InfoButton from "@/components/ui/InfoButton"
@@ -74,53 +74,42 @@ type Props = { onNext?: () => void; onPrev?: () => void }
 export default function CensusOverrideCard({ onNext, onPrev }: Props) {
   const { data, updateData } = useApp()
   const [rows, setRows] = useState<DemandRow[]>([])
+  const [selectedYear, setSelectedYear] = useState<string>("")
+  const [selectedSeries, setSelectedSeries] = useState<string>("unit")
 
   useEffect(() => {
     if (Array.isArray(data?.demand)) setRows(data.demand)
   }, [data?.demand])
 
-  // --- Excel Upload Handler ---
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const buffer = await file.arrayBuffer();
-    const workbook = XLSX.read(buffer, { type: "array" });
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const rowsRaw = XLSX.utils.sheet_to_json(sheet, { defval: "" }) as any[];
-
-    if (!rowsRaw.length) {
-      console.error("❌ No data found in Excel file");
-      return;
-    }
-
-    console.log("🔍 Excel columns detected:", Object.keys(rowsRaw[0]));
-    console.log("🧩 Raw first row values:", rowsRaw[0]);
+    const file = e.target.files?.[0]
+    if (!file) return
+    const buffer = await file.arrayBuffer()
+    const workbook = XLSX.read(buffer, { type: "array" })
+    const sheet = workbook.Sheets[workbook.SheetNames[0]]
+    const rowsRaw = XLSX.utils.sheet_to_json(sheet, { defval: "" }) as any[]
 
     const parsed: DemandRow[] = rowsRaw.map((r: any, i: number) => {
       const keys = Object.keys(r).reduce((acc: any, k) => {
-        acc[k.trim().toLowerCase()] = r[k];
-        return acc;
-      }, {});
+        acc[k.trim().toLowerCase()] = r[k]
+        return acc
+      }, {})
 
-      const facility = keys["fac"] || "";
-      const unit = keys["unit"] || "";
-      const eventDate = keys["event_date"] || "";
-      const hourStart = keys["hour_start"] || "";
+      const facility = keys["fac"] || ""
+      const unit = keys["unit"] || ""
+      const eventDate = keys["event_date"] || ""
+      const hourStart = keys["hour_start"] || ""
+      const demandKey = Object.keys(keys).find((k) => k.includes("patient"))
+      const patientsRaw = demandKey ? keys[demandKey] : 0
 
-      // ✅ Handle anything that *sounds like* "patients_present"
-      const demandKey = Object.keys(keys).find((k) => k.includes("patient"));
-      const patientsRaw = demandKey ? keys[demandKey] : 0;
+      const dateISO = excelSerialToISODate(eventDate)
+      const hour24 = excelTimeToHHMM(hourStart)
 
-      const dateISO = excelSerialToISODate(eventDate);
-      const hour24 = excelTimeToHHMM(hourStart);
-
-      let demandValue = 0;
-      if (typeof patientsRaw === "number") {
-        demandValue = patientsRaw;
-      } else if (typeof patientsRaw === "string") {
-        const parsedVal = parseFloat(patientsRaw.replace(/[^\d.-]/g, ""));
-        if (!isNaN(parsedVal)) demandValue = parsedVal;
+      let demandValue = 0
+      if (typeof patientsRaw === "number") demandValue = patientsRaw
+      else if (typeof patientsRaw === "string") {
+        const parsedVal = parseFloat(patientsRaw.replace(/[^\d.-]/g, ""))
+        if (!isNaN(parsedVal)) demandValue = parsedVal
       }
 
       return {
@@ -132,24 +121,47 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
         hour: hour24,
         demand_value: demandValue,
         year: dateISO ? new Date(dateISO).getFullYear() : undefined,
-      };
-    });
+      }
+    })
 
+    setRows(parsed)
+    updateData("demand", parsed)
+  }
 
-    console.log("✅ Parsed first few rows:", parsed.slice(0, 5));
-    setRows(parsed);
-    updateData("demand", parsed);
-  };
+  // 🧮 Compute available years & series for filters
+  const years = Array.from(new Set(rows.map((r) => r.year))).filter(Boolean)
+  const seriesOptions = ["facility", "unit"]
 
+  // 🧠 Normalized aggregated data
+  const normalizedData = useMemo(() => {
+    if (!selectedYear) return []
 
-  // --- Chart Data ---
-  const chartData = rows.map((r) => ({
-    x: new Date(r.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
-    year: r.year,
-    demand_value: r.demand_value,
-  }))
+    const filtered = rows.filter((r) => r.year?.toString() === selectedYear)
+    const groups: Record<string, { total: number; count: number }> = {}
 
-  const uniqueYears = [...new Set(chartData.map((d) => d.year))]
+    filtered.forEach((r) => {
+      const d = new Date(r.date)
+      const month = d.getMonth() + 1
+      const dow = d.getDay() // 0-6
+      const seriesKey = selectedSeries === "facility" ? r.facility : r.unit
+      const key = `${seriesKey}-${month}-${dow}`
+
+      if (!groups[key]) groups[key] = { total: 0, count: 0 }
+      groups[key].total += r.demand_value
+      groups[key].count += 1
+    })
+
+    return Object.entries(groups).map(([key, v]) => {
+      const [seriesKey, month, dow] = key.split("-")
+      return {
+        series: seriesKey,
+        month: Number(month),
+        dayOfWeek: Number(dow),
+        avgDemand: v.total / v.count,
+      }
+    })
+  }, [rows, selectedYear, selectedSeries])
+
   const colors = ["#4f46e5", "#22c55e", "#eab308", "#ef4444", "#06b6d4"]
 
   return (
@@ -166,89 +178,117 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
         />
       </div>
 
+      {/* 🧭 Filter controls */}
+      <div className="flex gap-4 mb-4">
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">
+            Year
+          </label>
+          <select
+            title="Select Year"
+            className="border rounded p-1 text-sm"
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(e.target.value)}
+          >
+            <option value="">Select year</option>
+            {years.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">
+            Series
+          </label>
+          <select
+            title="Select Series"
+            className="border rounded p-1 text-sm"
+            value={selectedSeries}
+            onChange={(e) => setSelectedSeries(e.target.value)}
+          >
+            {seriesOptions.map((s) => (
+              <option key={s} value={s}>
+                {s.charAt(0).toUpperCase() + s.slice(1)}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* 🧾 Table */}
       {rows.length === 0 ? (
         <p className="text-gray-500">Upload a file to display demand data.</p>
       ) : (
-        <>
-          <div className="overflow-x-auto">
-            <table className="min-w-full border border-gray-200 text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-3 py-2 border text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      Facility <InfoButton text="Facility or department name." />
-                    </div>
-                  </th>
-                  <th className="px-3 py-2 border text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      Unit <InfoButton text="Specific nursing unit or area." />
-                    </div>
-                  </th>
-                  <th className="px-3 py-2 border text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      CC <InfoButton text="Cost center or unit code." />
-                    </div>
-                  </th>
-                  <th className="px-3 py-2 border text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      Date <InfoButton text="Date of the demand record." />
-                    </div>
-                  </th>
-                  <th className="px-3 py-2 border text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      Hour <InfoButton text="Hour of the day (24-hour format)." />
-                    </div>
-                  </th>
-                  <th className="px-3 py-2 border text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      Demand Value{" "}
-                      <InfoButton text="Recorded demand or census count." />
-                    </div>
-                  </th>
+        <div className="overflow-x-auto">
+          <table className="min-w-full border border-gray-200 text-sm">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-3 py-2 border text-center">Facility</th>
+                <th className="px-3 py-2 border text-center">Unit</th>
+                <th className="px-3 py-2 border text-center">CC</th>
+                <th className="px-3 py-2 border text-center">Date</th>
+                <th className="px-3 py-2 border text-center">Hour</th>
+                <th className="px-3 py-2 border text-center">Demand Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.slice(0, 30).map((row, i) => (
+                <tr
+                  key={row.id || i}
+                  className="odd:bg-white even:bg-gray-50 hover:bg-gray-100 transition-colors"
+                >
+                  <td className="border px-2 py-1 text-center">{row.facility}</td>
+                  <td className="border px-2 py-1 text-center">{row.unit}</td>
+                  <td className="border px-2 py-1 text-center">{row.cc}</td>
+                  <td className="border px-2 py-1 text-center">{row.date}</td>
+                  <td className="border px-2 py-1 text-center">{row.hour}</td>
+                  <td className="border px-2 py-1 text-right">{row.demand_value}</td>
                 </tr>
-              </thead>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-              <tbody>
-                {rows.map((row, i) => (
-                  <tr
-                    key={row.id || i}
-                    className="odd:bg-white even:bg-gray-50 hover:bg-gray-100 transition-colors"
-                  >
-                    <td className="border px-2 py-1 text-center">{row.facility}</td>
-                    <td className="border px-2 py-1 text-center">{row.unit}</td>
-                    <td className="border px-2 py-1 text-center">{row.cc}</td>
-                    <td className="border px-2 py-1 text-center">{row.date}</td>
-                    <td className="border px-2 py-1 text-center">{row.hour}</td>
-                    <td className="border px-2 py-1 text-right">{row.demand_value}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="mt-6 h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="x" allowDuplicatedCategory={false} />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                {uniqueYears.map((year, idx) => (
+      {/* 📊 Normalized Chart */}
+      {normalizedData.length > 0 && (
+        <div className="mt-6 h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={normalizedData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis
+                dataKey="month"
+                tickFormatter={(v) => `M${v}`}
+                label={{ value: "Month", position: "insideBottom", offset: -5 }}
+              />
+              <YAxis
+                label={{
+                  value: "Avg Demand",
+                  angle: -90,
+                  position: "insideLeft",
+                }}
+              />
+              <Tooltip />
+              <Legend />
+              {Array.from(new Set(normalizedData.map((r) => r.series))).map(
+                (series, idx) => (
                   <Line
-                    key={year}
+                    key={series}
                     type="monotone"
-                    dataKey="demand_value"
-                    name={`Year ${year}`}
+                    dataKey="avgDemand"
+                    name={`${series}`}
+                    data={normalizedData.filter((r) => r.series === series)}
                     stroke={colors[idx % colors.length]}
-                    data={chartData.filter((d) => d.year === year)}
                     dot={false}
                   />
-                ))}
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </>
+                )
+              )}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       )}
 
       <div className="flex justify-between mt-6">
