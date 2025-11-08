@@ -165,7 +165,9 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
 
     filtered.forEach((r) => {
       const seriesKey = selectedSeries === "facility" ? r.facility : r.unit
-      const key = `${seriesKey}-${r.date}`
+      // ✅ use "__" separator instead of "-"
+      const key = `${seriesKey}__${r.date}`
+
       if (!groups[key]) groups[key] = { total: 0, count: 0 }
       groups[key].total += r.demand_value
       groups[key].count += 1
@@ -180,7 +182,8 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
     )
 
     const normalized = Object.entries(groups).map(([key, v]) => {
-      const [seriesKey, date] = key.split("-")
+      // ✅ split safely using "__"
+      const [seriesKey, date] = key.split("__")
       return {
         series: seriesKey,
         date,
@@ -188,9 +191,10 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
       }
     })
 
-    console.log("✅ Normalized data (first 10 points):", normalized.slice(0, 10))
-    return normalized
-  }, [rows, selectedYear, selectedSeries])
+  console.log("✅ Normalized data (first 10 points):", normalized.slice(0, 10))
+  return normalized
+}, [rows, selectedYear, selectedSeries])
+
 
   const colors = ["#4f46e5", "#22c55e", "#eab308", "#ef4444", "#06b6d4"]
 
