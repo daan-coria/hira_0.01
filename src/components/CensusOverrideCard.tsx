@@ -109,26 +109,31 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
 
     const parsed: DemandRow[] = rowsRaw.map((r: any, i: number) => {
       const keys = Object.keys(r).reduce((acc: any, k) => {
-        acc[k.trim().toLowerCase()] = r[k]
-        return acc
-      }, {})
+        acc[k.trim().toLowerCase()] = r[k];
+        return acc;
+      }, {});
 
-      const facility = keys["fac"] || ""
-      const unit = keys["unit"] || ""
-      const eventDate = keys["event_date"] || ""
-      const hourStart = keys["hour_start"] || ""
-      const demandKey = Object.keys(keys).find((k) => k.includes("patient"))
-      const patientsRaw = demandKey ? keys[demandKey] : 0
+      const facility = keys["fac"] || "";
+      const unit = keys["unit"] || "";
+      const eventDate = keys["event_date"] || "";
+      const hourStart = keys["hour_start"] || "";
+      const demandKey = Object.keys(keys).find((k) => k.includes("patient"));
+      const patientsRaw = demandKey ? keys[demandKey] : 0;
 
-      const dateISO = excelSerialToISODate(eventDate)
-      const hour24 = excelTimeToHHMM(hourStart)
+      const dateISO = excelSerialToISODate(eventDate);
+      const hour24 = excelTimeToHHMM(hourStart);
 
-      let demandValue = 0
-      if (typeof patientsRaw === "number") demandValue = patientsRaw
+      let demandValue = 0;
+      if (typeof patientsRaw === "number") demandValue = patientsRaw;
       else if (typeof patientsRaw === "string") {
-        const parsedVal = parseFloat(patientsRaw.replace(/[^\d.-]/g, ""))
-        if (!isNaN(parsedVal)) demandValue = parsedVal
+        const parsedVal = parseFloat(patientsRaw.replace(/[^\d.-]/g, ""));
+        if (!isNaN(parsedVal)) demandValue = parsedVal;
       }
+
+      const year =
+        dateISO && !isNaN(Date.parse(dateISO))
+          ? new Date(dateISO).getFullYear()
+          : undefined;
 
       return {
         id: i,
@@ -138,16 +143,20 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
         date: dateISO,
         hour: hour24,
         demand_value: demandValue,
-        year: dateISO ? new Date(dateISO).getFullYear() : undefined,
-      }
-    })
+        year,
+      };
+    });
 
-    // ✅ Debug: show parsed results
-    console.log("📘 Parsed demand rows (first 20):", parsed.slice(0, 20))
+    // Debug: show parsed results
+    console.log("📘 Parsed demand rows (first 20):", parsed.slice(0, 20));
     console.log(
       "📅 Unique parsed dates:",
       Array.from(new Set(parsed.map((r) => r.date))).sort()
-    )
+    );
+    console.log(
+      "🗓️ Parsed year distribution:",
+      Array.from(new Set(parsed.map((r) => r.year))).sort()
+    );
 
     setRows(parsed)
     updateData("demand", parsed)
@@ -158,50 +167,48 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
 
   // 🧠 Normalized data grouped by Month + DayOfWeek
   const normalizedData = useMemo(() => {
-    if (!selectedYear) return []
+    if (!selectedYear) return [];
 
-    // Filter by year and series
-    const filtered = rows.filter((r) => r.year?.toString() === selectedYear)
-    if (filtered.length === 0) {
-      console.warn("⚠️ No data found for selected year:", selectedYear)
-      return []
-    }
+    // 🧩 Filter by selected year
+    const filtered = rows.filter(
+      (r) => String(r.year) === String(selectedYear)
+    );
 
-    const groups: Record<string, { total: number; count: number }> = {}
+    console.log("🧩 Filtered rows for year", selectedYear, ":", filtered.length);
+
+    if (filtered.length === 0) return [];
+
+    const groups: Record<string, { total: number; count: number }> = {};
 
     filtered.forEach((r) => {
-      const d = new Date(r.date)
-      const month = d.getMonth() + 1 // 1–12
-      const dayOfWeek = d.getDay() // 0=Sun..6=Sat
-      const seriesKey = selectedSeries === "facility" ? r.facility : r.unit
-      const key = `${seriesKey}__${month}__${dayOfWeek}`
+      const d = new Date(r.date);
+      if (isNaN(d.getTime())) return;
 
-      if (!groups[key]) groups[key] = { total: 0, count: 0 }
-      groups[key].total += r.demand_value
-      groups[key].count += 1
-    })
+      const month = d.getMonth() + 1; // 1–12
+      const dayOfWeek = d.getDay(); // 0=Sun..6=Sat
+      const seriesKey = selectedSeries === "facility" ? r.facility : r.unit;
+      const key = `${seriesKey}__${month}__${dayOfWeek}`;
 
-    console.log("🧮 Normalization groups:", Object.keys(groups).length)
-    console.log(
-      "📊 Sample group averages:",
-      Object.entries(groups)
-        .slice(0, 10)
-        .map(([k, v]) => ({ k, avg: v.total / v.count }))
-    )
+      if (!groups[key]) groups[key] = { total: 0, count: 0 };
+      groups[key].total += r.demand_value;
+      groups[key].count += 1;
+    });
+
+    console.log("🧮 Normalization groups:", Object.keys(groups).length);
 
     const normalized = Object.entries(groups).map(([key, v]) => {
-      const [seriesKey, month, dayOfWeek] = key.split("__")
+      const [seriesKey, month, dayOfWeek] = key.split("__");
       return {
         series: seriesKey,
         month: Number(month),
         dayOfWeek: Number(dayOfWeek),
         avgDemand: v.total / v.count,
-      }
-    })
+      };
+    });
 
-    console.log("✅ Normalized data sample:", normalized.slice(0, 10))
-    return normalized
-  }, [rows, selectedYear, selectedSeries])
+    console.log("✅ Normalized data sample:", normalized.slice(0, 10));
+    return normalized;
+  }, [rows, selectedYear, selectedSeries]);
 
 
 
@@ -209,6 +216,12 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
 
   // ✅ Log what’s about to be sent to the chart
   console.log("🎨 Chart data sample:", normalizedData.slice(0, 10))
+
+  {normalizedData.length === 0 && selectedYear && (
+  <p className="text-red-500 text-sm">
+    ⚠️ No normalized data found for {selectedYear}. Check parsed year values in console.
+  </p>
+)}
 
   return (
     <Card className="p-4 space-y-4">
@@ -305,6 +318,12 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
             </tbody>
           </table>
         </div>
+      )}
+
+      {normalizedData.length === 0 && selectedYear && (
+        <p className="text-red-500 text-sm">
+          ⚠️ No normalized data found for {selectedYear}. Check parsed year values in console.
+        </p>
       )}
 
       {/* 📊 Normalized Chart: X = Month, Lines = Day of Week */}
