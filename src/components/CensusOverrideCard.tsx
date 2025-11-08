@@ -238,7 +238,10 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
     if (selectedDay) {
       base = base.filter((r) => {
         const [year, month, day] = r.date.split("-");
-        return `${month}-${day}` === selectedDay;
+        return (
+          String(r.year) === String(selectedYear) &&
+          `${month}-${day}` === selectedDay
+        );
       });
     }
     return base;
@@ -327,10 +330,15 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
               type="date"
               title="Select specific day"
               className="border rounded p-1 text-sm"
-              value={selectedDay ? `${selectedYear}-${selectedDay}` : ""}
+              value={
+                selectedDay && selectedYear
+                  ? `${selectedYear}-${selectedDay}` 
+                  : ""
+              }
               onChange={(e) => {
                 const val = e.target.value;
                 if (val) {
+                  // Convert from yyyy-MM-dd → MM-DD
                   const [, month, day] = val.split("-");
                   setSelectedDay(`${month}-${day}`);
                 } else {
@@ -340,7 +348,6 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
               min={`${selectedYear || 2024}-01-01`}
               max={`${selectedYear || 2025}-12-31`}
             />
-
             <button
               onClick={() => setSelectedDay("")}
               disabled={!selectedDay}
@@ -356,7 +363,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
         </div>
       </div>
     </div>
-    
+
       {/* 🧾 Table with pagination */}
       {rows.length === 0 ? (
         <p className="text-gray-500">Upload a file to display demand data.</p>
