@@ -55,6 +55,17 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
   }
   const ccPlaceholder = (i: number) => `CC-${String(i + 1).padStart(3, "0")}`
 
+  // Case/space-insensitive header index lookup
+  const findCol = (hdr: string[], names: string[]) => {
+    const norm = (s: any) => String(s ?? "").trim().toLowerCase()
+    const H = hdr.map(norm)
+    for (const name of names) {
+      const i = H.indexOf(norm(name))
+      if (i !== -1) return i
+    }
+    return -1
+  }
+
   const normalizeRows = (raw: any[]): ExcelRow[] => {
     const unitSeen = new Map<string, number>()
     let ccCounter = 0
@@ -224,24 +235,107 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
             setUploading(true)
             const reader = new FileReader()
             reader.onload = (event) => {
-              const data = new Uint8Array(event.target?.result as ArrayBuffer)
-              const workbook = XLSX.read(data, { type: "array" })
-              const sheetName = workbook.SheetNames[0]
-              const worksheet = workbook.Sheets[sheetName]
-              const json = XLSX.utils.sheet_to_json(worksheet, { defval: "" })
-              const normalized = normalizeRows(json)
-              setRows(normalized)
-              setFileLoaded(true)
-              const uFacilities = Array.from(new Set(normalized.map((r) => r.Facility))).filter(
-                Boolean
-              )
-              setFacilities(uFacilities)
-              setFunctionalAreas([])
-              setUnits([])
-              setCostCenters([])
-              setForm({ facility: "", functionalArea: "", unit: "", costCenter: "", bedCount: "" })
-              setWarning(null)
-              setUploading(false)
+              try {
+                const data = new Uint8Array(event.target?.result as ArrayBuffer)
+                const workbook = XLSX.read(data, { type: "array" })
+                const sheetName = workbook.SheetNames[0]
+                const worksheet = workbook.Sheets[sheetName]
+
+                // --- Parse Excel header-agnostically ---
+                const rowsArray = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: "" })
+                if (!rowsArray.length) throw new Error("Sheet is empty or unreadable")
+                const header = rowsArray[0].map((h: string) => String(h).trim().toLowerCase())
+
+                // helper to find column indices regardless of spacing/case
+                const findCol = (names: string[]) =>
+                  header.findIndex((h: string) => names.includes(h.toLowerCase()))
+
+                const iFacility = findCol(["facility"])
+                const iUnit = findCol(["unit", "department", "dept"])
+                const iFA = findCol(["functional area", "functional_area", "functionalarea"])
+                const iCC = findCol(["cost center", "cc", "costcenter"])
+                const iCap = findCol(["capacity", "beds", "bed count", "bedcount"])
+
+                if (iFacility === -1 || iUnit === -1 || iFA === -1) {
+                  throw new Error("Missing required columns: Facility, Unit, or Functional Area")
+                }
+
+                const rawRows = rowsArray.slice(1).filter((r) => r && r.length)
+                let ccCounter = 0
+                const unitSeen = new Map<string, number>()
+
+                const normalized = rawRows
+                  .map((r) => {
+                    const Facility = String(r[iFacility] ?? "").trim()
+                    const Unit = String(r[iUnit] ?? "").trim()
+                    const FunctionalArea = String(r[iFA] ?? "").trim()
+                    if (!Facility || !Unit) return null
+
+                    // Cost Center placeholder
+                    let cc =
+                      iCC !== -1 ? String(r[iCC] ?? "").trim() : ""
+                    if (!cc) {
+                      if (!unitSeen.has(Unit)) unitSeen.set(Unit, ccCounter++)
+                      cc = `CC-${String(unitSeen.get(Unit)! + 1).padStart(3, "0")}`
+                    }
+
+                    // Capacity placeholder
+                    let cap =
+                      iCap !== -1 ? (r[iCap] ?? "") : ""
+                    const Capacity =
+                      cap === "" ? capacityPlaceholder(Unit)
+                      : typeof cap === "string" ? Number(cap) || cap
+                      : cap
+
+                    return {
+                      Facility,
+                      Unit,
+                      "Functional Area": FunctionalArea,
+                      "Cost Center": cc,
+                      Capacity,
+                    }
+                  })
+                  .filter(Boolean) as ExcelRow[]
+
+                if (!normalized.length)
+                  throw new Error("No valid rows found after parsing.")
+
+                setRows(normalized)
+                setFileLoaded(true)
+                const uniqueFacilities = Array.from(new Set(normalized.map((r) => r.Facility))).filter(
+                  Boolean
+                )
+                setFacilities(uniqueFacilities)
+                setFunctionalAreas([])
+                setUnits([])
+                setCostCenters([])
+                setForm({
+                  facility: "",
+                  functionalArea: "",
+                  unit: "",
+                  costCenter: "",
+                  bedCount: "",
+                })
+                setWarning(`✅ Loaded ${normalized.length} rows from "${sheetName}".`)
+              } catch (err: any) {
+                console.error("Excel parse error:", err)
+                setRows([])
+                setFacilities([])
+                setFunctionalAreas([])
+                setUnits([])
+                setCostCenters([])
+                setForm({
+                  facility: "",
+                  functionalArea: "",
+                  unit: "",
+                  costCenter: "",
+                  bedCount: "",
+                })
+                setFileLoaded(false)
+                setWarning(`❌ ${err?.message || "Failed to read Excel file."}`)
+              } finally {
+                setUploading(false)
+              }
             }
             reader.readAsArrayBuffer(selectedFile)
           }}
