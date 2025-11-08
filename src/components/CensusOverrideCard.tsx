@@ -156,35 +156,34 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
   const years = Array.from(new Set(rows.map((r) => r.year))).filter(Boolean)
   const seriesOptions = ["facility", "unit"]
 
-  // 🧠 Normalized aggregated data
+  // 🧠 Normalized data grouped by actual date
   const normalizedData = useMemo(() => {
     if (!selectedYear) return []
 
+    // Filter by selected year and group per series + date
     const filtered = rows.filter((r) => r.year?.toString() === selectedYear)
     const groups: Record<string, { total: number; count: number }> = {}
 
     filtered.forEach((r) => {
-      const d = new Date(r.date)
-      const month = d.getMonth() + 1
-      const dow = d.getDay() // 0-6
       const seriesKey = selectedSeries === "facility" ? r.facility : r.unit
-      const key = `${seriesKey}-${month}-${dow}`
+      const key = `${seriesKey}-${r.date}`
 
       if (!groups[key]) groups[key] = { total: 0, count: 0 }
       groups[key].total += r.demand_value
       groups[key].count += 1
     })
 
+    // Return one point per series per date (avg per day)
     return Object.entries(groups).map(([key, v]) => {
-      const [seriesKey, month, dow] = key.split("-")
+      const [seriesKey, date] = key.split("-")
       return {
         series: seriesKey,
-        month: Number(month),
-        dayOfWeek: Number(dow),
+        date,
         avgDemand: v.total / v.count,
       }
     })
   }, [rows, selectedYear, selectedSeries])
+
 
   const colors = ["#4f46e5", "#22c55e", "#eab308", "#ef4444", "#06b6d4"]
 
