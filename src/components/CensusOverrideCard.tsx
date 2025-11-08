@@ -165,11 +165,11 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
   const years = Array.from(new Set(rows.map((r) => r.year))).filter(Boolean)
   const seriesOptions = ["facility", "unit"]
 
-  // 🧠 Normalized data grouped by Month + DayOfWeek
+  // Normalized data grouped by Month + DayOfWeek
   const normalizedData = useMemo(() => {
     if (!selectedYear) return [];
 
-    // 🧩 Filter by selected year
+    // Filter by selected year
     const filtered = rows.filter(
       (r) => String(r.year) === String(selectedYear)
     );
@@ -214,7 +214,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
 
   const colors = ["#4f46e5", "#22c55e", "#eab308", "#ef4444", "#06b6d4"]
 
-  // ✅ Log what’s about to be sent to the chart
+  // Log what’s about to be sent to the chart
   console.log("🎨 Chart data sample:", normalizedData.slice(0, 10))
 
   {normalizedData.length === 0 && selectedYear && (
@@ -227,7 +227,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
   // 🗓️ Day filter + pagination combined
   const [selectedDay, setSelectedDay] = useState<string>("");
   const [page, setPage] = useState(1);
-  const rowsPerPage = 200;
+  const rowsPerPage = 24;
 
   // Combine filtering (by year + day)
   const filteredRows = useMemo(() => {
@@ -260,8 +260,6 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
     `📋 Table visible rows: ${visibleRows.length} / ${filteredRows.length} (page ${page}/${totalPages})`
   );
 
-
-  
   return (
     <Card className="p-4 space-y-4">
       <div className="flex justify-between items-center mb-3">
@@ -276,7 +274,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
         />
       </div>
 
-      {/* 🧭 Filter controls */}
+      {/* Filter controls */}
       <div className="flex gap-4 mb-4">
         <div>
           <label
@@ -379,19 +377,27 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
               min={`${selectedYear || 2024}-01-01`}
               max={`${selectedYear || 2025}-12-31`}
             />
-            {selectedDay && (
-              <button
-                onClick={() => setSelectedDay("")}
-                className="text-xs text-red-500 border border-red-300 rounded px-2 py-1 hover:bg-red-50 transition"
-                title="Clear selected day"
-              >
-                Clear
-              </button>
-            )}
+
+            <button
+              onClick={() => setSelectedDay("")}
+              disabled={!selectedDay}
+              className={`text-xs px-2 py-1 border rounded transition ${
+                selectedDay
+                  ? "text-red-500 border-red-300 hover:bg-red-50"
+                  : "text-gray-400 border-gray-200 cursor-not-allowed"
+              }`}
+              title={
+                selectedDay
+                  ? "Clear selected day"
+                  : "No day selected to clear"
+              }
+            >
+              Clear
+            </button>
         </div>
       </div>
     </div>
-    
+
       {/* 🧾 Table with pagination */}
       {rows.length === 0 ? (
         <p className="text-gray-500">Upload a file to display demand data.</p>
@@ -461,7 +467,6 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
         </p>
       )}
 
-
       {/* ⚠️ Empty normalized data warning */}
       {normalizedData.length === 0 && selectedYear && (
         <p className="text-red-500 text-sm">
@@ -469,75 +474,93 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
         </p>
       )}
 
-      {/* 📊 Normalized Chart: X = Month, Lines = Day of Week */}
-      {normalizedData.length >=  0 && (
-        <div className="mt-6 h-96">
+      {/* 📊 Normalized Chart */}
+      {normalizedData.length > 0 && (
+        <div className="mt-6 h-80">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
-              data={normalizedData}
-              margin={{ top: 10, right: 20, left: 10, bottom: 30 }}
+              data={
+                selectedDay
+                  ? rows.filter((r) => r.date === selectedDay) 
+                  : normalizedData 
+              }
             >
               <CartesianGrid strokeDasharray="3 3" />
+
+              {/* --- X Axis --- */}
               <XAxis
-                dataKey="month"
-                type="number"
-                domain={[1, 12]}
-                tickFormatter={(m) =>
-                  new Date(2024, m - 1, 1).toLocaleString(undefined, {
-                    month: "short",
-                  })
+                dataKey={selectedDay ? "hour" : "date"}
+                tickFormatter={(v) =>
+                  selectedDay
+                    ? v // show 00:00–23:00
+                    : new Date(v).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                      })
                 }
                 label={{
-                  value: "Month",
+                  value: selectedDay ? "Hour of Day" : "Date",
                   position: "insideBottom",
                   offset: -5,
                 }}
               />
+
+              {/* --- Y Axis --- */}
               <YAxis
                 label={{
                   value: "Average Demand",
                   angle: -90,
                   position: "insideLeft",
                 }}
-              />
-              <Tooltip
-                formatter={(v: any) =>
-                  typeof v === "number" ? v.toFixed(2) : String(v)
-                }
-                labelFormatter={(m) =>
-                  `Month: ${new Date(2024, m - 1, 1).toLocaleString(undefined, {
-                    month: "long",
-                  })}`
+                domain={["auto", "auto"]}
+                tickFormatter={(v: number | string) =>
+                  typeof v === "number" ? v.toFixed(0) : v
                 }
               />
 
+              <Tooltip
+                labelFormatter={(v) =>
+                  selectedDay
+                    ? `Hour ${v}`
+                    : new Date(v).toLocaleDateString(undefined, {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                      })
+                }
+              />
               <Legend />
-              {Array.from(new Set(normalizedData.map((r) => r.dayOfWeek))).map(
-                (dow, idx) => (
-                  <Line
-                    key={dow}
-                    type="monotone"
-                    dataKey="avgDemand"
-                    name={["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][dow]}
-                    data={normalizedData.filter((r) => r.dayOfWeek === dow)}
-                    stroke={[
-                      "#ef4444", // Sunday
-                      "#f97316", // Monday
-                      "#eab308", // Tuesday
-                      "#22c55e", // Wednesday
-                      "#06b6d4", // Thursday
-                      "#3b82f6", // Friday
-                      "#8b5cf6", // Saturday
-                    ][idx % 7]}
-                    dot={false}
-                  />
+
+              {/* --- Line(s) --- */}
+              {selectedDay ? (
+                // Single line for that day
+                <Line
+                  type="monotone"
+                  dataKey="demand_value"
+                  name={`Demand on ${selectedDay}`}
+                  stroke="#4f46e5"
+                  dot
+                />
+              ) : (
+                // Aggregated by series for the selected year
+                Array.from(new Set(normalizedData.map((r) => r.series))).map(
+                  (series, idx) => (
+                    <Line
+                      key={series}
+                      type="monotone"
+                      dataKey="avgDemand"
+                      name={`${series}`}
+                      data={normalizedData.filter((r) => r.series === series)}
+                      stroke={["#4f46e5", "#22c55e", "#eab308", "#ef4444", "#06b6d4"][idx % 5]}
+                      dot={false}
+                    />
+                  )
                 )
               )}
             </LineChart>
           </ResponsiveContainer>
         </div>
       )}
-
 
       <div className="flex justify-between mt-6">
         <button className="btn btn-ghost" onClick={onPrev}>
