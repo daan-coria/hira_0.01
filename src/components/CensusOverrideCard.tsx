@@ -14,30 +14,28 @@ import {
   ResponsiveContainer,
 } from "recharts"
 
-// --- Helper to convert Excel serial (e.g., 45559) to YYYY-MM-DD ---
+// --- Excel date serial -> ISO string (YYYY-MM-DD) ---
 function excelSerialToISODate(v: unknown): string {
   if (typeof v === "number") {
     const base = Date.UTC(1899, 11, 30)
     const ms = v * 86400 * 1000
     const d = new Date(base + ms)
-    const yyyy = d.getUTCFullYear()
-    const mm = String(d.getUTCMonth() + 1).padStart(2, "0")
-    const dd = String(d.getUTCDate()).padStart(2, "0")
-    return `${yyyy}-${mm}-${dd}`
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(
+      d.getUTCDate()
+    ).padStart(2, "0")}`
   }
   if (typeof v === "string") {
     const d = new Date(v)
     if (!isNaN(d.getTime())) {
-      const yyyy = d.getFullYear()
-      const mm = String(d.getMonth() + 1).padStart(2, "0")
-      const dd = String(d.getDate()).padStart(2, "0")
-      return `${yyyy}-${mm}-${dd}`
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+        d.getDate()
+      ).padStart(2, "0")}`
     }
   }
   return ""
 }
 
-// --- Helper to convert Excel time (fraction or "1:00 AM") to 24h "HH:MM" ---
+// --- Excel time (fraction or AM/PM string) -> 24h HH:MM ---
 function excelTimeToHHMM(v: unknown): string {
   if (typeof v === "number") {
     const totalSec = Math.round((v % 1) * 86400)
@@ -59,10 +57,11 @@ function excelTimeToHHMM(v: unknown): string {
   return ""
 }
 
-// --- Data Type ---
+// --- Data type ---
 type DemandRow = {
   id?: number
   facility: string
+  unit: string
   cc: string
   date: string
   hour: string
@@ -80,6 +79,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
     if (Array.isArray(data?.demand)) setRows(data.demand)
   }, [data?.demand])
 
+  // --- Excel Upload Handler ---
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -89,23 +89,27 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
     const sheet = workbook.Sheets[workbook.SheetNames[0]]
     const rowsRaw = XLSX.utils.sheet_to_json(sheet, { defval: "" }) as any[]
 
-    // ✅ Exact mapping to your Excel columns
     const parsed: DemandRow[] = rowsRaw.map((r: any, i: number) => {
-      const fac = r.fac ?? ""
+      const facility = r.fac ?? ""
+      const unit = r.unit ?? ""
       const eventDate = r.event_date ?? ""
       const hourStart = r.hour_start ?? ""
-      const patients = r.patients_present ?? 0
+      const patientsRaw = r.patients_present ?? 0
 
       const dateISO = excelSerialToISODate(eventDate)
       const hour24 = excelTimeToHHMM(hourStart)
 
+      // Force numeric conversion for Demand Value
+      const demandValue = Number(patientsRaw) || parseFloat(String(patientsRaw)) || 0
+
       return {
         id: i,
-        facility: String(fac).trim(),
-        cc: "", // not available in file
+        facility: String(facility).trim(),
+        unit: String(unit).trim(),
+        cc: "",
         date: dateISO,
         hour: hour24,
-        demand_value: Number(patients) || 0,
+        demand_value: demandValue,
         year: dateISO ? new Date(dateISO).getFullYear() : undefined,
       }
     })
@@ -114,12 +118,9 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
     updateData("demand", parsed)
   }
 
-  // --- Prepare chart ---
+  // --- Chart Data ---
   const chartData = rows.map((r) => ({
-    x: new Date(r.date).toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-    }),
+    x: new Date(r.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
     year: r.year,
     demand_value: r.demand_value,
   }))
@@ -156,6 +157,11 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                   </th>
                   <th className="px-3 py-2 border text-center">
                     <div className="flex items-center justify-center gap-1">
+                      Unit <InfoButton text="Specific nursing unit or area." />
+                    </div>
+                  </th>
+                  <th className="px-3 py-2 border text-center">
+                    <div className="flex items-center justify-center gap-1">
                       CC <InfoButton text="Cost center or unit code." />
                     </div>
                   </th>
@@ -185,6 +191,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                     className="odd:bg-white even:bg-gray-50 hover:bg-gray-100 transition-colors"
                   >
                     <td className="border px-2 py-1 text-center">{row.facility}</td>
+                    <td className="border px-2 py-1 text-center">{row.unit}</td>
                     <td className="border px-2 py-1 text-center">{row.cc}</td>
                     <td className="border px-2 py-1 text-center">{row.date}</td>
                     <td className="border px-2 py-1 text-center">{row.hour}</td>
