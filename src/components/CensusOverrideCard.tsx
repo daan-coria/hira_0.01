@@ -222,6 +222,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
     ⚠️ No normalized data found for {selectedYear}. Check parsed year values in console.
   </p>
 )}
+  console.log("📋 Table visible rows:", rows.filter(r => String(r.year) === String(selectedYear)).length);
 
   return (
     <Card className="p-4 space-y-4">
@@ -302,19 +303,24 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
               </tr>
             </thead>
             <tbody>
-              {rows.slice(0, 50).map((row, i) => (
-                <tr
-                  key={row.id || i}
-                  className="odd:bg-white even:bg-gray-50 hover:bg-gray-100 transition-colors"
-                >
-                  <td className="border px-2 py-1 text-center">{row.facility}</td>
-                  <td className="border px-2 py-1 text-center">{row.unit}</td>
-                  <td className="border px-2 py-1 text-center">{row.cc}</td>
-                  <td className="border px-2 py-1 text-center">{row.date}</td>
-                  <td className="border px-2 py-1 text-center">{row.hour}</td>
-                  <td className="border px-2 py-1 text-right">{row.demand_value}</td>
-                </tr>
-              ))}
+              {rows
+                .filter((r) =>
+                  selectedYear ? String(r.year) === String(selectedYear) : true
+                )
+                .slice(0, 100) // show first 100 for performance
+                .map((row, i) => (
+                  <tr
+                    key={row.id || i}
+                    className="odd:bg-white even:bg-gray-50 hover:bg-gray-100 transition-colors"
+                  >
+                    <td className="border px-2 py-1 text-center">{row.facility}</td>
+                    <td className="border px-2 py-1 text-center">{row.unit}</td>
+                    <td className="border px-2 py-1 text-center">{row.cc}</td>
+                    <td className="border px-2 py-1 text-center">{row.date}</td>
+                    <td className="border px-2 py-1 text-center">{row.hour}</td>
+                    <td className="border px-2 py-1 text-right">{row.demand_value}</td>
+                  </tr>
+                ))}
             </tbody>
           </table>
         </div>
