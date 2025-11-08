@@ -274,54 +274,6 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
         />
       </div>
 
-      {/* Filter controls */}
-      <div className="flex gap-4 mb-4">
-        <div>
-          <label
-            htmlFor="yearSelect"
-            className="block text-xs font-medium text-gray-500 mb-1"
-          >
-            Year
-          </label>
-          <select
-            id="yearSelect"
-            title="Select Year"
-            className="border rounded p-1 text-sm"
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(e.target.value)}
-          >
-            <option value="">Select year</option>
-            {years.map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label
-            htmlFor="seriesSelect"
-            className="block text-xs font-medium text-gray-500 mb-1"
-          >
-            Series
-          </label>
-          <select
-            id="seriesSelect"
-            title="Select Series"
-            className="border rounded p-1 text-sm"
-            value={selectedSeries}
-            onChange={(e) => setSelectedSeries(e.target.value)}
-          >
-            {seriesOptions.map((s) => (
-              <option key={s} value={s}>
-                {s.charAt(0).toUpperCase() + s.slice(1)}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-      
       <div className="flex flex-wrap gap-4 mb-4 items-end">
         {/* Year filter */}
         <div>
@@ -397,7 +349,6 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
         </div>
       </div>
     </div>
-
       {/* 🧾 Table with pagination */}
       {rows.length === 0 ? (
         <p className="text-gray-500">Upload a file to display demand data.</p>
