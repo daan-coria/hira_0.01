@@ -156,44 +156,53 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
   const years = Array.from(new Set(rows.map((r) => r.year))).filter(Boolean)
   const seriesOptions = ["facility", "unit"]
 
-  // 🧠 Normalized data grouped by actual date
+  // 🧠 Normalized data grouped by Month + DayOfWeek
   const normalizedData = useMemo(() => {
     if (!selectedYear) return []
 
+    // Filter by year and series
     const filtered = rows.filter((r) => r.year?.toString() === selectedYear)
+    if (filtered.length === 0) {
+      console.warn("⚠️ No data found for selected year:", selectedYear)
+      return []
+    }
+
     const groups: Record<string, { total: number; count: number }> = {}
 
     filtered.forEach((r) => {
+      const d = new Date(r.date)
+      const month = d.getMonth() + 1 // 1–12
+      const dayOfWeek = d.getDay() // 0=Sun..6=Sat
       const seriesKey = selectedSeries === "facility" ? r.facility : r.unit
-      // ✅ use "__" separator instead of "-"
-      const key = `${seriesKey}__${r.date}`
+      const key = `${seriesKey}__${month}__${dayOfWeek}`
 
       if (!groups[key]) groups[key] = { total: 0, count: 0 }
       groups[key].total += r.demand_value
       groups[key].count += 1
     })
 
-    console.log("🧮 Normalization groups built:", Object.keys(groups).length)
+    console.log("🧮 Normalization groups:", Object.keys(groups).length)
     console.log(
-      "📊 Sample groups:",
+      "📊 Sample group averages:",
       Object.entries(groups)
-        .slice(0, 5)
-        .map(([k, v]) => ({ key: k, avg: v.total / v.count }))
+        .slice(0, 10)
+        .map(([k, v]) => ({ k, avg: v.total / v.count }))
     )
 
     const normalized = Object.entries(groups).map(([key, v]) => {
-      // ✅ split safely using "__"
-      const [seriesKey, date] = key.split("__")
+      const [seriesKey, month, dayOfWeek] = key.split("__")
       return {
         series: seriesKey,
-        date,
+        month: Number(month),
+        dayOfWeek: Number(dayOfWeek),
         avgDemand: v.total / v.count,
       }
     })
 
-  console.log("✅ Normalized data (first 10 points):", normalized.slice(0, 10))
-  return normalized
-}, [rows, selectedYear, selectedSeries])
+    console.log("✅ Normalized data sample:", normalized.slice(0, 10))
+    return normalized
+  }, [rows, selectedYear, selectedSeries])
+
 
 
   const colors = ["#4f46e5", "#22c55e", "#eab308", "#ef4444", "#06b6d4"]
@@ -298,22 +307,26 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
         </div>
       )}
 
-      {/* 📊 Normalized Chart */}
+      {/* 📊 Normalized Chart: X = Month, Lines = Day of Week */}
       {normalizedData.length > 0 && (
-        <div className="mt-6 h-80">
+        <div className="mt-6 h-96">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={normalizedData}>
+            <LineChart
+              data={normalizedData}
+              margin={{ top: 10, right: 20, left: 10, bottom: 30 }}
+            >
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis
-                dataKey="date"
-                tickFormatter={(v) =>
-                  new Date(v).toLocaleDateString(undefined, {
+                dataKey="month"
+                type="number"
+                domain={[1, 12]}
+                tickFormatter={(m) =>
+                  new Date(2024, m - 1, 1).toLocaleString(undefined, {
                     month: "short",
-                    day: "numeric",
                   })
                 }
                 label={{
-                  value: "Date",
+                  value: "Month",
                   position: "insideBottom",
                   offset: -5,
                 }}
@@ -326,24 +339,34 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                 }}
               />
               <Tooltip
-                labelFormatter={(v) =>
-                  new Date(v).toLocaleDateString(undefined, {
-                    weekday: "short",
-                    month: "short",
-                    day: "numeric",
-                  })
+                formatter={(v: any) =>
+                  typeof v === "number" ? v.toFixed(2) : String(v)
+                }
+                labelFormatter={(m) =>
+                  `Month: ${new Date(2024, m - 1, 1).toLocaleString(undefined, {
+                    month: "long",
+                  })}`
                 }
               />
+
               <Legend />
-              {Array.from(new Set(normalizedData.map((r) => r.series))).map(
-                (series, idx) => (
+              {Array.from(new Set(normalizedData.map((r) => r.dayOfWeek))).map(
+                (dow, idx) => (
                   <Line
-                    key={series}
+                    key={dow}
                     type="monotone"
                     dataKey="avgDemand"
-                    name={`${series}`}
-                    data={normalizedData.filter((r) => r.series === series)}
-                    stroke={colors[idx % colors.length]}
+                    name={["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][dow]}
+                    data={normalizedData.filter((r) => r.dayOfWeek === dow)}
+                    stroke={[
+                      "#ef4444", // Sunday
+                      "#f97316", // Monday
+                      "#eab308", // Tuesday
+                      "#22c55e", // Wednesday
+                      "#06b6d4", // Thursday
+                      "#3b82f6", // Friday
+                      "#8b5cf6", // Saturday
+                    ][idx % 7]}
                     dot={false}
                   />
                 )
@@ -352,6 +375,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
           </ResponsiveContainer>
         </div>
       )}
+
 
       <div className="flex justify-between mt-6">
         <button className="btn btn-ghost" onClick={onPrev}>
