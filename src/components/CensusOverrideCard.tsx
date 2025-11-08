@@ -14,7 +14,7 @@ import {
   ResponsiveContainer,
 } from "recharts"
 
-// Converts Excel serial date (days since 1899-12-30) → YYYY-MM-DD
+// --- Helper to convert Excel serial (e.g., 45559) to YYYY-MM-DD ---
 function excelSerialToISODate(v: unknown): string {
   if (typeof v === "number") {
     const base = Date.UTC(1899, 11, 30)
@@ -37,7 +37,7 @@ function excelSerialToISODate(v: unknown): string {
   return ""
 }
 
-// Converts Excel time (fraction of day or "h:mm:ss AM/PM") → HH:MM 24-hour
+// --- Helper to convert Excel time (fraction or "1:00 AM") to 24h "HH:MM" ---
 function excelTimeToHHMM(v: unknown): string {
   if (typeof v === "number") {
     const totalSec = Math.round((v % 1) * 86400)
@@ -59,6 +59,7 @@ function excelTimeToHHMM(v: unknown): string {
   return ""
 }
 
+// --- Data Type ---
 type DemandRow = {
   id?: number
   facility: string
@@ -88,20 +89,20 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
     const sheet = workbook.Sheets[workbook.SheetNames[0]]
     const rowsRaw = XLSX.utils.sheet_to_json(sheet, { defval: "" }) as any[]
 
+    // ✅ Exact mapping to your Excel columns
     const parsed: DemandRow[] = rowsRaw.map((r: any, i: number) => {
-      const unit = r.unit ?? ""
       const fac = r.fac ?? ""
-      const eventDate = r.event_date ?? r.Date ?? ""
-      const hourStart = r.hour_start ?? r.Hour ?? ""
-      const patients = r.patients_present ?? r.Demand ?? 0
+      const eventDate = r.event_date ?? ""
+      const hourStart = r.hour_start ?? ""
+      const patients = r.patients_present ?? 0
 
       const dateISO = excelSerialToISODate(eventDate)
       const hour24 = excelTimeToHHMM(hourStart)
 
       return {
         id: i,
-        facility: String(unit || fac).trim(),
-        cc: "",
+        facility: String(fac).trim(),
+        cc: "", // not available in file
         date: dateISO,
         hour: hour24,
         demand_value: Number(patients) || 0,
@@ -113,6 +114,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
     updateData("demand", parsed)
   }
 
+  // --- Prepare chart ---
   const chartData = rows.map((r) => ({
     x: new Date(r.date).toLocaleDateString(undefined, {
       month: "short",
@@ -175,9 +177,13 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                   </th>
                 </tr>
               </thead>
+
               <tbody>
                 {rows.map((row, i) => (
-                  <tr key={row.id || i} className="odd:bg-white even:bg-gray-50">
+                  <tr
+                    key={row.id || i}
+                    className="odd:bg-white even:bg-gray-50 hover:bg-gray-100 transition-colors"
+                  >
                     <td className="border px-2 py-1 text-center">{row.facility}</td>
                     <td className="border px-2 py-1 text-center">{row.cc}</td>
                     <td className="border px-2 py-1 text-center">{row.date}</td>
