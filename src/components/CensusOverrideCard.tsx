@@ -223,9 +223,9 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
   </p>
 )}
   console.log("📋 Table visible rows:", rows.filter(r => String(r.year) === String(selectedYear)).length);
-  // --- Pagination logic (place above the return) ---
+  // --- Pagination logic ---
   const [page, setPage] = useState(1);
-  const rowsPerPage = 200;
+  const rowsPerPage = 24;
 
   const filteredRows = useMemo(() => {
     return rows.filter((r) =>
