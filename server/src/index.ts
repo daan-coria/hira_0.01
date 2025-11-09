@@ -1,10 +1,12 @@
-import { Express } from "express"
-import health from "./health"
-import test from "./test"
-import ai from "./ai"
+import express from "express"
+import cors from "cors"
+import registerRoutes from "./routes/index"
 
-export default function registerRoutes(app: Express) {
-  app.use("/api/v1/health", health)
-  app.use("/api/v1/test", test)
-  app.use("/api/v1/ai", ai)
-}
+const app = express()
+app.use(cors())
+app.use(express.json())
+
+registerRoutes(app)
+
+const PORT = process.env.PORT || 3001
+app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`))

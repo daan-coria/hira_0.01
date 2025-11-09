@@ -71,6 +71,8 @@ type AppContextType = {
   setToolType: (type: "IP" | "ED") => void
   currentStep: number
   setCurrentStep: React.Dispatch<React.SetStateAction<number>>
+  /** 🧠 New: Returns all FE values in one snapshot for AI agent */
+  getFrontendSnapshot: () => Record<string, any>
 }
 
 // -----------------------
@@ -179,55 +181,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
         gapSummary,
       ] = await Promise.all([
         fetch(`${basePath}/resource-input.json`)
-          .then((r) =>
-            r.ok ? r.json() : Promise.reject("resource-input.json not found")
-          )
-          .catch((err) => {
-            console.warn("⚠️ Missing resource-input.json:", err)
-            return []
-          }),
+          .then((r) => (r.ok ? r.json() : []))
+          .catch(() => []),
         fetch(`${basePath}/availability-config.json`)
-          .then((r) =>
-            r.ok
-              ? r.json()
-              : Promise.reject("availability-config.json not found")
-          )
-          .catch((err) => {
-            console.warn("⚠️ Missing availability-config.json:", err)
-            return []
-          }),
+          .then((r) => (r.ok ? r.json() : []))
+          .catch(() => []),
         fetch(`${basePath}/staffing-config.json`)
-          .then((r) =>
-            r.ok ? r.json() : Promise.reject("staffing-config.json not found")
-          )
-          .catch((err) => {
-            console.warn("⚠️ Missing staffing-config.json:", err)
-            return []
-          }),
+          .then((r) => (r.ok ? r.json() : []))
+          .catch(() => []),
         fetch(`${basePath}/shift-config.json`)
-          .then((r) =>
-            r.ok ? r.json() : Promise.reject("shift-config.json not found")
-          )
-          .catch((err) => {
-            console.warn("⚠️ Missing shift-config.json:", err)
-            return []
-          }),
+          .then((r) => (r.ok ? r.json() : []))
+          .catch(() => []),
         fetch(`${basePath}/census-override.json`)
-          .then((r) =>
-            r.ok ? r.json() : Promise.reject("census-override.json not found")
-          )
-          .catch((err) => {
-            console.warn("⚠️ Missing census-override.json:", err)
-            return []
-          }),
+          .then((r) => (r.ok ? r.json() : []))
+          .catch(() => []),
         fetch(`${basePath}/gap-summary.json`)
-          .then((r) =>
-            r.ok ? r.json() : Promise.reject("gap-summary.json not found")
-          )
-          .catch((err) => {
-            console.warn("⚠️ Missing gap-summary.json:", err)
-            return []
-          }),
+          .then((r) => (r.ok ? r.json() : []))
+          .catch(() => []),
       ])
 
       const merged: DataState = {
@@ -274,6 +244,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   // -----------------------
+  // AI Agent Snapshot Helper
+  // -----------------------
+  const getFrontendSnapshot = () => {
+    return {
+      facilitySetup: state.facilitySetup,
+      toolType: state.toolType,
+      currentStep,
+      ...data, // all current data values
+    }
+  }
+
+  // -----------------------
   // Context Value
   // -----------------------
   const value: AppContextType = {
@@ -286,6 +268,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setToolType,
     currentStep,
     setCurrentStep,
+    getFrontendSnapshot, 
   }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

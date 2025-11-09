@@ -6,22 +6,28 @@ type InputProps = React.InputHTMLAttributes<HTMLInputElement> & {
   className?: string
 }
 
-export default function Input({ id, label, className = "", ...props }: InputProps) {
+export default function Input({
+  id,
+  label,
+  className = "",
+  ...props
+}: InputProps) {
+  const inputId = id || React.useId() // generates an automatic id if none is provided
+
   return (
-    <div className="flex flex-col space-y-1">
+    <div className="flex flex-col w-full">
       {label && (
         <label
-          htmlFor={id}
-          className="text-sm font-medium text-gray-600 select-none"
+          htmlFor={inputId}
+          className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-1"
         >
           {label}
         </label>
       )}
-
       <input
-        id={id}
+        id={inputId}
         {...props}
-        className={`border rounded px-2 py-1 text-sm w-full focus:outline-none focus:ring-2 focus:ring-green-500 ${className}`}
+        className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition ${className}`}
       />
     </div>
   )
