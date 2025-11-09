@@ -442,9 +442,9 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
 
       {/* 📊 Demand Chart */}
       <div className="mt-6 h-80">
-        {filteredRows.length === 0 ? (
+        {rows.length === 0 ? (
           <p className="text-center text-gray-500 italic mt-10">
-            ⚠️ No demand data available. Upload a file or adjust filters.
+            ⚠️ No demand data available. Upload a file to visualize.
           </p>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
@@ -458,34 +458,39 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                         `${month}-${day}` === selectedDay
                       );
                     })
-                  : normalizedData.length > 0
-                  ? normalizedData
-                  : rows
+                  : selectedYear
+                  ? normalizedData.length > 0
+                    ? normalizedData
+                    : rows.filter((r) => String(r.year) === String(selectedYear))
+                  : rows // ✅ show all rows when no filters
               }
             >
               <CartesianGrid strokeDasharray="3 3" />
+
               <XAxis
                 dataKey={
                   selectedDay
                     ? "hour"
-                    : normalizedData.length > 0
+                    : selectedYear && normalizedData.length > 0
                     ? "date"
-                    : "hour"
+                    : "date"
                 }
-                tickFormatter={(v) =>
-                  selectedDay
-                    ? v
-                    : new Date(v).toLocaleDateString(undefined, {
-                        month: "short",
-                        day: "numeric",
-                      })
-                }
+                tickFormatter={(v) => {
+                  if (selectedDay) return v; // hours like 00:00
+                  if (v && v.includes("-")) {
+                    // valid YYYY-MM-DD date
+                    const parts = v.split("-");
+                    return `${parts[1]}/${parts[2]}`; // MM/DD
+                  }
+                  return v || "";
+                }}
                 label={{
                   value: selectedDay ? "Hour of Day" : "Date",
                   position: "insideBottom",
                   offset: -5,
                 }}
               />
+
               <YAxis
                 label={{
                   value: "Demand",
@@ -496,17 +501,21 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                   typeof v === "number" ? v.toFixed(0) : v
                 }
               />
+
               <Tooltip
                 labelFormatter={(v) =>
                   selectedDay
                     ? `Hour ${v}`
-                    : new Date(v).toLocaleDateString(undefined, {
+                    : v && v.includes("-")
+                    ? new Date(v).toLocaleDateString(undefined, {
                         weekday: "short",
                         month: "short",
                         day: "numeric",
                       })
+                    : v
                 }
               />
+
               <Legend />
 
               {/* --- Line(s) --- */}
@@ -518,25 +527,34 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                   stroke="#4f46e5"
                   dot
                 />
-              ) : (
+              ) : selectedYear && normalizedData.length > 0 ? (
                 Array.from(new Set(normalizedData.map((r) => r.series))).map(
                   (series, idx) => (
                     <Line
                       key={series}
                       type="monotone"
                       dataKey="avgDemand"
-                      name={`${series}`}
+                      name={series}
                       data={normalizedData.filter((r) => r.series === series)}
                       stroke={["#4f46e5", "#22c55e", "#eab308", "#ef4444", "#06b6d4"][idx % 5]}
                       dot={false}
                     />
                   )
                 )
+              ) : (
+                <Line
+                  type="monotone"
+                  dataKey="demand_value"
+                  name="All Demand Values"
+                  stroke="#4f46e5"
+                  dot={false}
+                />
               )}
             </LineChart>
           </ResponsiveContainer>
         )}
       </div>
+
 
       <div className="flex justify-between mt-6">
         <button className="btn btn-ghost" onClick={onPrev}>
