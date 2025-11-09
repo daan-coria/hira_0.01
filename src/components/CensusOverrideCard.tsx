@@ -462,11 +462,12 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                   ? normalizedData.length > 0
                     ? normalizedData
                     : rows.filter((r) => String(r.year) === String(selectedYear))
-                  : rows // ✅ show all rows when no filters
+                  : rows // ✅ all data mode
               }
             >
               <CartesianGrid strokeDasharray="3 3" />
 
+              {/* --- X Axis --- */}
               <XAxis
                 dataKey={
                   selectedDay
@@ -476,9 +477,8 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                     : "date"
                 }
                 tickFormatter={(v) => {
-                  if (selectedDay) return v; // hours like 00:00
+                  if (selectedDay) return v;
                   if (v && v.includes("-")) {
-                    // valid YYYY-MM-DD date
                     const parts = v.split("-");
                     return `${parts[1]}/${parts[2]}`; // MM/DD
                   }
@@ -491,6 +491,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                 }}
               />
 
+              {/* --- Y Axis --- */}
               <YAxis
                 label={{
                   value: "Demand",
@@ -515,7 +516,6 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                     : v
                 }
               />
-
               <Legend />
 
               {/* --- Line(s) --- */}
@@ -542,18 +542,30 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                   )
                 )
               ) : (
-                <Line
-                  type="monotone"
-                  dataKey="demand_value"
-                  name="All Demand Values"
-                  stroke="#4f46e5"
-                  dot={false}
-                />
+                // 🟩 No filter: one line per year
+                Array.from(new Set(rows.map((r) => r.year)))
+                  .filter(Boolean)
+                  .map((yr, idx) => (
+                    <Line
+                      key={yr}
+                      type="monotone"
+                      dataKey="demand_value"
+                      name={`Year ${yr}`}
+                      data={rows.filter((r) => r.year === yr)}
+                      stroke={
+                        ["#4f46e5", "#22c55e", "#eab308", "#ef4444", "#06b6d4", "#9333ea"][
+                          idx % 6
+                        ]
+                      }
+                      dot={false}
+                    />
+                  ))
               )}
             </LineChart>
           </ResponsiveContainer>
         )}
       </div>
+
 
 
       <div className="flex justify-between mt-6">
