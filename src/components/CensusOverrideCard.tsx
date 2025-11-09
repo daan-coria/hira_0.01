@@ -94,10 +94,6 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
   const [selectedYear, setSelectedYear] = useState<string>("")
   const [selectedSeries, setSelectedSeries] = useState<string>("unit")
 
-  useEffect(() => {
-    if (Array.isArray(data?.demand)) setRows(data.demand)
-  }, [data?.demand])
-
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -147,7 +143,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
       };
     });
 
-    // Debug: show parsed results
+    // Show parsed results
     console.log("📘 Parsed demand rows (first 20):", parsed.slice(0, 20));
     console.log(
       "📅 Unique parsed dates:",
@@ -158,8 +154,18 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
       Array.from(new Set(parsed.map((r) => r.year))).sort()
     );
 
-    setRows(parsed)
-    updateData("demand", parsed)
+    setRows(parsed);
+    updateData("demand", parsed);
+    console.log(`✅ Uploaded and saved ${parsed.length} rows of demand data.`);
+
+
+  useEffect(() => {
+    if (rows.length === 0 && Array.isArray(data?.demand) && data.demand.length > 0) {
+      console.log("🔄 Syncing from global demand data:", data.demand.length);
+      setRows(data.demand);
+    }
+  }, [data?.demand]);
+
   }
 
   const years = Array.from(new Set(rows.map((r) => r.year))).filter(Boolean)
