@@ -1,1 +1,77 @@
-node_modules
+# ============================================================
+# 🔧 GENERAL
+# ============================================================
+node_modules/
+dist/
+build/
+.DS_Store
+Thumbs.db
+.env
+.env.*
+!.env.example
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ============================================================
+# 🧠 TYPESCRIPT / VITE
+# ============================================================
+*.tsbuildinfo
+vite.config.ts.timestamp*
+.cache/
+.temp/
+coverage/
+
+# ============================================================
+# 🖥️ REACT FRONTEND (Vite)
+# ============================================================
+/public/*.bak
+/public/*.tmp
+/public/*.log
+/.vite
+/.idea
+/.vscode/*
+!.vscode/settings.json   # allow shared workspace settings if needed
+
+# ============================================================
+# ⚙️ SERVER (Express / TypeScript)
+# ============================================================
+server/dist/
+server/node_modules/
+server/.env
+server/.env.*
+!server/.env.example
+
+# ============================================================
+# 🧩 OS / EDITOR
+# ============================================================
+*.swp
+*.swo
+*.tmp
+*.bak
+*.orig
+*.lock
+*.pid
+*.seed
+*.seed.*
+*.sqlite
+*.sqlite3
+*.db
+*.tgz
+
+# ============================================================
+# 📦 BUILD / DEPLOYMENT
+# ============================================================
+/uploads/
+/out/
+/coverage/
+/tmp/
+/logs/
+/data/
+/cache/
+/.venv/
+/.vscode-test/
+/.vercel/
+/.netlify
