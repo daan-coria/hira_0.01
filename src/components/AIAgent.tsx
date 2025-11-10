@@ -43,29 +43,46 @@ export default function AIAgent() {
         headers: { "Content-Type": "application/json" },
         body: jsonPayload,
       })
+
+      if (!res.ok) {
+        // Try to parse JSON error first; fallback to text
+        let errText = `API error ${res.status}`
+        try {
+          const maybeJson = await res.json()
+          errText = maybeJson?.error
+            ? `${maybeJson.error}${maybeJson.details ? `: ${maybeJson.details}` : ""}`
+            : JSON.stringify(maybeJson)
+        } catch {
+          errText = await res.text()
+        }
+        throw new Error(errText || `API error ${res.status}`)
+      }
+
       const json = await res.json()
       const answer = json.answer || "⚠️ No response from AI."
 
-      // Append message pair to global history
       setAIState((prev) => ({
         ...prev,
         history: [...prev.history, { question, answer }],
       }))
-
       setQuestion("")
-    } catch (error) {
+    } catch (error: any) {
       console.error("AI request failed:", error)
       setAIState((prev) => ({
         ...prev,
         history: [
           ...prev.history,
-          { question, answer: "❌ Error: Could not connect to AI service." },
+          {
+            question,
+            answer: `❌ ${error?.message || "Could not connect to AI service."}`,
+          },
         ],
       }))
     } finally {
       setLoading(false)
     }
   }
+
 
   return (
     <div className="fixed bottom-4 right-4 z-50">

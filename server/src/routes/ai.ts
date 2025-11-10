@@ -2,58 +2,106 @@ import { Router, Request, Response } from "express"
 import OpenAI from "openai"
 
 const router = Router()
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
+// Safety: snapshot limiter so we don't send megabytes
+const SNAPSHOT_CHAR_LIMIT = 8000 // ~8 KB
+
+// Optional: early warning if key missing (won't crash)
 if (!process.env.OPENAI_API_KEY) {
-  console.warn("⚠️ Warning: Missing OPENAI_API_KEY — AI routes will return mock responses.")
+  console.warn("⚠️ OPENAI_API_KEY is not set. /api/v1/ai/ask will return a 503.")
 }
 
-// ✅ Main AI endpoint: POST /api/v1/ai/ask
+const openai = process.env.OPENAI_API_KEY
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  : null
+
+// GET /api/v1/ai – quick ping
+router.get("/", (_req, res) => {
+  res.send("✅ AI route active. Use POST /api/v1/ai/ask")
+})
+
+// GET /api/v1/ai/status – optional status check
+router.get("/status", (_req, res) => {
+  res.json({
+    ok: Boolean(process.env.OPENAI_API_KEY),
+    hasKey: Boolean(process.env.OPENAI_API_KEY),
+    model: "gpt-4o-mini",
+  })
+})
+
+// POST /api/v1/ai/ask – main endpoint
 router.post("/ask", async (req: Request, res: Response) => {
   try {
-    const { question, frontendData } = req.body
-
-    if (!question) {
-      return res.status(400).json({ error: "Missing 'question' in request body." })
+    if (!openai) {
+      return res.status(503).json({
+        error: "Service not configured",
+        details: "Missing OPENAI_API_KEY on the server.",
+      })
     }
 
-    // Prepare context from the FE snapshot
-    const snapshotSummary = Object.keys(frontendData || {})
-      .map((key) => `${key}: ${Array.isArray(frontendData[key]) ? frontendData[key].length : typeof frontendData[key]}`)
-      .join("\n")
+    const { question, frontendData } = req.body || {}
+    if (!question || typeof question !== "string") {
+      return res.status(400).json({ error: "Missing or invalid 'question' (string required)." })
+    }
 
-    // Send to OpenAI
+    // Summarize the snapshot safely
+    const json = JSON.stringify(frontendData ?? {})
+    const snapshot = json.length > SNAPSHOT_CHAR_LIMIT
+      ? json.slice(0, SNAPSHOT_CHAR_LIMIT) + "… [truncated]"
+      : json
+
+    // Optional: timeout to avoid hanging Render instances
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 25_000)
+
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
+      temperature: 0.6,
+      max_tokens: 500,
       messages: [
         {
           role: "system",
           content:
-            "You are the AI assistant of the HIRA Staffing Tool. You help analyze healthcare staffing data, including shifts, FTEs, resources, and census projections.",
+            "You are the AI assistant of the HIRA Staffing Tool. You analyze healthcare staffing inputs (positions, shifts, FTE, availability, census overrides) and answer concise, helpful questions.",
         },
         {
           role: "user",
-          content: `Question: ${question}\n\nFrontend snapshot summary:\n${snapshotSummary}`,
+          content:
+            `Question: ${question}\n\n` +
+            `Frontend snapshot (JSON, possibly truncated):\n${snapshot}`,
         },
       ],
-      temperature: 0.6,
-      max_tokens: 500,
+      // @ts-ignore: openai sdk uses fetch under the hood; pass through signal
+      signal: controller.signal,
     })
 
-    const answer = completion.choices[0].message?.content || "⚠️ No response from AI."
+    clearTimeout(timeout)
+
+    const answer = completion.choices?.[0]?.message?.content?.trim()
+    if (!answer) {
+      return res.status(502).json({ error: "No content returned by model." })
+    }
+
     res.json({ answer })
-  } catch (error: any) {
-    console.error("AI route error:", error)
-    res.status(500).json({
-      error: "Failed to contact OpenAI API",
-      details: error.message,
+  } catch (err: any) {
+    // Log everything helpful to Render logs
+    console.error("AI /ask error →", {
+      message: err?.message,
+      name: err?.name,
+      type: err?.type,
+      status: err?.status,
+      stack: err?.stack,
+      data: err?.response?.data,
     })
-  }
-})
 
-// Optional GET route for quick health check
-router.get("/", (_, res) => {
-  res.send("✅ AI route is active. Use POST /api/v1/ai/ask")
+    // Return the best error shape we can for the client
+    const status = err?.status && Number.isInteger(err.status) ? err.status : 500
+    const details =
+      err?.response?.data?.error ||
+      err?.message ||
+      "Unknown error calling OpenAI."
+    res.status(status).json({ error: "AI request failed", details })
+  }
 })
 
 export default router
