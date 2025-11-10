@@ -21,12 +21,32 @@ export default function AIAgent() {
     setFrontendData(getFrontendSnapshot())
   }, [getFrontendSnapshot])
 
-  // Auto-scroll to the newest message whenever history updates
+  // Auto-scroll to bottom when history updates
   useEffect(() => {
     if (aiState.isOpen && bottomRef.current) {
       bottomRef.current.scrollIntoView({ behavior: "smooth" })
     }
   }, [aiState.history, aiState.isOpen])
+
+  // ✅ Clear chat history when the page/tab is closed or refreshed
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      setAIState({
+        isOpen: false,
+        history: [],
+      })
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload)
+    return () => {
+      // Also clear on component unmount (e.g. route change)
+      setAIState({
+        isOpen: false,
+        history: [],
+      })
+      window.removeEventListener("beforeunload", handleBeforeUnload)
+    }
+  }, [setAIState])
 
   const jsonPayload = useMemo(
     () => JSON.stringify({ question, frontendData }),
@@ -45,7 +65,6 @@ export default function AIAgent() {
       })
 
       if (!res.ok) {
-        // Try to parse JSON error first; fallback to text
         let errText = `API error ${res.status}`
         try {
           const maybeJson = await res.json()
@@ -83,10 +102,9 @@ export default function AIAgent() {
     }
   }
 
-
   return (
     <div className="fixed bottom-4 right-4 z-50">
-      {/* Floating chat bubble button */}
+      {/* Floating chat bubble */}
       {!aiState.isOpen && (
         <button
           onClick={() => setAIState((prev) => ({ ...prev, isOpen: true }))}
@@ -106,7 +124,9 @@ export default function AIAgent() {
               AI Assistant
             </h3>
             <button
-              onClick={() => setAIState((prev) => ({ ...prev, isOpen: false }))}
+              onClick={() =>
+                setAIState((prev) => ({ ...prev, isOpen: false }))
+              }
               className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
               aria-label="Close"
             >
@@ -114,7 +134,7 @@ export default function AIAgent() {
             </button>
           </div>
 
-          {/* Chat history */}
+          {/* History */}
           <div className="flex-1 overflow-y-auto border-t border-gray-200 dark:border-gray-700 pt-2 mb-2 pr-1">
             {aiState.history.length === 0 && (
               <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -132,12 +152,10 @@ export default function AIAgent() {
                 </p>
               </div>
             ))}
-
-            {/* Scroll anchor */}
             <div ref={bottomRef} />
           </div>
 
-          {/* Input and button */}
+          {/* Input */}
           <div>
             <Input
               id="ai-question"
@@ -146,7 +164,6 @@ export default function AIAgent() {
               onChange={(e) => setQuestion(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAsk()}
             />
-
             <Button
               className="mt-2 w-full"
               onClick={handleAsk}
