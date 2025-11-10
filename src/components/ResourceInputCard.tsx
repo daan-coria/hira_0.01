@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useApp } from "@/store/AppContext"
+import * as XLSX from "xlsx"
 import Card from "@/components/ui/Card"
 import Button from "@/components/ui/Button"
 import Input from "@/components/ui/Input"
@@ -8,6 +9,7 @@ import debounce from "lodash.debounce"
 import Papa from "papaparse"
 import Swal from "sweetalert2"
 import "sweetalert2/dist/sweetalert2.min.css"
+
 
 type ResourceRow = {
   id?: number
@@ -27,10 +29,10 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
   const { data, updateData } = useApp()
   const [rows, setRows] = useState<ResourceRow[]>([])
   const [saving, setSaving] = useState(false)
-  const [selectedProfile, setSelectedProfile] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const weekendGroups = ["A", "B", "C", "WC"]
 
+  // ✅ NEW: Filters
   const [filters, setFilters] = useState({
     vacancy_status: "",
     position: "",
@@ -38,6 +40,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     weekend_group: "",
   })
 
+  // ✅ Debounced autosave
   const debouncedSave = useCallback(
     debounce((updated: ResourceRow[]) => {
       setSaving(true)
@@ -47,48 +50,49 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     [updateData]
   )
 
-  // Mock initialization
+  // ✅ Initialize from stored data + load all mock employees
   useEffect(() => {
     const resourceArray = Array.isArray(data?.resourceInput)
       ? (data.resourceInput as ResourceRow[])
       : []
 
     const mockEmployees: ResourceRow[] = [
-      {
-        id: 1,
-        employee_id: "EMP001",
-        first_name: "Emily",
-        last_name: "Nguyen",
-        position: "RN",
-        unit_fte: 1,
-        shift: "Day",
-        weekend_group: "A",
-        vacancy_status: "Filled",
-      },
-      {
-        id: 2,
-        employee_id: "EMP002",
-        first_name: "Michael",
-        last_name: "Lopez",
-        position: "CNA",
-        unit_fte: 0.8,
-        shift: "Night",
-        weekend_group: "B",
-        vacancy_status: "Posted",
-      },
-      {
-        id: 3,
-        employee_id: "EMP003",
-        first_name: "Sarah",
-        last_name: "Johnson",
-        position: "LPN",
-        unit_fte: 1,
-        shift: "Day",
-        weekend_group: "C",
-        vacancy_status: "Filled",
-      },
-    ]
+        {
+          id: 1,
+          employee_id: "EMP001",
+          first_name: "Emily",
+          last_name: "Nguyen",
+          position: "RN",
+          unit_fte: 1,
+          shift: "Day",
+          weekend_group: "A",
+          vacancy_status: "Filled",
+        },
+        {
+          id: 2,
+          employee_id: "EMP002",
+          first_name: "Michael",
+          last_name: "Lopez",
+          position: "CNA",
+          unit_fte: 0.8,
+          shift: "Night",
+          weekend_group: "B",
+          vacancy_status: "Posted",
+        },
+        {
+          id: 3,
+          employee_id: "EMP003",
+          first_name: "Sarah",
+          last_name: "Johnson",
+          position: "LPN",
+          unit_fte: 1,
+          shift: "Day",
+          weekend_group: "C",
+          vacancy_status: "Filled",
+        },
+      ]
 
+    //Merge mock data with any existing stored data
     const merged = [
       ...mockEmployees.filter(
         (mock) => !resourceArray.some((e) => e.employee_id === mock.employee_id)
@@ -98,20 +102,23 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
 
     setRows(merged)
     updateData("resourceInput", merged)
-  }, [])
+    }, []) 
 
-  const positions =
-    Array.isArray(data.staffingConfig) && data.staffingConfig.length > 0
-      ? data.staffingConfig.map((p: any) => p.role)
-      : ["RN", "LPN", "CNA", "Clerk"]
+    // Positions from Step 2
+    const positions =
+      Array.isArray(data.staffingConfig) && data.staffingConfig.length > 0
+        ? data.staffingConfig.map((p: any) => p.role)
+        : ["RN", "LPN", "CNA", "Clerk"]
 
-  const getFilteredShifts = (position: string) => {
-    if (!Array.isArray(data.shiftConfig)) return []
-    return (data.shiftConfig || [])
-      .filter((shift: any) => shift.roles?.includes(position))
-      .map((shift: any) => shift.shift_label)
+    // Filter shifts by role 
+    const getFilteredShifts = (position: string) => {
+      if (!Array.isArray(data.shiftConfig)) return []
+      return (data.shiftConfig || [])
+        .filter((shift: any) => shift.roles?.includes(position))
+        .map((shift: any) => shift.shift_label)
   }
 
+  // Weekend group list 
   const [weekendGroupList, setWeekendGroupList] = useState<string[]>(weekendGroups)
   useEffect(() => {
     if (Array.isArray(data.staffingConfig)) {
@@ -126,13 +133,67 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     }
   }, [data.staffingConfig])
 
-  const handleChange = (index: number, field: keyof ResourceRow, value: any) => {
+  // Handle changes 
+  const handleChange = async (index: number, field: keyof ResourceRow, value: any) => {
     const updated = [...rows]
+    const prevValue = updated[index][field]
     updated[index] = { ...updated[index], [field]: value }
+
+    if (field === "employee_id" || field === "id") {
+      const duplicateIndex = updated.findIndex(
+        (r, i) => i !== index && r.employee_id === value
+      )
+      if (duplicateIndex !== -1) {
+        const existing = updated[duplicateIndex]
+        const current = updated[index]
+        const differs =
+          existing.first_name !== current.first_name ||
+          existing.last_name !== current.last_name ||
+          existing.position !== current.position
+        if (differs) {
+          const result = await Swal.fire({
+            title: "Duplicate ID Detected",
+            text: "An entry with this ID already exists but has different details. Do you want to overwrite it?",
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonText: "Yes, overwrite",
+            cancelButtonText: "No, keep both",
+          })
+          if (result.isConfirmed) {
+            updated[duplicateIndex] = { ...current }
+            Swal.fire("Overwritten", "Existing record updated successfully.", "success")
+          } else {
+            if (typeof prevValue !== "undefined") {
+              (updated[index] as Record<string, any>)[field] = prevValue
+            }
+          }
+        }
+      }
+    }
+
     setRows(updated)
     debouncedSave(updated)
   }
 
+  // Add new row
+  const addRow = () => {
+    const newRow: ResourceRow = {
+      id: Date.now(),
+      employee_id: "",
+      first_name: "",
+      last_name: "",
+      position: "",
+      unit_fte: 1,
+      shift: "",
+      weekend_group: "",
+      vacancy_status: "",
+    }
+    const updated = [...rows, newRow]
+    setRows(updated)
+    debouncedSave(updated)
+  }
+
+  // Remove row
   const removeRow = (id?: number, employee_id?: string) => {
     const updated = rows.filter(
       (r) => r.id !== id && r.employee_id !== employee_id
@@ -141,6 +202,122 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     updateData("resourceInput", updated)
   }
 
+  // CSV Upload Handler (fixed header mapping + duplicate logic)
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const rawData = results.data as any[]
+
+        // Map CSV headers (from exported names) → internal keys
+        const newRows: ResourceRow[] = rawData.map((row) => ({
+          employee_id: row.ID || row.employee_id || "",
+          first_name: row.First_Name || row.first_name || "",
+          last_name: row.Last_Name || row.last_name || "",
+          position: row.Position || row.position || "",
+          unit_fte: Number(row.Unit_FTE || row.unit_fte || 0),
+          shift: row.Shift || row.shift || "",
+          weekend_group: normalizeGroup(row.Weekend_Group || row.weekend_group),
+          vacancy_status: row.Vacancy_Status || row.vacancy_status || "",
+        }))
+
+        let merged = [...rows]
+
+        for (const newRow of newRows) {
+          // Skip completely empty rows
+          if (
+            !newRow.employee_id &&
+            !newRow.first_name &&
+            !newRow.last_name &&
+            !newRow.position
+          )
+            continue
+
+          const matchIndex = merged.findIndex(
+            (r) => r.employee_id === newRow.employee_id
+          )
+
+          if (matchIndex >= 0) {
+            const existing = merged[matchIndex]
+            const differs =
+              existing.first_name !== newRow.first_name ||
+              existing.last_name !== newRow.last_name ||
+              existing.position !== newRow.position ||
+              existing.unit_fte !== newRow.unit_fte ||
+              existing.shift !== newRow.shift ||
+              existing.weekend_group !== newRow.weekend_group ||
+              existing.vacancy_status !== newRow.vacancy_status
+
+            if (differs) {
+              const result = await Swal.fire({
+                title: "Duplicate ID in CSV",
+                text: `Employee ID ${newRow.employee_id} already exists but has different details. Overwrite existing entry?`,
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonText: "Yes, overwrite",
+                cancelButtonText: "No, skip",
+              })
+
+              if (result.isConfirmed) {
+                merged[matchIndex] = { ...existing, ...newRow }
+              }
+            }
+          } else {
+            merged.push({ ...newRow, id: Date.now() })
+          }
+        }
+
+        setRows(merged)
+        updateData("resourceInput", merged)
+        Swal.fire("Upload Complete", "Roster processed successfully!", "success")
+        if (fileInputRef.current) fileInputRef.current.value = ""
+      },
+    })
+  }
+
+  const normalizeGroup = (val: any): "A" | "B" | "C" | "WC" | "" => {
+    if (!val) return ""
+    const t = val.toString().toUpperCase()
+    if (["A", "B", "C", "WC"].includes(t)) return t as any
+    if (t.includes("1")) return "A"
+    if (t.includes("2")) return "B"
+    if (t.includes("3")) return "C"
+    if (t.includes("W")) return "WC"
+    return ""
+  }
+
+  // ✅ Export CSV (renamed columns)
+  const handleExport = () => {
+    if (rows.length === 0) {
+      Swal.fire("No Data", "There are no rows to export.", "info")
+      return
+    }
+    const csv = Papa.unparse(
+      rows.map(({ id, ...r }) => ({
+        ID: r.employee_id || "",
+        First_Name: r.first_name,
+        Last_Name: r.last_name,
+        Position: r.position,
+        Unit_FTE: r.unit_fte,
+        Shift: r.shift,
+        Weekend_Group: r.weekend_group,
+        Vacancy_Status: r.vacancy_status,
+      }))
+    )
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+    const link = document.createElement("a")
+    const url = URL.createObjectURL(blob)
+    link.href = url
+    link.download = "resource_roster.csv"
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  //Apply filters before rendering
   const filteredRows = rows.filter((r) => {
     return (
       (!filters.vacancy_status || r.vacancy_status === filters.vacancy_status) &&
@@ -150,27 +327,109 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     )
   })
 
-  // Field labels from Excel (column A)
-  const profileFields = [
-    "HRIS ID",
-    "Schedule System ID",
-    "EHR ID",
-    "First Name",
-    "Last Name",
-    "Full Name",
-    "Primary Cost Center ID",
-    "Primary Cost Center Name",
-    "Primary Job Category ID",
-    "Primary Job Category Name",
-    "Primary Job Code ID",
-  ]
-
   return (
     <Card className="p-4 space-y-4">
       {/* Header */}
       <div className="flex justify-between items-center mb-2">
         <h3 className="text-lg font-semibold text-gray-800">Resource Input</h3>
-        {saving && <span className="text-sm text-gray-500">Saving…</span>}
+        <div className="flex items-center gap-3">
+          {saving && <span className="text-sm text-gray-500">Saving…</span>}
+          <input
+            type="file"
+            accept=".csv"
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+            className="hidden"
+            title="Upload CSV file"
+            aria-label="Upload CSV file"
+          />
+          <Button onClick={() => fileInputRef.current?.click()}>Upload CSV</Button>
+          <Button
+            onClick={handleExport}
+            variant="ghost"
+            className="border border-gray-300 text-gray-700"
+          >
+            Export CSV
+          </Button>
+
+          <Button
+            variant="ghost"
+            className="border border-red-400 text-red-600 hover:bg-red-50"
+            onClick={() => {
+              Swal.fire({
+                title: "Clear All?",
+                text: "This will remove all rows permanently.",
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonColor: "#d33",
+                cancelButtonColor: "#3085d6",
+                confirmButtonText: "Yes, clear all",
+              }).then((result) => {
+                if (result.isConfirmed) {
+                  setRows([])
+                  updateData("resourceInput", [])
+                  Swal.fire("Cleared!", "All resources removed.", "success")
+                }
+              })
+            }}
+          >
+            🗑 Clear All
+          </Button>
+          <Button onClick={addRow} className="bg-green-600 hover:bg-green-700">
+            + Add Resource
+          </Button>
+        </div>
+      </div>
+
+      {/*Filter Bar */}
+      <div className="flex flex-wrap gap-3 items-center mb-3">
+        <Select
+          value={filters.vacancy_status}
+          onChange={(e) => setFilters({ ...filters, vacancy_status: e.target.value })}
+        >
+          <option value="">All Statuses</option>
+          <option value="Filled">Filled</option>
+          <option value="Posted">Posted</option>
+        </Select>
+
+        <Select
+          value={filters.position}
+          onChange={(e) => setFilters({ ...filters, position: e.target.value })}
+        >
+          <option value="">All Positions</option>
+          {positions.map((p) => (
+            <option key={p}>{p}</option>
+          ))}
+        </Select>
+
+        <Select
+          value={filters.shift}
+          onChange={(e) => setFilters({ ...filters, shift: e.target.value })}
+        >
+          <option value="">All Shifts</option>
+          {[...new Set(rows.map((r) => r.shift))].filter(Boolean).map((s) => (
+            <option key={s}>{s}</option>
+          ))}
+        </Select>
+
+        <Select
+          value={filters.weekend_group}
+          onChange={(e) => setFilters({ ...filters, weekend_group: e.target.value })}
+        >
+          <option value="">All Groups</option>
+          {weekendGroupList.map((g) => (
+            <option key={g}>{g}</option>
+          ))}
+        </Select>
+
+        <Button
+          variant="ghost"
+          onClick={() =>
+            setFilters({ vacancy_status: "", position: "", shift: "", weekend_group: "" })
+          }
+        >
+          Clear Filters
+        </Button>
       </div>
 
       {/* Table */}
@@ -189,18 +448,21 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                 <th className="px-3 py-2 border text-right">Unit FTE</th>
                 <th className="px-3 py-2 border">Shift</th>
                 <th className="px-3 py-2 border">Weekend Group</th>
-                <th className="px-3 py-2 border text-center">Information</th>
                 <th className="px-3 py-2 border text-center">Actions</th>
               </tr>
             </thead>
+
             <tbody>
               {filteredRows.map((row, i) => {
+                const isPosted = row.vacancy_status === "Posted"
                 const filteredShifts = getFilteredShifts(row.position)
+
                 return (
                   <tr
                     key={row.id || i}
                     className="odd:bg-white even:bg-gray-50 hover:bg-gray-100"
                   >
+                    {/* Vacancy Status */}
                     <td className="border px-2 py-1">
                       <Select
                         id={`vacancy_${i}`}
@@ -216,27 +478,121 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       </Select>
                     </td>
 
+                    {/* ID */}
                     <td className="border px-2 py-1 text-center">
-                      {row.employee_id}
-                    </td>
-                    <td className="border px-2 py-1">{row.first_name}</td>
-                    <td className="border px-2 py-1">{row.last_name}</td>
-                    <td className="border px-2 py-1">{row.position}</td>
-                    <td className="border px-2 py-1 text-right">{row.unit_fte}</td>
-                    <td className="border px-2 py-1">{row.shift}</td>
-                    <td className="border px-2 py-1 text-center">
-                      {row.weekend_group}
+                      <Input
+                        id={`employee_id-${i}`}
+                        value={row.employee_id || ""}
+                        onChange={(e) =>
+                          handleChange(i, "employee_id", e.target.value)
+                        }
+                        placeholder="ID"
+                        className="!m-0 !p-1 w-24 text-center"
+                      />
                     </td>
 
-                    {/* Information Column */}
-                    <td className="border px-2 py-1 text-center">
-                      <Button
-                        variant="ghost"
-                        className="text-blue-600 font-bold"
-                        onClick={() => setSelectedProfile(row.employee_id || "")}
+                    {/* First Name */}
+                    <td className="border px-2 py-1">
+                      <Input
+                        id={`first_name-${i}`}
+                        value={row.first_name}
+                        onChange={(e) =>
+                          handleChange(i, "first_name", e.target.value)
+                        }
+                        placeholder="First"
+                        disabled={isPosted}
+                        className={`!m-0 !p-1 ${
+                          isPosted ? "bg-gray-100 text-gray-400" : ""
+                        }`}
+                      />
+                    </td>
+
+                    {/* Last Name */}
+                    <td className="border px-2 py-1">
+                      <Input
+                        id={`last_name-${i}`}
+                        value={row.last_name}
+                        onChange={(e) =>
+                          handleChange(i, "last_name", e.target.value)
+                        }
+                        placeholder="Last"
+                        disabled={isPosted}
+                        className={`!m-0 !p-1 ${
+                          isPosted ? "bg-gray-100 text-gray-400" : ""
+                        }`}
+                      />
+                    </td>
+
+                    {/* Position */}
+                    <td className="border px-2 py-1">
+                      <Select
+                        id={`position_${i}`}
+                        value={row.position}
+                        onChange={(e) =>
+                          handleChange(i, "position", e.target.value)
+                        }
+                        className="!m-0 !p-1"
                       >
-                        +
-                      </Button>
+                        <option value="">-- Select --</option>
+                        {positions.map((p) => (
+                          <option key={p} value={p}>
+                            {p}
+                          </option>
+                        ))}
+                      </Select>
+                    </td>
+
+                    {/* Unit FTE */}
+                    <td className="border px-2 py-1 text-right">
+                      <Input
+                        id={`fte-${i}`}
+                        type="number"
+                        min={0}
+                        step={0.1}
+                        value={row.unit_fte}
+                        onChange={(e) =>
+                          handleChange(i, "unit_fte", Number(e.target.value))
+                        }
+                        className="!m-0 !p-1 w-20 text-right"
+                      />
+                    </td>
+
+                    {/* ✅ Shift (Updated filtering logic) */}
+                    <td className="border px-2 py-1">
+                      <Select
+                        id={`shift_${i}`}
+                        value={row.shift}
+                        onChange={(e) =>
+                          handleChange(i, "shift", e.target.value)
+                        }
+                        className="!m-0 !p-1"
+                      >
+                        <option value="">-- Select Shift --</option>
+                        {filteredShifts.map((opt) => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                      </Select>
+                    </td>
+
+                    {/* Weekend Group */}
+                    <td className="border px-2 py-1 text-center">
+                      <Select
+                        id={`weekend_${i}`}
+                        value={row.weekend_group}
+                        onChange={(e) =>
+                          handleChange(i, "weekend_group", e.target.value)
+                        }
+                        className="!m-0 !p-1"
+                      >
+                        <option value="">-- Select --</option>
+                        {weekendGroupList.map((g) => (
+                          <option key={g} value={g}>
+                            {g}
+                          </option>
+                        ))}
+                      </Select>
                     </td>
 
                     {/* Actions */}
@@ -254,38 +610,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
               })}
             </tbody>
           </table>
-        </div>
-      )}
-
-      {/* Profile Popup */}
-      {selectedProfile && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50">
-          <div className="bg-white rounded-lg shadow-xl w-[450px] max-h-[80vh] overflow-y-auto p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-800">
-                Employee Profile
-              </h3>
-              <button
-                onClick={() => setSelectedProfile(null)}
-                className="text-gray-500 hover:text-gray-700 text-xl"
-              >
-                ×
-              </button>
-            </div>
-
-            {/* Profile Fields */}
-            <div className="space-y-3">
-              {profileFields.map((label) => (
-                <div
-                  key={label}
-                  className="flex justify-between items-center border-b pb-1"
-                >
-                  <span className="font-medium text-gray-700">{label}</span>
-                  <span className="text-gray-500">—</span>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       )}
 
