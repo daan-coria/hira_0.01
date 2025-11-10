@@ -4,6 +4,10 @@ import OpenAI from "openai"
 const router = Router()
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
+if (!process.env.OPENAI_API_KEY) {
+  console.warn("⚠️ Warning: Missing OPENAI_API_KEY — AI routes will return mock responses.")
+}
+
 // ✅ Main AI endpoint: POST /api/v1/ai/ask
 router.post("/ask", async (req: Request, res: Response) => {
   try {
