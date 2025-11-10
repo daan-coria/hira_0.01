@@ -602,12 +602,14 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       <Button
                         variant="ghost"
                         className="!px-2 !py-1 text-green-600 font-bold"
-                        onClick={() => setShowInfo(!showInfo)}
+                        onClick={() =>
+                          setActiveInfoRow(activeInfoRow === i ? null : i)
+                        }
                       >
                         +
                       </Button>
 
-                      {showInfo && (
+                      {activeInfoRow === i && (
                         <div className="absolute right-0 z-10 bg-white shadow-lg border rounded-lg p-4 text-left text-sm w-80">
                           <p><b>Schedule System ID:</b> —</p>
                           <p><b>EHR ID:</b> —</p>
@@ -629,7 +631,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                             <Button
                               variant="ghost"
                               className="!px-2 !py-1 text-xs text-gray-600"
-                              onClick={() => setShowInfo(false)}
+                              onClick={() => setActiveInfoRow(null)}
                             >
                               Close
                             </Button>
