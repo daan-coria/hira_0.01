@@ -5,13 +5,19 @@ import App from "./App"
 import { AppProvider } from "@/store/AppContext"
 import "./styles/global.pcss"
 
+// Ensure root element exists before rendering
+const rootElement = document.getElementById("root")
+if (!rootElement) {
+  throw new Error("Root element not found. Make sure <div id='root'></div> exists in index.html")
+}
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
+// Standard React 18 rendering structure
+ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <AppProvider>
+    <AppProvider>
+      <BrowserRouter>
         <App />
-      </AppProvider>
-    </BrowserRouter>
+      </BrowserRouter>
+    </AppProvider>
   </React.StrictMode>
 )

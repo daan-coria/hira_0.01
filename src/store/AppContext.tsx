@@ -43,6 +43,19 @@ export type AvailabilityConfigRow = {
   weekend_group?: string
 }
 
+// -----------------------
+// New: AI Agent State
+// -----------------------
+export type AIMessage = { question: string; answer: string }
+
+export type AIState = {
+  isOpen: boolean
+  history: AIMessage[]
+}
+
+// -----------------------
+// Main App State
+// -----------------------
 type AppState = {
   facilitySetup?: FacilitySetup | null
   toolType: "IP" | "ED"
@@ -71,8 +84,12 @@ type AppContextType = {
   setToolType: (type: "IP" | "ED") => void
   currentStep: number
   setCurrentStep: React.Dispatch<React.SetStateAction<number>>
-  /** 🧠 New: Returns all FE values in one snapshot for AI agent */
+  // Returns all FE values in one snapshot for AI agent
   getFrontendSnapshot: () => Record<string, any>
+
+  // 🧠 AI Assistant
+  aiState: AIState
+  setAIState: React.Dispatch<React.SetStateAction<AIState>>
 }
 
 // -----------------------
@@ -123,6 +140,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return newStep
     })
   }
+
+  // -----------------------
+  // 🧠 AI Assistant State (Persistent)
+  // -----------------------
+  const [aiState, setAIState] = useState<AIState>(() => {
+    const saved = localStorage.getItem("hira_ai_state")
+    return saved ? JSON.parse(saved) : { isOpen: false, history: [] }
+  })
+
+  useEffect(() => {
+    localStorage.setItem("hira_ai_state", JSON.stringify(aiState))
+  }, [aiState])
 
   // -----------------------
   // Data Management
@@ -268,7 +297,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setToolType,
     currentStep,
     setCurrentStep,
-    getFrontendSnapshot, 
+    getFrontendSnapshot,
+    aiState,
+    setAIState,
   }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
