@@ -313,7 +313,7 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
                 <th className="px-3 py-2 border text-center">Include</th>
                 <th className="px-3 py-2 border text-right">Hours/Week</th>
                 <th className="px-3 py-2 border text-right">Weekend Rotation</th>
-                <th className="px-3 py-2 border text-right">FTE</th>
+                <th className="px-3 py-2 border text-right">Head Count</th>
                 <th className="px-3 py-2 border text-center">Actions</th>
               </tr>
             </thead>
