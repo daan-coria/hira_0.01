@@ -33,8 +33,6 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
   const [units, setUnits] = useState<string[]>([])
   const [costCenters, setCostCenters] = useState<string[]>([])
 
-  const [newFunctionalArea, setNewFunctionalArea] = useState("")
-
   const [form, setForm] = useState({
     facility: "",
     functionalArea: "",
@@ -170,16 +168,6 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
 
       return next
     })
-  }
-
-  const addFunctionalArea = () => {
-    const val = newFunctionalArea.trim()
-    if (!val) return
-    setFunctionalAreas((prev) =>
-      prev.includes(val) ? prev : [...prev, val].sort((a, b) => a.localeCompare(b))
-    )
-    setForm((p) => ({ ...p, functionalArea: val }))
-    setNewFunctionalArea("")
   }
 
   useEffect(() => {
@@ -390,46 +378,6 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
               </option>
             ))}
           </Select>
-
-          <div className="flex flex-col gap-2 mt-2">
-            <div className="flex gap-2">
-              <Input
-                id="newFunctionalArea"
-                label=""
-                placeholder="Add new Functional Area"
-                value={newFunctionalArea}
-                onChange={(e) => setNewFunctionalArea(e.target.value)}
-              />
-              <Button onClick={addFunctionalArea} disabled={!newFunctionalArea.trim()}>
-                Add
-              </Button>
-            </div>
-
-            {/* Show removable custom areas */}
-            {functionalAreas.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-1">
-                {functionalAreas.map((area) => (
-                  <div
-                    key={area}
-                    className="flex items-center gap-1 bg-gray-100 border border-gray-300 rounded-full px-3 py-1 text-sm"
-                  >
-                    <span>{area}</span>
-                    <button
-                      type="button"
-                      className="text-red-600 hover:text-red-800 font-bold ml-1"
-                      onClick={() => {
-                        setFunctionalAreas((prev) => prev.filter((a) => a !== area))
-                        if (form.functionalArea === area)
-                          setForm((prev) => ({ ...prev, functionalArea: "" }))
-                      }}
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Unit */}
