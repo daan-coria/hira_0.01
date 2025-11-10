@@ -71,7 +71,7 @@ export default function App() {
             © {new Date().getFullYear()} HIRA Staffing Tool. All rights reserved.
           </footer>
 
-          {/* 🤖 AI Assistant (always visible, fixed bottom-right) */}
+          {/* AI Assistant (always visible, fixed bottom-right) */}
           <AIAgent />
         </div>
       </TooltipProvider>
