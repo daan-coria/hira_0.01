@@ -29,10 +29,11 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
   const { data, updateData } = useApp()
   const [rows, setRows] = useState<ResourceRow[]>([])
   const [saving, setSaving] = useState(false)
+  const [activeInfoRow, setActiveInfoRow] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const weekendGroups = ["A", "B", "C", "WC"]
 
-  // ✅ NEW: Filters
+  // Filters
   const [filters, setFilters] = useState({
     vacancy_status: "",
     position: "",
@@ -40,7 +41,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     weekend_group: "",
   })
 
-  // ✅ Debounced autosave
+  // Debounced autosave
   const debouncedSave = useCallback(
     debounce((updated: ResourceRow[]) => {
       setSaving(true)
@@ -50,7 +51,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     [updateData]
   )
 
-  // ✅ Initialize from stored data + load all mock employees
+  // Initialize from stored data + load all mock employees
   useEffect(() => {
     const resourceArray = Array.isArray(data?.resourceInput)
       ? (data.resourceInput as ResourceRow[])
@@ -448,6 +449,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                 <th className="px-3 py-2 border text-right">Unit FTE</th>
                 <th className="px-3 py-2 border">Shift</th>
                 <th className="px-3 py-2 border">Weekend Group</th>
+                <th className="px-3 py-2 border text-center">Information</th>
                 <th className="px-3 py-2 border text-center">Actions</th>
               </tr>
             </thead>
@@ -557,7 +559,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       />
                     </td>
 
-                    {/* ✅ Shift (Updated filtering logic) */}
+                    {/* Shift*/}
                     <td className="border px-2 py-1">
                       <Select
                         id={`shift_${i}`}
@@ -593,6 +595,47 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                           </option>
                         ))}
                       </Select>
+                    </td>
+                    
+                    {/* 👇 Information Button */}
+                    <td className="border px-2 py-1 text-center relative">
+                      <Button
+                        variant="ghost"
+                        className="!px-2 !py-1 text-green-600 font-bold"
+                        onClick={() => setShowInfo(!showInfo)}
+                      >
+                        +
+                      </Button>
+
+                      {showInfo && (
+                        <div className="absolute right-0 z-10 bg-white shadow-lg border rounded-lg p-4 text-left text-sm w-80">
+                          <p><b>Schedule System ID:</b> —</p>
+                          <p><b>EHR ID:</b> —</p>
+                          <p><b>Full Name:</b> {row.first_name} {row.last_name}</p>
+                          <p><b>Primary Cost Center ID:</b> —</p>
+                          <p><b>Primary Cost Center Name:</b> —</p>
+                          <p><b>Primary Job Category ID:</b> —</p>
+                          <p><b>Primary Job Category Name:</b> —</p>
+                          <p><b>Primary Job Code ID:</b> —</p>
+                          <p><b>Expected Hours per week:</b> —</p>
+                          <p><b>Status:</b> {row.vacancy_status || "—"}</p>
+                          <p><b>Start Date:</b> —</p>
+                          <p><b>Term Date:</b> —</p>
+                          <p><b>Seniority Date:</b> —</p>
+                          <p><b>Seniority Value:</b> —</p>
+                          <p><b>Report To ID:</b> —</p>
+                          <p><b>Report To Name:</b> —</p>
+                          <div className="text-right mt-2">
+                            <Button
+                              variant="ghost"
+                              className="!px-2 !py-1 text-xs text-gray-600"
+                              onClick={() => setShowInfo(false)}
+                            >
+                              Close
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </td>
 
                     {/* Actions */}
