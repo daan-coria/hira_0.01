@@ -14,15 +14,15 @@ import {
   ResponsiveContainer,
 } from "recharts"
 
-// Excel serial or US-style string (9/25/2024) → ISO date YYYY-MM-DD
-function excelSerialToISODate(v: unknown): string {
+// Excel serial or US-style string (9/25/2024) → US date MM/DD/YYYY
+function excelSerialToUSDate(v: unknown): string {
   if (typeof v === "number") {
     const base = Date.UTC(1899, 11, 30)
     const ms = v * 86400 * 1000
     const d = new Date(base + ms)
-    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(
+    return `${String(d.getUTCMonth() + 1).padStart(2, "0")}/${String(
       d.getUTCDate()
-    ).padStart(2, "0")}`
+    ).padStart(2, "0")}/${d.getUTCFullYear()}`
   }
 
   if (typeof v === "string") {
@@ -34,10 +34,12 @@ function excelSerialToISODate(v: unknown): string {
 
     if (parts.length === 3) {
       if (parts[0].length === 4) {
+        // format YYYY-MM-DD
         yyyy = parseInt(parts[0])
         mm = parseInt(parts[1])
         dd = parseInt(parts[2])
       } else {
+        // format MM/DD/YYYY or similar
         mm = parseInt(parts[0])
         dd = parseInt(parts[1])
         yyyy = parseInt(parts[2])
@@ -45,12 +47,13 @@ function excelSerialToISODate(v: unknown): string {
     }
 
     if (yyyy && mm && dd) {
-      return `${yyyy}-${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`
+      return `${String(mm).padStart(2, "0")}/${String(dd).padStart(2, "0")}/${yyyy}`
     }
   }
 
   return ""
 }
+
 
 // Excel time (fraction or AM/PM string) -> 24h HH:MM
 function excelTimeToHHMM(v: unknown): string {
@@ -116,7 +119,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
       const demandKey = Object.keys(keys).find((k) => k.includes("patient"));
       const patientsRaw = demandKey ? keys[demandKey] : 0;
 
-      const dateISO = excelSerialToISODate(eventDate);
+      const dateISO = excelSerialToUSDate(eventDate);
       const hour24 = excelTimeToHHMM(hourStart);
 
       let demandValue = 0;
