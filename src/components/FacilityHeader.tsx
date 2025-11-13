@@ -201,7 +201,7 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
 
   // --------------------------------------------------------------------------
   return (
-    <Card title="HIRA Staffing Tool">
+    <Card title="Facility Setup">
       {/* Upload controls */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <label htmlFor="fileUpload" className="sr-only">
