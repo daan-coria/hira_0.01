@@ -1,3 +1,11 @@
+console.log("MasterFilters:", MasterFilters)
+console.log("ToolNavigator:", ToolNavigator)
+console.log("DropdownMenu:", DropdownMenu)
+console.log("DashboardPage:", DashboardPage)
+console.log("LoginPage:", LoginPage)
+console.log("AIAgent:", AIAgent)
+
+
 import { Routes, Route, Navigate, useLocation } from "react-router-dom"
 import { useAuth } from "@/store/AuthContext"
 
