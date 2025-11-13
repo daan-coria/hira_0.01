@@ -1,31 +1,30 @@
 import { Menu } from "lucide-react"
 import { useApp } from "@/store/AppContext"
-import { useEffect } from "react"
+import { useNavigate, useLocation } from "react-router-dom"
 
 export default function MenuIcon() {
   const { menuOpen, setMenuOpen } = useApp()
+  const navigate = useNavigate()
+  const location = useLocation()
 
-  // Close menu when pressing ESC
-  useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMenuOpen(false)
+  const handleClick = () => {
+    // If we're NOT on the tool page → go to /tool first
+    if (location.pathname !== "/tool") {
+      navigate("/tool")
+      setTimeout(() => setMenuOpen(true), 50)  // open after navigation
+    } else {
+      setMenuOpen(!menuOpen)
     }
-    window.addEventListener("keydown", handleEsc)
-    return () => window.removeEventListener("keydown", handleEsc)
-  }, [setMenuOpen])
+  }
 
   return (
     <button
-      aria-label={menuOpen ? "Close menu" : "Open menu"}
-      title={menuOpen ? "Close menu" : "Open menu"}
-      onClick={() => setMenuOpen(!menuOpen)}
-      className={`p-2 rounded-md transition 
-        ${menuOpen ? "bg-gray-300" : "hover:bg-gray-200"}`}
+      aria-label="Toggle menu"
+      title="Toggle menu"
+      onClick={handleClick}
+      className={`p-2 rounded-md hover:bg-gray-200 transition`}
     >
-      <Menu 
-        size={20} 
-        className={`transition-transform ${menuOpen ? "rotate-90" : "rotate-0"}`} 
-      />
+      <Menu size={20} className="text-gray-800" />
     </button>
   )
 }
