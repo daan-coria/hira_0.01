@@ -175,19 +175,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
   //  GLOBAL CONTEXT STATE
   // -----------------------
   const [menuOpen, setMenuOpen] = useState(false)
-  const [master, setMaster] = useState<MasterFilters>({
-  facility: "",
-  unit: "",
-  functionalArea: "",
-  startDate: "",
-  endDate: "",
-  options: {
-    facilities: [],
-    units: [],
-    functionalAreas: []
-  }
-})
+  const [master, setMaster] = useState<MasterFilters>(() => {
+    const saved = localStorage.getItem("hira_master_filters")
+    return saved
+      ? JSON.parse(saved)
+      : {
+          facility: "",
+          unit: "",
+          functionalArea: "",
+          startDate: "",
+          endDate: "",
+          options: {
+            facilities: [],
+            units: [],
+            functionalAreas: []
+          }
+        }
+  })
 
+  useEffect(() => {
+    localStorage.setItem("hira_master_filters", JSON.stringify(master))
+  }, [master])
 
   // -----------------------
   // Data Management
