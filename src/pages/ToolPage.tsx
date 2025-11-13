@@ -17,9 +17,9 @@ export default function ToolPage() {
   // DROPDOWN STEPS — IN NEW REQUIRED ORDER
   // ---------------------------------------
   const stepNames = [
-    "Health System Setup",                  // 0 (Placeholder)
-    "Facility Setup",                       // 1 (StaffingConfigCard)
-    "Weekend Rotation Definition",          // 2 (Placeholder)
+    "Health System Setup",                  // 1 (Placeholder)
+    "Facility Setup",                       // 2 (Placeholder)
+    "Weekend Rotation Definition",          // 3 (Placeholder)
     "Job Configuration",                    // 4 (Placeholder)
     "Shift Configuration",                  // 5 (ShiftConfigCard)
     "Staffing Needs",                       // 6 (PositionStaffingSetupCard)
@@ -30,7 +30,7 @@ export default function ToolPage() {
     "Demand",                               // 11 (CensusOverrideCard)
     "Position Control",                     // 12 (Placeholder)
     "----------------- Current pages to be updated -----------------", // Divider
-    "Resource Availability",                // 14 (AvailabilityConfigCard)
+    "Resource Availability",                // 13 (AvailabilityConfigCard)
   ]
 
   // Reset
@@ -57,44 +57,41 @@ export default function ToolPage() {
         return <div className="p-4 text-gray-600">Weekend Rotation Placeholder</div>
 
       case 3:
-        return <div className="p-4 text-gray-600">Definition Placeholder</div>
-
-      case 4:
         return <div className="p-4 text-gray-600">Job Configuration Placeholder</div>
 
-      case 5:
+      case 4:
         return <ShiftConfigCard />
 
-      case 6:
+      case 5:
         return <PositionStaffingSetupCard />
 
-      case 7:
+      case 6:
         return <ResourceInputCard />
 
-      case 8:
+      case 7:
         return <GapSummaryCard onReset={handleReset} />
 
-      case 9:
+      case 8:
         return <div className="p-4 text-gray-600">Staffing Plan Placeholder</div>
 
-      case 10:
+      case 9:
         return <div className="p-4 text-gray-600">Staffing Grid Placeholder</div>
 
-      case 11:
+      case 10:
         return <CensusOverrideCard />
 
-      case 12:
+      case 11:
         return <div className="p-4 text-gray-600">Position Control Placeholder</div>
 
       // Divider (do not render UI)
-      case 13:
+      case 12:
         return (
           <div className="p-4 text-gray-500 italic text-center">
             Select an actual page (divider)
           </div>
         )
 
-      case 14:
+      case 13:
         return <AvailabilityConfigCard />
 
       default:
