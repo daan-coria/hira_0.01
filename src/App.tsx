@@ -9,9 +9,9 @@ import ToolNavigator from "@/router/ToolNavigator"
 import AIAgent from "@/components/AIAgent" // ✅ Add AI Assistant here
 
 // Pages
-import ToolPage from "@/components/DropdownMenu"
 import DashboardPage from "@/pages/DashboardPage"
 import LoginPage from "@/pages/LoginPage"
+import DropdownMenu from "./components/DropdownMenu"
 
 // 🔐 Protected Route wrapper
 function ProtectedRoute({ children }: { children: JSX.Element }) {
@@ -48,7 +48,7 @@ export default function App() {
                 path="/tool"
                 element={
                   <ProtectedRoute>
-                    <ToolPage />
+                    <DropdownMenu />
                   </ProtectedRoute>
                 }
               />
