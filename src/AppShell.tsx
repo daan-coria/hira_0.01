@@ -1,7 +1,3 @@
-console.log("AuthProvider check:", useAuth()) // DOES IT CRASH HERE?
-console.log("AppProvider check:", useApp())   // DOES IT CRASH HERE?
-
-
 import { Routes, Route, Navigate, useLocation } from "react-router-dom"
 import { useAuth } from "@/store/AuthContext"
 
@@ -65,7 +61,3 @@ export default function AppShell() {
     </div>
   )
 }
-function useApp(): any {
-    throw new Error("Function not implemented.")
-}
-
