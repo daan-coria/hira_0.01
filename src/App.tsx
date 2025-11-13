@@ -9,7 +9,7 @@ import ToolNavigator from "@/router/ToolNavigator"
 import AIAgent from "@/components/AIAgent" // ✅ Add AI Assistant here
 
 // Pages
-import ToolPage from "@/pages/DropdownMenu"
+import ToolPage from "@/components/DropdownMenu"
 import DashboardPage from "@/pages/DashboardPage"
 import LoginPage from "@/pages/LoginPage"
 

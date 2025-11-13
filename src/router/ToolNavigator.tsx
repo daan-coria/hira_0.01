@@ -1,6 +1,7 @@
 import { useNavigate, useLocation } from "react-router-dom"
 import { useAuth } from "@/store/AuthContext"
-import { LogOut } from "lucide-react" 
+import { LogOut } from "lucide-react"
+import DropdownMenu from "@/components/DropdownMenu"   // 👈 ADD THIS
 
 export default function ToolNavigator() {
   const navigate = useNavigate()
@@ -17,8 +18,13 @@ export default function ToolNavigator() {
 
   return (
     <nav className="w-full bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm py-3 px-6 flex justify-between items-center">
-      {/* Left side — brand + nav links */}
-      <div className="flex items-center space-x-6">
+
+      {/* Left side — hamburger icon + brand */}
+      <div className="flex items-center space-x-4">
+
+        {/* HAMBURGER ICON MENU */}
+        <DropdownMenu />
+
         <h1
           onClick={() => navigate("/")}
           className="text-xl font-bold text-gray-800 cursor-pointer hover:text-green-600 transition"
