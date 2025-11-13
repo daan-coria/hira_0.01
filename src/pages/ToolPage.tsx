@@ -1,18 +1,13 @@
 import { useApp } from "@/store/AppContext"
 import { useNavigate } from "react-router-dom"
 
-// Step Components (still rendered for now)
-import FacilityHeader from "@/components/FacilityHeader"
+// Step Components (kept the same)
 import PositionSetupPage from "@/pages/PositionSetupPage"
 import ShiftConfigCard from "@/components/ShiftConfigCard"
 import ResourceInputCard from "@/components/ResourceInputCard"
 import AvailabilityConfigCard from "@/components/AvailabilityConfigCard"
 import CensusOverrideCard from "@/components/CensusOverrideCard"
 import GapSummaryCard from "@/components/GapSummaryCard"
-
-// UI Components
-import Card from "@/components/ui/Card"
-import Button from "@/components/ui/Button"
 import PositionStaffingSetupCard from "@/components/PositionStaffingSetupCard"
 
 export default function ToolPage() {
@@ -27,7 +22,7 @@ export default function ToolPage() {
     setCurrentStep,
   } = useApp()
 
-  // All section names (now without numbers)
+  // Dropdown sections
   const stepNames = [
     "Facility Setup",
     "Position & Staffing Setup",
@@ -38,21 +33,9 @@ export default function ToolPage() {
     "Gap Summary",
   ]
 
-  const handleNext = () => {
-    if (currentStep < stepNames.length - 1) {
-      setCurrentStep((s) => s + 1)
-    }
-  }
-
-  const handlePrev = () => {
-    if (currentStep > 0) {
-      setCurrentStep((s) => s - 1)
-    }
-  }
-
   const handleReset = () => {
     const confirmReset = window.confirm(
-      "Are you sure you want to reset? All progress will be lost."
+      "Are you sure you want to reset everything?"
     )
     if (!confirmReset) return
 
@@ -62,42 +45,29 @@ export default function ToolPage() {
     navigate("/setup")
   }
 
-  // --- Step Renderer (kept as-is for now) ---
+  // STEP CONTENT
   const renderStep = () => {
     switch (currentStep) {
       case 0:
-        return (
-          <Card className="p-4">
-            <p className="text-gray-700 mb-3">
-              Complete facility setup to begin using the HIRA IP Tool.
-            </p>
-            <Button
-              variant="primary"
-              onClick={handleNext}
-              disabled={!state.facilitySetup}
-            >
-              Continue to Position & Staffing Setup
-            </Button>
-          </Card>
-        )
+        return <div className="p-4 text-gray-600">Facility Setup Placeholder</div>
 
       case 1:
-        return <PositionStaffingSetupCard onNext={handleNext} onPrev={handlePrev} />
+        return <PositionStaffingSetupCard />
 
       case 2:
-        return <ShiftConfigCard onNext={handleNext} onPrev={handlePrev} />
+        return <ShiftConfigCard />
 
       case 3:
-        return <ResourceInputCard onNext={handleNext} onPrev={handlePrev} />
+        return <ResourceInputCard />
 
       case 4:
-        return <AvailabilityConfigCard onNext={handleNext} onPrev={handlePrev} />
+        return <AvailabilityConfigCard />
 
       case 5:
-        return <CensusOverrideCard onNext={handleNext} onPrev={handlePrev} />
+        return <CensusOverrideCard />
 
       case 6:
-        return <GapSummaryCard onPrev={handlePrev} onReset={handleReset} />
+        return <GapSummaryCard onReset={handleReset} />
 
       default:
         return null
@@ -105,51 +75,81 @@ export default function ToolPage() {
   }
 
   return (
-    <div className="space-y-8 p-6 max-w-6xl mx-auto">
+    <div className="w-full">
 
-      {/* Always show Facility Header */}
-      <FacilityHeader />
+      {/* MASTER FILTERS BAR — Azure style */}
+      <div className="w-full bg-gray-100 border border-gray-200 rounded-t-xl px-4 py-4 mb-6 shadow-sm">
 
-      {/* NEW NAVIGATION AREA — Dropdown Only */}
-      <div className="w-full flex items-center justify-between mb-6">
-        <div className="flex flex-col">
-          <label
-            htmlFor="sectionSelect"
-            className="text-sm font-medium text-gray-700 mb-1"
-          >
-            Navigate to section
-          </label>
+        {/* TOP ROW: DROPDOWN LEFT + Actions right (future) */}
+        <div className="flex items-center justify-between mb-4">
 
-          <select
-            id="sectionSelect"
-            value={currentStep}
-            onChange={(e) => setCurrentStep(Number(e.target.value))}
-            className="px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-800
-                       focus:ring-2 focus:ring-green-600 focus:border-green-600 cursor-pointer transition-all"
-          >
-            {stepNames.map((name, i) => (
-              <option key={i} value={i}>
-                {name}
-              </option>
-            ))}
-          </select>
+          {/* DROPDOWN MENU (top left) */}
+          <div className="flex flex-col">
+            <label
+              htmlFor="sectionSelect"
+              className="text-sm font-medium text-gray-700 mb-1"
+            >
+              Navigate
+            </label>
+
+            <select
+              id="sectionSelect"
+              value={currentStep}
+              onChange={(e) => setCurrentStep(Number(e.target.value))}
+              className="px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-800
+                         focus:ring-2 focus:ring-green-600 focus:border-green-600 transition-all cursor-pointer"
+            >
+              {stepNames.map((name, i) => (
+                <option key={i} value={i}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* RIGHT SIDE (icons like Azure: Refresh, Reset Filters) */}
+          <div className="flex gap-6 text-sm text-blue-600 items-center">
+            <button onClick={reloadData} className="hover:underline">
+              ↻ Refresh
+            </button>
+            <button className="hover:underline">
+              📤 Export
+            </button>
+            <button className="hover:underline">
+              📊 Insights
+            </button>
+            <button className="hover:underline">
+              📌 Pin filters
+            </button>
+            <button className="hover:underline">
+              🧹 Reset filters
+            </button>
+          </div>
+        </div>
+
+        {/* MASTER FILTERS — always visible */}
+        <div className="flex flex-wrap gap-4">
+          <button className="px-4 py-2 bg-white border rounded-lg shadow-sm text-gray-700">
+            Campus
+          </button>
+          <button className="px-4 py-2 bg-white border rounded-lg shadow-sm text-gray-700">
+            Unit
+          </button>
+          <button className="px-4 py-2 bg-white border rounded-lg shadow-sm text-gray-700">
+            Date Picker: Start - End
+          </button>
         </div>
       </div>
 
-      {/* Step Content */}
-      {data.loading ? (
-        <p className="text-gray-500 text-center mt-10">
-          Loading data, please wait...
-        </p>
-      ) : (
-        <div>{renderStep()}</div>
-      )}
-
-      {/* Reload Button */}
-      <div className="text-center">
-        <Button variant="ghost" onClick={reloadData}>
-          🔁 Reload Mock Data
-        </Button>
+      {/* PAGE CONTENT */}
+      <div className="px-6">
+        {data.loading ? (
+          <p className="text-gray-500 text-center mt-10">
+            Loading data...
+          </p>
+        ) : (
+          renderStep()
+        )}
       </div>
     </div>
   )
