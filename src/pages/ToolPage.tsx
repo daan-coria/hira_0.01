@@ -19,8 +19,7 @@ export default function ToolPage() {
   const stepNames = [
     "Health System Setup",                  // 0 (Placeholder)
     "Facility Setup",                       // 1 (StaffingConfigCard)
-    "Weekend Rotation",                     // 2 (Placeholder)
-    "Definition",                            // 3 (Placeholder)
+    "Weekend Rotation Definition",          // 2 (Placeholder)
     "Job Configuration",                    // 4 (Placeholder)
     "Shift Configuration",                  // 5 (ShiftConfigCard)
     "Staffing Needs",                       // 6 (PositionStaffingSetupCard)
