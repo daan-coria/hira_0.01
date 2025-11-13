@@ -23,7 +23,7 @@ export default function AppShell() {
       <ToolNavigator />
 
       {/* Show only after login */}
-      {isAuthenticated && location.pathname !== "/login" && (
+      {isAuthenticated && location.pathname === "/tool" && (
         <div className="max-w-7xl mx-auto w-full px-6">
           <MasterFilters />
         </div>
