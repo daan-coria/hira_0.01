@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom"
+import { Routes, Route, Navigate, useLocation } from "react-router-dom"
 import { TooltipProvider } from "@/store/TooltipContext"
 
 // Context
@@ -6,13 +6,13 @@ import { AuthProvider, useAuth } from "@/store/AuthContext"
 
 // Components
 import ToolNavigator from "@/router/ToolNavigator"
-import AIAgent from "@/components/AIAgent" // AI Assistant
+import AIAgent from "@/components/AIAgent"
+import MasterFilters from "@/components/MasterFilters"
 
 // Pages
 import DashboardPage from "@/pages/DashboardPage"
 import LoginPage from "@/pages/LoginPage"
 import DropdownMenu from "./components/DropdownMenu"
-import MasterFilters from "./components/MasterFilters"
 
 // Protected Route wrapper
 function ProtectedRoute({ children }: { children: JSX.Element }) {
@@ -21,15 +21,19 @@ function ProtectedRoute({ children }: { children: JSX.Element }) {
 }
 
 export default function App() {
+  const location = useLocation()
+  const { isAuthenticated } = useAuth()
+
   return (
     <AuthProvider>
       <TooltipProvider>
         <div className="min-h-screen bg-gray-50 text-gray-900 flex flex-col relative">
-          {/* Top Nav (only shows inside tool) */}
+          
+          {/* Top Nav */}
           <ToolNavigator />
 
-          {/* Show Master Filters only when logged in AND not on login page */}
-          {window.location.pathname !== "/login" && (
+          {/* Master Filters visible only when logged in AND not on login page */}
+          {isAuthenticated && location.pathname !== "/login" && (
             <div className="max-w-7xl mx-auto w-full px-6">
               <MasterFilters />
             </div>
@@ -38,10 +42,8 @@ export default function App() {
           {/* Main Content */}
           <main className="flex-1 max-w-7xl mx-auto px-6 py-6 space-y-8 w-full">
             <Routes>
-              {/* Login Page */}
               <Route path="/login" element={<LoginPage />} />
 
-              {/* Landing Dashboard */}
               <Route
                 path="/"
                 element={
@@ -51,7 +53,6 @@ export default function App() {
                 }
               />
 
-              {/* Tool Page */}
               <Route
                 path="/tool"
                 element={
@@ -63,12 +64,12 @@ export default function App() {
             </Routes>
           </main>
 
-          {/* 🔽 Footer */}
+          {/* Footer */}
           <footer className="border-t bg-white text-center py-3 text-sm text-gray-500">
             © {new Date().getFullYear()} HIRA Staffing Tool. All rights reserved.
           </footer>
 
-          {/* AI Assistant (always visible, fixed bottom-right) */}
+          {/* AI Assistant */}
           <AIAgent />
         </div>
       </TooltipProvider>
