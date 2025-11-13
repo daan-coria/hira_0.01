@@ -19,6 +19,19 @@ type FacilitySetup = {
   source?: string
 }
 
+type MasterFilters = {
+  facility: string
+  unit: string
+  functionalArea: string
+  startDate: string
+  endDate: string
+  options: {
+    facilities: string[]
+    units: string[]
+    functionalAreas: string[]
+  }
+}
+
 export type ResourceInputRow = {
   id?: number
   employee_id: string
@@ -84,13 +97,17 @@ type AppContextType = {
   setCurrentStep: React.Dispatch<React.SetStateAction<number>>
   getFrontendSnapshot: () => Record<string, any>
 
-  // 🧠 AI Assistant
+  // AI Assistant
   aiState: AIState
   setAIState: React.Dispatch<React.SetStateAction<AIState>>
 
   // GLOBAL MENU STATE
   menuOpen: boolean
   setMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
+
+  // Master Filters
+  master: MasterFilters
+  setMaster: React.Dispatch<React.SetStateAction<MasterFilters>>
 }
 
 // -----------------------
@@ -155,9 +172,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [aiState])
 
   // -----------------------
-  //  GLOBAL MENU STATE
+  //  GLOBAL CONTEXT STATE
   // -----------------------
   const [menuOpen, setMenuOpen] = useState(false)
+  const [master, setMaster] = useState<MasterFilters>({
+  facility: "",
+  unit: "",
+  functionalArea: "",
+  startDate: "",
+  endDate: "",
+  options: {
+    facilities: [],
+    units: [],
+    functionalAreas: []
+  }
+})
+
 
   // -----------------------
   // Data Management
@@ -297,11 +327,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     currentStep,
     setCurrentStep,
     getFrontendSnapshot,
+
+    // AI Agent
     aiState,
     setAIState,
+
+    // Global menu
     menuOpen,
     setMenuOpen,
-  }
+
+    // GLOBAL MASTER FILTERS 
+    master,
+    setMaster,
+}
+
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }

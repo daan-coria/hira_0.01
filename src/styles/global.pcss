@@ -1,6 +1,9 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+@import "react-date-range/dist/styles.css";
+@import "react-date-range/dist/theme/default.css";
+
 
 html {
   @apply scroll-smooth;
@@ -25,3 +28,27 @@ html {
          text-gray-700;
 }
 
+.sticky-top-bar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(8px);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0;}
+  to   { transform: translateY(0); opacity: 1;}
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.animate-slideUp {
+  animation: slideUp 0.25s ease-out;
+}
