@@ -107,20 +107,16 @@ export default function ToolPage() {
             </select>
           </div>
 
-          {/* RIGHT SIDE (icons like Azure: Refresh, Reset Filters) */}
+          {/* RIGHT SIDE ACTIONS */}
           <div className="flex gap-6 text-sm text-blue-600 items-center">
             <button onClick={reloadData} className="hover:underline">
               ↻ Refresh
             </button>
+
             <button className="hover:underline">
               📤 Export
             </button>
-            <button className="hover:underline">
-              📊 Insights
-            </button>
-            <button className="hover:underline">
-              📌 Pin filters
-            </button>
+
             <button className="hover:underline">
               🧹 Reset filters
             </button>
