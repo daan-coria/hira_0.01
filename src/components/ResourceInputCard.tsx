@@ -10,34 +10,70 @@ import Papa from "papaparse"
 import Swal from "sweetalert2"
 import "sweetalert2/dist/sweetalert2.min.css"
 
-
 type ResourceRow = {
+  // Core identifiers
   id?: number
   employee_id?: string
+
+  // Name & role
   first_name: string
   last_name: string
-  position: string
+  position: string // underlying role
+  job_name?: string // displayed as "Job Name"
+
+  // Main table fields
+  campus?: string
+  cost_center_name?: string
   unit_fte: number
   shift: string
+  shift_group?: string
   weekend_group: "A" | "B" | "C" | "WC" | ""
-  vacancy_status: string
+  start_date?: string // main table "Start Date"
+  end_date?: string // main table "End Date"
+
+  // Status
+  vacancy_status: string // used as "Status" filter
+
+  // Drawer-only extended profile
+  schedule_system_id?: string
+  ehr_id?: string
+  primary_cost_center_id?: string
+  primary_job_category_id?: string
+  primary_job_category_name?: string
+  primary_job_code_id?: string
+  expected_hours_per_week?: number | null
+  term_date?: string
+  seniority_date?: string
+  seniority_value?: string
+  report_to_id?: string
+  report_to_name?: string
 }
 
 type Props = { onNext?: () => void; onPrev?: () => void }
 
 export default function ResourceInputCard({ onNext, onPrev }: Props) {
   const { data, updateData } = useApp()
+
   const [rows, setRows] = useState<ResourceRow[]>([])
   const [saving, setSaving] = useState(false)
+
+  // Info drawer state
   const [activeInfoRow, setActiveInfoRow] = useState<number | null>(null)
+  const [drawerRow, setDrawerRow] = useState<ResourceRow | null>(null)
+  const [drawerMode, setDrawerMode] = useState<"view" | "edit">("view")
+  const [drawerOriginalRow, setDrawerOriginalRow] = useState<ResourceRow | null>(null)
+  const [drawerIsNew, setDrawerIsNew] = useState(false)
+
   const fileInputRef = useRef<HTMLInputElement>(null)
   const weekendGroups = ["A", "B", "C", "WC"]
 
-  // Filters
+  // Filters (per mockup bullets)
   const [filters, setFilters] = useState({
-    vacancy_status: "",
-    position: "",
-    shift: "",
+    campus: "",
+    cost_center_name: "",
+    status: "",
+    job_name: "",
+    shift_group: "",
     weekend_group: "",
   })
 
@@ -51,49 +87,53 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     [updateData]
   )
 
-  // Initialize from stored data + load all mock employees
+  // Initialize from stored data + mock employees
   useEffect(() => {
     const resourceArray = Array.isArray(data?.resourceInput)
       ? (data.resourceInput as ResourceRow[])
       : []
 
     const mockEmployees: ResourceRow[] = [
-        {
-          id: 1,
-          employee_id: "EMP001",
-          first_name: "Emily",
-          last_name: "Nguyen",
-          position: "RN",
-          unit_fte: 1,
-          shift: "Day",
-          weekend_group: "A",
-          vacancy_status: "Filled",
-        },
-        {
-          id: 2,
-          employee_id: "EMP002",
-          first_name: "Michael",
-          last_name: "Lopez",
-          position: "CNA",
-          unit_fte: 0.8,
-          shift: "Night",
-          weekend_group: "B",
-          vacancy_status: "Posted",
-        },
-        {
-          id: 3,
-          employee_id: "EMP003",
-          first_name: "Sarah",
-          last_name: "Johnson",
-          position: "LPN",
-          unit_fte: 1,
-          shift: "Day",
-          weekend_group: "C",
-          vacancy_status: "Filled",
-        },
-      ]
+      {
+        id: 1,
+        campus: "Main Campus",
+        cost_center_name: "5W",
+        employee_id: "EMP1001",
+        first_name: "Emily",
+        last_name: "Nguyen",
+        position: "RN",
+        job_name: "Nurse",
+        unit_fte: 0.9,
+        shift: "Day",
+        shift_group: "Day",
+        weekend_group: "A",
+        start_date: "",
+        end_date: "",
+        vacancy_status: "Filled",
+        schedule_system_id: "",
+        ehr_id: "",
+      },
+      {
+        id: 2,
+        campus: "Main Campus",
+        cost_center_name: "5W",
+        employee_id: "EMP1002",
+        first_name: "Michael",
+        last_name: "Lopez",
+        position: "CNA",
+        job_name: "NA/UC",
+        unit_fte: 0.9,
+        shift: "Day",
+        shift_group: "Day",
+        weekend_group: "C",
+        start_date: "",
+        end_date: "",
+        vacancy_status: "Filled",
+        schedule_system_id: "",
+        ehr_id: "",
+      },
+    ]
 
-    //Merge mock data with any existing stored data
     const merged = [
       ...mockEmployees.filter(
         (mock) => !resourceArray.some((e) => e.employee_id === mock.employee_id)
@@ -103,26 +143,27 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
 
     setRows(merged)
     updateData("resourceInput", merged)
-    }, []) 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-    // Positions from Step 2
-    const positions =
-      Array.isArray(data.staffingConfig) && data.staffingConfig.length > 0
-        ? data.staffingConfig.map((p: any) => p.role)
-        : ["RN", "LPN", "CNA", "Clerk"]
+  // Positions from Step 2
+  const positions =
+    Array.isArray(data?.staffingConfig) && data.staffingConfig.length > 0
+      ? data.staffingConfig.map((p: any) => p.role)
+      : ["RN", "LPN", "CNA", "Clerk"]
 
-    // Filter shifts by role 
-    const getFilteredShifts = (position: string) => {
-      if (!Array.isArray(data.shiftConfig)) return []
-      return (data.shiftConfig || [])
-        .filter((shift: any) => shift.roles?.includes(position))
-        .map((shift: any) => shift.shift_label)
+  // Filter shifts by role
+  const getFilteredShifts = (position: string) => {
+    if (!Array.isArray(data?.shiftConfig)) return []
+    return (data.shiftConfig || [])
+      .filter((shift: any) => shift.roles?.includes(position))
+      .map((shift: any) => shift.shift_label)
   }
 
-  // Weekend group list 
+  // Weekend group list
   const [weekendGroupList, setWeekendGroupList] = useState<string[]>(weekendGroups)
   useEffect(() => {
-    if (Array.isArray(data.staffingConfig)) {
+    if (Array.isArray(data?.staffingConfig)) {
       const groups = Array.from(
         new Set(
           (data.staffingConfig || [])
@@ -132,9 +173,9 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
       )
       if (groups.length > 0) setWeekendGroupList(groups)
     }
-  }, [data.staffingConfig])
+  }, [data?.staffingConfig])
 
-  // Handle changes 
+  // Generic table cell change handler
   const handleChange = async (index: number, field: keyof ResourceRow, value: any) => {
     const updated = [...rows]
     const prevValue = updated[index][field]
@@ -165,7 +206,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
             Swal.fire("Overwritten", "Existing record updated successfully.", "success")
           } else {
             if (typeof prevValue !== "undefined") {
-              (updated[index] as Record<string, any>)[field] = prevValue
+              ;(updated[index] as Record<string, any>)[field] = prevValue
             }
           }
         }
@@ -176,34 +217,99 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     debouncedSave(updated)
   }
 
-  // Add new row
+  // --- Drawer helpers --------------------------------------------------------
+
+  const openDrawerForRow = (rowIndex: number, mode: "view" | "edit", isNew = false) => {
+    const baseRow = rows[rowIndex]
+    setActiveInfoRow(rowIndex)
+    setDrawerRow({ ...baseRow })
+    setDrawerOriginalRow({ ...baseRow })
+    setDrawerMode(mode)
+    setDrawerIsNew(isNew)
+  }
+
+  const closeDrawer = () => {
+    // If this was a brand-new row and user never saved → remove it
+    if (drawerIsNew && activeInfoRow !== null) {
+      const updated = rows.filter((_, idx) => idx !== activeInfoRow)
+      setRows(updated)
+      updateData("resourceInput", updated)
+    }
+    setActiveInfoRow(null)
+    setDrawerRow(null)
+    setDrawerOriginalRow(null)
+    setDrawerIsNew(false)
+    setDrawerMode("view")
+  }
+
+  const saveDrawer = () => {
+    if (activeInfoRow === null || !drawerRow) return
+    const updated = [...rows]
+    updated[activeInfoRow] = { ...drawerRow }
+    setRows(updated)
+    debouncedSave(updated)
+    setDrawerMode("view")
+    setDrawerIsNew(false)
+    setDrawerOriginalRow({ ...drawerRow })
+  }
+
+  const cancelDrawerEdit = () => {
+    if (!drawerOriginalRow) {
+      closeDrawer()
+      return
+    }
+
+    // For a new row: cancel closes and removes row
+    if (drawerIsNew) {
+      closeDrawer()
+      return
+    }
+
+    // For existing row: revert changes
+    setDrawerRow({ ...drawerOriginalRow })
+    setDrawerMode("view")
+  }
+
+  const updateDrawerField = (field: keyof ResourceRow, value: any) => {
+    setDrawerRow((prev) => (prev ? { ...prev, [field]: value } : prev))
+  }
+
+  // --- Add / Remove rows -----------------------------------------------------
+
   const addRow = () => {
     const newRow: ResourceRow = {
       id: Date.now(),
+      campus: "",
+      cost_center_name: "",
       employee_id: "",
       first_name: "",
       last_name: "",
       position: "",
+      job_name: "",
       unit_fte: 1,
       shift: "",
+      shift_group: "",
       weekend_group: "",
+      start_date: "",
+      end_date: "",
       vacancy_status: "",
     }
     const updated = [...rows, newRow]
     setRows(updated)
     debouncedSave(updated)
+
+    const newIndex = updated.length - 1
+    openDrawerForRow(newIndex, "edit", true)
   }
 
-  // Remove row
   const removeRow = (id?: number, employee_id?: string) => {
-    const updated = rows.filter(
-      (r) => r.id !== id && r.employee_id !== employee_id
-    )
+    const updated = rows.filter((r) => r.id !== id && r.employee_id !== employee_id)
     setRows(updated)
     updateData("resourceInput", updated)
   }
 
-  // CSV Upload Handler (fixed header mapping + duplicate logic)
+  // --- CSV Upload / Export ---------------------------------------------------
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -214,22 +320,26 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
       complete: async (results) => {
         const rawData = results.data as any[]
 
-        // Map CSV headers (from exported names) → internal keys
         const newRows: ResourceRow[] = rawData.map((row) => ({
+          campus: row.Campus || "",
+          cost_center_name: row.Cost_Center_Name || "",
           employee_id: row.ID || row.employee_id || "",
           first_name: row.First_Name || row.first_name || "",
           last_name: row.Last_Name || row.last_name || "",
           position: row.Position || row.position || "",
+          job_name: row.Job_Name || row.job_name || row.Position || "",
           unit_fte: Number(row.Unit_FTE || row.unit_fte || 0),
           shift: row.Shift || row.shift || "",
+          shift_group: row.Shift_Group || row.shift_group || row.Shift || "",
           weekend_group: normalizeGroup(row.Weekend_Group || row.weekend_group),
+          start_date: row.Start_Date || "",
+          end_date: row.End_Date || "",
           vacancy_status: row.Vacancy_Status || row.vacancy_status || "",
         }))
 
         let merged = [...rows]
 
         for (const newRow of newRows) {
-          // Skip completely empty rows
           if (
             !newRow.employee_id &&
             !newRow.first_name &&
@@ -291,7 +401,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     return ""
   }
 
-  // ✅ Export CSV (renamed columns)
   const handleExport = () => {
     if (rows.length === 0) {
       Swal.fire("No Data", "There are no rows to export.", "info")
@@ -299,13 +408,19 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     }
     const csv = Papa.unparse(
       rows.map(({ id, ...r }) => ({
+        Campus: r.campus || "",
+        Cost_Center_Name: r.cost_center_name || "",
         ID: r.employee_id || "",
         First_Name: r.first_name,
         Last_Name: r.last_name,
         Position: r.position,
+        Job_Name: r.job_name || "",
         Unit_FTE: r.unit_fte,
         Shift: r.shift,
+        Shift_Group: r.shift_group || "",
         Weekend_Group: r.weekend_group,
+        Start_Date: r.start_date || "",
+        End_Date: r.end_date || "",
         Vacancy_Status: r.vacancy_status,
       }))
     )
@@ -318,15 +433,41 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     URL.revokeObjectURL(url)
   }
 
-  //Apply filters before rendering
+  // --- Filtering -------------------------------------------------------------
+
   const filteredRows = rows.filter((r) => {
     return (
-      (!filters.vacancy_status || r.vacancy_status === filters.vacancy_status) &&
-      (!filters.position || r.position === filters.position) &&
-      (!filters.shift || r.shift === filters.shift) &&
+      (!filters.campus || r.campus === filters.campus) &&
+      (!filters.cost_center_name || r.cost_center_name === filters.cost_center_name) &&
+      (!filters.status || r.vacancy_status === filters.status) &&
+      (!filters.job_name || (r.job_name || r.position) === filters.job_name) &&
+      (!filters.shift_group || (r.shift_group || r.shift) === filters.shift_group) &&
       (!filters.weekend_group || r.weekend_group === filters.weekend_group)
     )
   })
+
+  // Helpers for options
+  const campuses = Array.from(new Set(rows.map((r) => r.campus).filter(Boolean))) as string[]
+  const costCenters = Array.from(
+    new Set(rows.map((r) => r.cost_center_name).filter(Boolean))
+  ) as string[]
+  const statuses = Array.from(
+    new Set(rows.map((r) => r.vacancy_status).filter(Boolean))
+  ) as string[]
+  const jobNames = Array.from(
+    new Set(rows.map((r) => r.job_name || r.position).filter(Boolean))
+  ) as string[]
+  const shiftGroups = Array.from(
+    new Set(rows.map((r) => r.shift_group || r.shift).filter(Boolean))
+  ) as string[]
+  const weekendOptions = Array.from(
+    new Set(rows.map((r) => r.weekend_group).filter(Boolean))
+  ) as string[]
+
+  const formatFullName = (row: ResourceRow) =>
+    `${row.first_name || ""} ${row.last_name || ""}`.trim() || "—"
+
+  // --- Render ----------------------------------------------------------------
 
   return (
     <Card className="p-4 space-y-4">
@@ -382,43 +523,70 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
         </div>
       </div>
 
-      {/*Filter Bar */}
+      {/* Filter Bar */}
       <div className="flex flex-wrap gap-3 items-center mb-3">
         <Select
-          value={filters.vacancy_status}
-          onChange={(e) => setFilters({ ...filters, vacancy_status: e.target.value })}
+          value={filters.campus}
+          onChange={(e) => setFilters({ ...filters, campus: e.target.value })}
         >
-          <option value="">All Statuses</option>
-          <option value="Filled">Filled</option>
-          <option value="Posted">Posted</option>
-        </Select>
-
-        <Select
-          value={filters.position}
-          onChange={(e) => setFilters({ ...filters, position: e.target.value })}
-        >
-          <option value="">All Positions</option>
-          {positions.map((p) => (
-            <option key={p}>{p}</option>
+          <option value="">All Campuses</option>
+          {campuses.map((c) => (
+            <option key={c}>{c}</option>
           ))}
         </Select>
 
         <Select
-          value={filters.shift}
-          onChange={(e) => setFilters({ ...filters, shift: e.target.value })}
+          value={filters.cost_center_name}
+          onChange={(e) =>
+            setFilters({ ...filters, cost_center_name: e.target.value })
+          }
         >
-          <option value="">All Shifts</option>
-          {[...new Set(rows.map((r) => r.shift))].filter(Boolean).map((s) => (
+          <option value="">All Cost Centers</option>
+          {costCenters.map((c) => (
+            <option key={c}>{c}</option>
+          ))}
+        </Select>
+
+        <Select
+          value={filters.status}
+          onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+        >
+          <option value="">All Statuses</option>
+          {statuses.map((s) => (
+            <option key={s}>{s}</option>
+          ))}
+        </Select>
+
+        <Select
+          value={filters.job_name}
+          onChange={(e) => setFilters({ ...filters, job_name: e.target.value })}
+        >
+          <option value="">All Job Names</option>
+          {jobNames.map((j) => (
+            <option key={j}>{j}</option>
+          ))}
+        </Select>
+
+        <Select
+          value={filters.shift_group}
+          onChange={(e) =>
+            setFilters({ ...filters, shift_group: e.target.value })
+          }
+        >
+          <option value="">All Shift Groups</option>
+          {shiftGroups.map((s) => (
             <option key={s}>{s}</option>
           ))}
         </Select>
 
         <Select
           value={filters.weekend_group}
-          onChange={(e) => setFilters({ ...filters, weekend_group: e.target.value })}
+          onChange={(e) =>
+            setFilters({ ...filters, weekend_group: e.target.value })
+          }
         >
-          <option value="">All Groups</option>
-          {weekendGroupList.map((g) => (
+          <option value="">All Weekend Groups</option>
+          {weekendOptions.map((g) => (
             <option key={g}>{g}</option>
           ))}
         </Select>
@@ -426,7 +594,14 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
         <Button
           variant="ghost"
           onClick={() =>
-            setFilters({ vacancy_status: "", position: "", shift: "", weekend_group: "" })
+            setFilters({
+              campus: "",
+              cost_center_name: "",
+              status: "",
+              job_name: "",
+              shift_group: "",
+              weekend_group: "",
+            })
           }
         >
           Clear Filters
@@ -441,102 +616,108 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
           <table className="min-w-full border border-gray-200 text-sm">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-3 py-2 border">Vacancy Status</th>
-                <th className="px-3 py-2 border">ID</th>
-                <th className="px-3 py-2 border">First Name</th>
-                <th className="px-3 py-2 border">Last Name</th>
-                <th className="px-3 py-2 border">Position</th>
-                <th className="px-3 py-2 border text-right">Unit FTE</th>
-                <th className="px-3 py-2 border">Shift</th>
-                <th className="px-3 py-2 border">Weekend Group</th>
                 <th className="px-3 py-2 border text-center">Information</th>
+                <th className="px-3 py-2 border">Cost Center Name</th>
+                <th className="px-3 py-2 border">Employee ID</th>
+                <th className="px-3 py-2 border">Full Name</th>
+                <th className="px-3 py-2 border">Job Name</th>
+                <th className="px-3 py-2 border text-right">Unit FTE</th>
+                <th className="px-3 py-2 border">Shift Group</th>
+                <th className="px-3 py-2 border">Weekend Group</th>
+                <th className="px-3 py-2 border">Start Date</th>
+                <th className="px-3 py-2 border">End Date</th>
                 <th className="px-3 py-2 border text-center">Actions</th>
               </tr>
             </thead>
 
             <tbody>
               {filteredRows.map((row, i) => {
-                const isPosted = row.vacancy_status === "Posted"
-                const filteredShifts = getFilteredShifts(row.position)
+                const rowIndex = rows.findIndex((r) => r.id === row.id)
+
+                const filteredShifts = getFilteredShifts(row.position || "")
 
                 return (
                   <tr
                     key={row.id || i}
                     className="odd:bg-white even:bg-gray-50 hover:bg-gray-100"
                   >
-                    {/* Vacancy Status */}
-                    <td className="border px-2 py-1">
-                      <Select
-                        id={`vacancy_${i}`}
-                        value={row.vacancy_status}
-                        onChange={(e) =>
-                          handleChange(i, "vacancy_status", e.target.value)
+                    {/* Information icon (≪) */}
+                    <td className="border px-2 py-1 text-center">
+                      <Button
+                        variant="ghost"
+                        className="!px-2 !py-1 text-xl font-bold text-gray-700"
+                        onClick={() =>
+                          openDrawerForRow(
+                            rowIndex >= 0 ? rowIndex : i,
+                            "view",
+                            false
+                          )
                         }
-                        className="!m-0 !p-1"
                       >
-                        <option value="">-- Select --</option>
-                        <option value="Filled">Filled</option>
-                        <option value="Posted">Posted</option>
-                      </Select>
+                        ««
+                      </Button>
                     </td>
 
-                    {/* ID */}
-                    <td className="border px-2 py-1 text-center">
+                    {/* Cost Center Name */}
+                    <td className="border px-2 py-1">
                       <Input
-                        id={`employee_id-${i}`}
+                        id={`cost_center_${row.id ?? i}`}
+                        value={row.cost_center_name || ""}
+                        onChange={(e) =>
+                          handleChange(
+                            rowIndex >= 0 ? rowIndex : i,
+                            "cost_center_name",
+                            e.target.value
+                          )
+                        }
+                        placeholder="Cost Center"
+                        className="!m-0 !p-1"
+                      />
+                    </td>
+
+                    {/* Employee ID */}
+                    <td className="border px-2 py-1">
+                      <Input
+                        id={`employee_id_${row.id || i}`}
                         value={row.employee_id || ""}
                         onChange={(e) =>
-                          handleChange(i, "employee_id", e.target.value)
+                          handleChange(
+                            rowIndex >= 0 ? rowIndex : i,
+                            "employee_id",
+                            e.target.value
+                          )
                         }
                         placeholder="ID"
-                        className="!m-0 !p-1 w-24 text-center"
+                        className="!m-0 !p-1 w-28"
                       />
                     </td>
 
-                    {/* First Name */}
+                    {/* Full Name (read-only, from first/last) */}
                     <td className="border px-2 py-1">
-                      <Input
-                        id={`first_name-${i}`}
-                        value={row.first_name}
-                        onChange={(e) =>
-                          handleChange(i, "first_name", e.target.value)
-                        }
-                        placeholder="First"
-                        disabled={isPosted}
-                        className={`!m-0 !p-1 ${
-                          isPosted ? "bg-gray-100 text-gray-400" : ""
-                        }`}
-                      />
+                      <div className="px-2 py-1 bg-white rounded border border-gray-200 text-gray-800 text-sm">
+                        {formatFullName(row)}
+                      </div>
                     </td>
 
-                    {/* Last Name */}
-                    <td className="border px-2 py-1">
-                      <Input
-                        id={`last_name-${i}`}
-                        value={row.last_name}
-                        onChange={(e) =>
-                          handleChange(i, "last_name", e.target.value)
-                        }
-                        placeholder="Last"
-                        disabled={isPosted}
-                        className={`!m-0 !p-1 ${
-                          isPosted ? "bg-gray-100 text-gray-400" : ""
-                        }`}
-                      />
-                    </td>
-
-                    {/* Position */}
+                    {/* Job Name */}
                     <td className="border px-2 py-1">
                       <Select
-                        id={`position_${i}`}
-                        value={row.position}
+                        value={row.job_name || row.position}
                         onChange={(e) =>
-                          handleChange(i, "position", e.target.value)
+                          handleChange(
+                            rowIndex >= 0 ? rowIndex : i,
+                            "job_name",
+                            e.target.value
+                          )
                         }
                         className="!m-0 !p-1"
                       >
                         <option value="">-- Select --</option>
-                        {positions.map((p) => (
+                        {jobNames.concat(
+                          positions.filter(
+                            (p) => !jobNames.includes(p) && p !== (row.job_name || "")
+                          )
+                        ).map((p) => (
                           <option key={p} value={p}>
                             {p}
                           </option>
@@ -547,29 +728,36 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     {/* Unit FTE */}
                     <td className="border px-2 py-1 text-right">
                       <Input
-                        id={`fte-${i}`}
+                        id={`unit_fte_${row.id || i}`}
                         type="number"
                         min={0}
                         step={0.1}
                         value={row.unit_fte}
                         onChange={(e) =>
-                          handleChange(i, "unit_fte", Number(e.target.value))
+                          handleChange(
+                            rowIndex >= 0 ? rowIndex : i,
+                            "unit_fte",
+                            Number(e.target.value)
+                          )
                         }
                         className="!m-0 !p-1 w-20 text-right"
                       />
                     </td>
 
-                    {/* Shift*/}
+                    {/* Shift Group */}
                     <td className="border px-2 py-1">
                       <Select
-                        id={`shift_${i}`}
-                        value={row.shift}
+                        value={row.shift_group || row.shift}
                         onChange={(e) =>
-                          handleChange(i, "shift", e.target.value)
+                          handleChange(
+                            rowIndex >= 0 ? rowIndex : i,
+                            "shift_group",
+                            e.target.value
+                          )
                         }
                         className="!m-0 !p-1"
                       >
-                        <option value="">-- Select Shift --</option>
+                        <option value="">-- Select --</option>
                         {filteredShifts.map((opt) => (
                           <option key={opt} value={opt}>
                             {opt}
@@ -581,10 +769,13 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     {/* Weekend Group */}
                     <td className="border px-2 py-1 text-center">
                       <Select
-                        id={`weekend_${i}`}
                         value={row.weekend_group}
                         onChange={(e) =>
-                          handleChange(i, "weekend_group", e.target.value)
+                          handleChange(
+                            rowIndex >= 0 ? rowIndex : i,
+                            "weekend_group",
+                            e.target.value
+                          )
                         }
                         className="!m-0 !p-1"
                       >
@@ -596,63 +787,39 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                         ))}
                       </Select>
                     </td>
-                    
-                    {/* 👇 Information Button */}
-                    <td className="border px-2 py-1 text-center relative">
-                      <Button
-                        variant="ghost"
-                        className="!px-2 !py-1 text-green-600 font-bold"
-                        onClick={() =>
-                          setActiveInfoRow(activeInfoRow === i ? null : i)
+
+                    {/* Start Date */}
+                    <td className="border px-2 py-1">
+                      <Input
+                        id={`start_date_${row.id || i}`}
+                        type="date"
+                        value={row.start_date || ""}
+                        onChange={(e) =>
+                          handleChange(
+                            rowIndex >= 0 ? rowIndex : i,
+                            "start_date",
+                            e.target.value
+                          )
                         }
-                      >
-                        +
-                      </Button>
+                        className="!m-0 !p-1"
+                      />
+                    </td>
 
-                      {activeInfoRow === i && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
-                            onClick={() => setActiveInfoRow(null)}>
-
-                          <div
-                            className="bg-white rounded-lg shadow-xl w-[420px] max-w-[90%] p-6 relative animate-fadeIn"
-                            onClick={(e) => e.stopPropagation()} // prevent closing when clicking inside
-                          >
-                            <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                              Employee Information
-                            </h3>
-
-                            <div className="space-y-1 text-sm text-gray-700">
-                              <p><b>Schedule System ID:</b> —</p>
-                              <p><b>EHR ID:</b> —</p>
-                              <p><b>Full Name:</b> {row.first_name} {row.last_name}</p>
-                              <p><b>Primary Cost Center ID:</b> —</p>
-                              <p><b>Primary Cost Center Name:</b> —</p>
-                              <p><b>Primary Job Category ID:</b> —</p>
-                              <p><b>Primary Job Category Name:</b> —</p>
-                              <p><b>Primary Job Code ID:</b> —</p>
-                              <p><b>Expected Hours per week:</b> —</p>
-                              <p><b>Status:</b> {row.vacancy_status || "—"}</p>
-                              <p><b>Start Date:</b> —</p>
-                              <p><b>Term Date:</b> —</p>
-                              <p><b>Seniority Date:</b> —</p>
-                              <p><b>Seniority Value:</b> —</p>
-                              <p><b>Report To ID:</b> —</p>
-                              <p><b>Report To Name:</b> —</p>
-                            </div>
-
-                            {/* Close button */}
-                            <div className="text-right mt-4">
-                              <Button
-                                variant="ghost"
-                                className="!px-3 !py-1 text-sm text-gray-700 hover:bg-gray-100"
-                                onClick={() => setActiveInfoRow(null)}
-                              >
-                                Close
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
+                    {/* End Date */}
+                    <td className="border px-2 py-1">
+                      <Input
+                        id={`end_date_${row.id || i}`}
+                        type="date"
+                        value={row.end_date || ""}
+                        onChange={(e) =>
+                          handleChange(
+                            rowIndex >= 0 ? rowIndex : i,
+                            "end_date",
+                            e.target.value
+                          )
+                        }
+                        className="!m-0 !p-1"
+                      />
                     </td>
 
                     {/* Actions */}
@@ -671,6 +838,348 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Drawer overlay */}
+      {activeInfoRow !== null && drawerRow && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black bg-opacity-40"
+            onClick={closeDrawer}
+          />
+          <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white shadow-2xl flex flex-col">
+            <div className="px-5 py-4 border-b flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-800">
+                Employee Information
+              </h3>
+              <Button
+                variant="ghost"
+                className="text-gray-600"
+                onClick={closeDrawer}
+              >
+                ✕
+              </Button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-2 text-sm text-gray-700">
+              {/* Schedule IDs */}
+              <div>
+                <p className="font-semibold">Schedule System ID</p>
+                {drawerMode === "edit" ? (
+                  <Input
+                    id={`schedule_system_id_${drawerRow.id || "new"}`}
+                    value={drawerRow.schedule_system_id || ""}
+                    onChange={(e) =>
+                      updateDrawerField("schedule_system_id", e.target.value)
+                    }
+                  />
+                ) : (
+                  <p>{drawerRow.schedule_system_id || "—"}</p>
+                )}
+              </div>
+
+              <div>
+                <p className="font-semibold">EHR ID</p>
+                {drawerMode === "edit" ? (
+                  <Input
+                    id={`ehr_id_${drawerRow.id || "new"}`}
+                    value={drawerRow.ehr_id || ""}
+                    onChange={(e) => updateDrawerField("ehr_id", e.target.value)}
+                  />
+                ) : (
+                  <p>{drawerRow.ehr_id || "—"}</p>
+                )}
+              </div>
+
+              <div>
+                <p className="font-semibold">Full Name</p>
+                {drawerMode === "edit" ? (
+                  <div className="flex gap-2">
+                    <Input
+                      id={`first_name_${drawerRow.id || "new"}`}
+                      placeholder="First name"
+                      value={drawerRow.first_name}
+                      onChange={(e) =>
+                        updateDrawerField("first_name", e.target.value)
+                      }
+                    />
+                    <Input
+                      id={`last_name_${drawerRow.id || "new"}`}
+                      placeholder="Last name"
+                      value={drawerRow.last_name}
+                      onChange={(e) =>
+                        updateDrawerField("last_name", e.target.value)
+                      }
+                    />
+                  </div>
+                ) : (
+                  <p>{formatFullName(drawerRow)}</p>
+                )}
+              </div>
+
+              <div>
+                <p className="font-semibold">Primary Cost Center ID</p>
+                {drawerMode === "edit" ? (
+                  <Input
+                    id={`primary_cost_center_id_${drawerRow.id || "new"}`}
+                    value={drawerRow.primary_cost_center_id || ""}
+                    onChange={(e) =>
+                      updateDrawerField("primary_cost_center_id", e.target.value)
+                    }
+                  />
+                ) : (
+                  <p>{drawerRow.primary_cost_center_id || "—"}</p>
+                )}
+              </div>
+
+              <div>
+                <p className="font-semibold">Primary Cost Center Name</p>
+                {drawerMode === "edit" ? (
+                  <Input
+                    id={`cost_center_name_${drawerRow.id || "new"}`}
+                    value={drawerRow.cost_center_name || ""}
+                    onChange={(e) =>
+                      updateDrawerField("cost_center_name", e.target.value)
+                    }
+                  />
+                ) : (
+                  <p>{drawerRow.cost_center_name || "—"}</p>
+                )}
+              </div>
+
+              <div>
+                <p className="font-semibold">Primary Job Category ID</p>
+                {drawerMode === "edit" ? (
+                  <Input
+                    id={`primary_job_category_id_${drawerRow.id || "new"}`}
+                    value={drawerRow.primary_job_category_id || ""}
+                    onChange={(e) =>
+                      updateDrawerField(
+                        "primary_job_category_id",
+                        e.target.value
+                      )
+                    }
+                  />
+                ) : (
+                  <p>{drawerRow.primary_job_category_id || "—"}</p>
+                )}
+              </div>
+
+              <div>
+                <p className="font-semibold">Primary Job Category Name</p>
+                {drawerMode === "edit" ? (
+                  <Input
+                    id={`primary_job_category_name_${drawerRow.id || "new"}`}
+                    value={drawerRow.primary_job_category_name || ""}
+                    onChange={(e) =>
+                      updateDrawerField(
+                        "primary_job_category_name",
+                        e.target.value
+                      )
+                    }
+                  />
+                ) : (
+                  <p>{drawerRow.primary_job_category_name || "—"}</p>
+                )}
+              </div>
+
+              <div>
+                <p className="font-semibold">Primary Job Code ID</p>
+                {drawerMode === "edit" ? (
+                  <Input
+                    id={`primary_job_code_id_${drawerRow.id || "new"}`}
+                    value={drawerRow.primary_job_code_id || ""}
+                    onChange={(e) =>
+                      updateDrawerField("primary_job_code_id", e.target.value)
+                    }
+                  />
+                ) : (
+                  <p>{drawerRow.primary_job_code_id || "—"}</p>
+                )}
+              </div>
+
+              <div>
+                <p className="font-semibold">Expected Hours per week</p>
+                {drawerMode === "edit" ? (
+                  <Input
+                    id={`expected_hours_per_week_${drawerRow.id || "new"}`}
+                    type="number"
+                    value={
+                      drawerRow.expected_hours_per_week !== undefined &&
+                      drawerRow.expected_hours_per_week !== null
+                        ? drawerRow.expected_hours_per_week
+                        : ""
+                    }
+                    onChange={(e) =>
+                      updateDrawerField(
+                        "expected_hours_per_week",
+                        e.target.value === ""
+                          ? null
+                          : Number(e.target.value)
+                      )
+                    }
+                  />
+                ) : (
+                  <p>
+                    {drawerRow.expected_hours_per_week !== undefined &&
+                    drawerRow.expected_hours_per_week !== null
+                      ? drawerRow.expected_hours_per_week
+                      : "—"}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <p className="font-semibold">Status</p>
+                {drawerMode === "edit" ? (
+                  <Select
+                    value={drawerRow.vacancy_status}
+                    onChange={(e) =>
+                      updateDrawerField("vacancy_status", e.target.value)
+                    }
+                  >
+                    <option value="">-- Select --</option>
+                    <option value="Filled">Filled</option>
+                    <option value="Posted">Posted</option>
+                  </Select>
+                ) : (
+                  <p>{drawerRow.vacancy_status || "—"}</p>
+                )}
+              </div>
+
+              <div>
+                <p className="font-semibold">Start Date</p>
+                {drawerMode === "edit" ? (
+                  <Input
+                    id={`start_date_${drawerRow.id || "new"}`}
+                    type="date"
+                    value={drawerRow.start_date || ""}
+                    onChange={(e) =>
+                      updateDrawerField("start_date", e.target.value)
+                    }
+                  />
+                ) : (
+                  <p>{drawerRow.start_date || "—"}</p>
+                )}
+              </div>
+
+              <div>
+                <p className="font-semibold">Term Date</p>
+                {drawerMode === "edit" ? (
+                  <Input
+                    id={`term_date_${drawerRow.id || "new"}`}
+                    type="date"
+                    value={drawerRow.term_date || ""}
+                    onChange={(e) =>
+                      updateDrawerField("term_date", e.target.value)
+                    }
+                  />
+                ) : (
+                  <p>{drawerRow.term_date || "—"}</p>
+                )}
+              </div>
+
+              <div>
+                <p className="font-semibold">Seniority Date</p>
+                {drawerMode === "edit" ? (
+                  <Input
+                    id={`seniority_date_${drawerRow.id || "new"}`}
+                    type="date"
+                    value={drawerRow.seniority_date || ""}
+                    onChange={(e) =>
+                      updateDrawerField("seniority_date", e.target.value)
+                    }
+                  />
+                ) : (
+                  <p>{drawerRow.seniority_date || "—"}</p>
+                )}
+              </div>
+
+              <div>
+                <p className="font-semibold">Seniority Value</p>
+                {drawerMode === "edit" ? (
+                  <Input
+                    id={`seniority_value_${drawerRow.id || "new"}`}
+                    value={drawerRow.seniority_value || ""}
+                    onChange={(e) =>
+                      updateDrawerField("seniority_value", e.target.value)
+                    }
+                  />
+                ) : (
+                  <p>{drawerRow.seniority_value || "—"}</p>
+                )}
+              </div>
+
+              <div>
+                <p className="font-semibold">Report To ID</p>
+                {drawerMode === "edit" ? (
+                  <Input
+                    id={`report_to_id_${drawerRow.id || "new"}`}
+                    value={drawerRow.report_to_id || ""}
+                    onChange={(e) =>
+                      updateDrawerField("report_to_id", e.target.value)
+                    }
+                  />
+                ) : (
+                  <p>{drawerRow.report_to_id || "—"}</p>
+                )}
+              </div>
+
+              <div>
+                <p className="font-semibold">Report To Name</p>
+                {drawerMode === "edit" ? (
+                  <Input
+                    id={`report_to_name_${drawerRow.id || "new"}`}
+                    value={drawerRow.report_to_name || ""}
+                    onChange={(e) =>
+                      updateDrawerField("report_to_name", e.target.value)
+                    }
+                  />
+                ) : (
+                  <p>{drawerRow.report_to_name || "—"}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Drawer footer */}
+            <div className="px-5 py-3 border-t flex justify-between items-center">
+              {drawerMode === "view" ? (
+                <>
+                  <Button
+                    variant="ghost"
+                    onClick={closeDrawer}
+                    className="text-gray-700"
+                  >
+                    Close
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={() => setDrawerMode("edit")}
+                  >
+                    Edit
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="ghost"
+                    onClick={cancelDrawerEdit}
+                    className="text-gray-700"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={saveDrawer}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    Save
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </>
       )}
 
       {/* Navigation */}
