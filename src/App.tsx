@@ -7,13 +7,11 @@ import AppShell from "./AppShell"
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
         <TooltipProvider>
           <AppProvider>
             <AppShell />
           </AppProvider>
         </TooltipProvider>
-      </AuthProvider>
     </BrowserRouter>
   )
 }
