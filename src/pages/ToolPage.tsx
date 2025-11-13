@@ -1,7 +1,7 @@
 import { useApp } from "@/store/AppContext"
 import { useNavigate } from "react-router-dom"
 
-// Step Components
+// Step Components (still rendered for now)
 import FacilityHeader from "@/components/FacilityHeader"
 import PositionSetupPage from "@/pages/PositionSetupPage"
 import ShiftConfigCard from "@/components/ShiftConfigCard"
@@ -27,8 +27,7 @@ export default function ToolPage() {
     setCurrentStep,
   } = useApp()
 
-  // ✅ Total steps now 7 — no more fractional step
-  const totalSteps = 7
+  // All section names (now without numbers)
   const stepNames = [
     "Facility Setup",
     "Position & Staffing Setup",
@@ -39,22 +38,21 @@ export default function ToolPage() {
     "Gap Summary",
   ]
 
-  // ✅ Simple sequential labels (1–7)
-  const getStepLabel = (index: number): string => String(index + 1)
-
-  const progressPercent = ((currentStep + 1) / totalSteps) * 100
-
   const handleNext = () => {
-    if (currentStep < totalSteps - 1) setCurrentStep((s) => s + 1)
+    if (currentStep < stepNames.length - 1) {
+      setCurrentStep((s) => s + 1)
+    }
   }
 
   const handlePrev = () => {
-    if (currentStep > 0) setCurrentStep((s) => s - 1)
+    if (currentStep > 0) {
+      setCurrentStep((s) => s - 1)
+    }
   }
 
   const handleReset = () => {
     const confirmReset = window.confirm(
-      "Are you sure you want to reset the wizard and start over? All progress will be lost."
+      "Are you sure you want to reset? All progress will be lost."
     )
     if (!confirmReset) return
 
@@ -64,7 +62,7 @@ export default function ToolPage() {
     navigate("/setup")
   }
 
-  // --- Step Renderer ---
+  // --- Step Renderer (kept as-is for now) ---
   const renderStep = () => {
     switch (currentStep) {
       case 0:
@@ -108,46 +106,34 @@ export default function ToolPage() {
 
   return (
     <div className="space-y-8 p-6 max-w-6xl mx-auto">
+
       {/* Always show Facility Header */}
       <FacilityHeader />
 
-      {/* Progress + Step Navigation */}
-      <div className="w-full" aria-label="Progress Section">
-        <div className="flex flex-wrap justify-between items-center mb-2">
-          <h2 className="text-lg font-semibold text-gray-800">
-            Step {getStepLabel(currentStep)} of {totalSteps} —{" "}
-            {stepNames[currentStep]}
-          </h2>
-          <span className="text-sm text-gray-600">
-            {Math.round(progressPercent)}%
-          </span>
-        </div>
+      {/* NEW NAVIGATION AREA — Dropdown Only */}
+      <div className="w-full flex items-center justify-between mb-6">
+        <div className="flex flex-col">
+          <label
+            htmlFor="sectionSelect"
+            className="text-sm font-medium text-gray-700 mb-1"
+          >
+            Navigate to section
+          </label>
 
-        {/* Step Chips */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-2">
-          {stepNames.map((name, i) => (
-            <button
-              key={name}
-              onClick={() => setCurrentStep(i)}
-              className={`px-3 py-1 text-sm rounded-full border transition-colors ${
-                i === currentStep
-                  ? "bg-green-600 text-white border-green-600"
-                  : "border-gray-300 text-gray-700 hover:bg-gray-100"
-              }`}
-              title={`Go to ${name}`}
-            >
-              {getStepLabel(i)}. {name}
-            </button>
-          ))}
+          <select
+            id="sectionSelect"
+            value={currentStep}
+            onChange={(e) => setCurrentStep(Number(e.target.value))}
+            className="px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-800
+                       focus:ring-2 focus:ring-green-600 focus:border-green-600 cursor-pointer transition-all"
+          >
+            {stepNames.map((name, i) => (
+              <option key={i} value={i}>
+                {name}
+              </option>
+            ))}
+          </select>
         </div>
-
-        {/* Progress Bar */}
-        <progress
-          className="w-full h-3 accent-green-600 rounded mt-2"
-          value={currentStep + 1}
-          max={totalSteps}
-          aria-label="Wizard progress"
-        />
       </div>
 
       {/* Step Content */}
