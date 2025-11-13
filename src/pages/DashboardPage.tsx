@@ -21,12 +21,10 @@ export default function DashboardPage() {
       </header>
 
       {/* Actions */}
-       (
           <Button onClick={() => navigate("/tool")} variant="primary">
             Go to Staffing Tool
           </Button>
-        )
-      
+
     </div>
   )
 }
