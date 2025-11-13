@@ -8,6 +8,7 @@ import ResourceInputCard from "@/components/ResourceInputCard"
 import GapSummaryCard from "@/components/GapSummaryCard"
 import CensusOverrideCard from "@/components/CensusOverrideCard"
 import AvailabilityConfigCard from "@/components/AvailabilityConfigCard"
+import FacilityHeader from "@/components/FacilityHeader"
 
 export default function ToolPage() {
   const navigate = useNavigate()
@@ -18,7 +19,7 @@ export default function ToolPage() {
   // ---------------------------------------
   const stepNames = [
     "Health System Setup",                  // 1 (Placeholder)
-    "Facility Setup",                       // 2 (Placeholder)
+    "Facility Setup",                       // 2 (FacilityHeader)
     "Weekend Rotation Definition",          // 3 (Placeholder)
     "Job Configuration",                    // 4 (Placeholder)
     "Shift Configuration",                  // 5 (ShiftConfigCard)
@@ -39,7 +40,7 @@ export default function ToolPage() {
     setFacilitySetup({} as any)
     setToolType("IP")
     setCurrentStep(0)
-    navigate("/setup")
+    navigate("/tool")
   }
 
   // ---------------------------------------
@@ -51,7 +52,7 @@ export default function ToolPage() {
         return <div className="p-4 text-gray-600">Health System Setup Placeholder</div>
 
       case 1:
-        return <div className="p-4 text-gray-600">Facility Setup Placeholder</div>
+        return <FacilityHeader />
 
       case 2:
         return <div className="p-4 text-gray-600">Weekend Rotation Placeholder</div>
