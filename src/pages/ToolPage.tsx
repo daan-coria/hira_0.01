@@ -2,7 +2,6 @@ import { useApp } from "@/store/AppContext"
 import { useNavigate } from "react-router-dom"
 
 // Components
-import StaffingConfigCard from "@/components/StaffingConfigCard"
 import ShiftConfigCard from "@/components/ShiftConfigCard"
 import PositionStaffingSetupCard from "@/components/PositionStaffingSetupCard"
 import ResourceInputCard from "@/components/ResourceInputCard"
@@ -53,7 +52,7 @@ export default function ToolPage() {
         return <div className="p-4 text-gray-600">Health System Setup Placeholder</div>
 
       case 1:
-        return <StaffingConfigCard />
+        return <div className="p-4 text-gray-600">Facility Setup Placeholder</div>
 
       case 2:
         return <div className="p-4 text-gray-600">Weekend Rotation Placeholder</div>
