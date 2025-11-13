@@ -9,7 +9,6 @@ import ToolNavigator from "@/router/ToolNavigator"
 import AIAgent from "@/components/AIAgent" // ✅ Add AI Assistant here
 
 // Pages
-import FacilitySetupPage from "@/pages/FacilitySetupPage"
 import ToolPage from "@/pages/ToolPage"
 import DashboardPage from "@/pages/DashboardPage"
 import LoginPage from "@/pages/LoginPage"
@@ -40,16 +39,6 @@ export default function App() {
                 element={
                   <ProtectedRoute>
                     <DashboardPage />
-                  </ProtectedRoute>
-                }
-              />
-
-              {/* Facility Setup */}
-              <Route
-                path="/setup"
-                element={
-                  <ProtectedRoute>
-                    <FacilitySetupPage />
                   </ProtectedRoute>
                 }
               />

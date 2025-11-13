@@ -25,28 +25,6 @@ export default function ToolNavigator() {
         >
           HIRA Staffing Tool
         </h1>
-
-        <button
-          onClick={() => navigate("/setup")}
-          className={`text-sm font-medium transition ${
-            location.pathname === "/setup"
-              ? "text-green-600"
-              : "text-gray-600 hover:text-gray-800"
-          }`}
-        >
-          Facility Setup
-        </button>
-
-        <button
-          onClick={() => navigate("/tool")}
-          className={`text-sm font-medium transition ${
-            location.pathname === "/tool"
-              ? "text-green-600"
-              : "text-gray-600 hover:text-gray-800"
-          }`}
-        >
-          Tool
-        </button>
       </div>
 
       {/* Right side — Logout button */}
