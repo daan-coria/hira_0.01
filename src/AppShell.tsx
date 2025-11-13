@@ -1,9 +1,5 @@
-console.log("MasterFilters:", MasterFilters)
-console.log("ToolNavigator:", ToolNavigator)
-console.log("DropdownMenu:", DropdownMenu)
-console.log("DashboardPage:", DashboardPage)
-console.log("LoginPage:", LoginPage)
-console.log("AIAgent:", AIAgent)
+console.log("AuthProvider check:", useAuth()) // DOES IT CRASH HERE?
+console.log("AppProvider check:", useApp())   // DOES IT CRASH HERE?
 
 
 import { Routes, Route, Navigate, useLocation } from "react-router-dom"
@@ -69,3 +65,7 @@ export default function AppShell() {
     </div>
   )
 }
+function useApp(): any {
+    throw new Error("Function not implemented.")
+}
+
