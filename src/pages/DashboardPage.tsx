@@ -21,17 +21,12 @@ export default function DashboardPage() {
       </header>
 
       {/* Actions */}
-      <section className="mt-4">
-        {!facilitySetup ? (
-          <Button onClick={() => navigate("/setup")} variant="primary">
-            Start Facility Setup
-          </Button>
-        ) : (
+       (
           <Button onClick={() => navigate("/tool")} variant="primary">
             Go to Staffing Tool
           </Button>
-        )}
-      </section>
+        )
+      
     </div>
   )
 }
