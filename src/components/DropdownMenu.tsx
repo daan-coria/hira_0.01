@@ -1,8 +1,6 @@
-import { useState } from "react"
-import { Menu } from "lucide-react"
 import { useApp } from "@/store/AppContext"
 
-// Import your page components
+// Import page components
 import ShiftConfigCard from "@/components/ShiftConfigCard"
 import PositionStaffingSetupCard from "@/components/PositionStaffingSetupCard"
 import ResourceInputCard from "@/components/ResourceInputCard"
@@ -12,8 +10,12 @@ import AvailabilityConfigCard from "@/components/AvailabilityConfigCard"
 import FacilityHeader from "@/components/FacilityHeader"
 
 export default function DropdownMenu() {
-  const { currentStep, setCurrentStep } = useApp()
-  const [open, setOpen] = useState(false)
+  const {
+    currentStep,
+    setCurrentStep,
+    menuOpen,
+    setMenuOpen,
+  } = useApp()
 
   const steps = [
     "Health System Setup",
@@ -32,7 +34,6 @@ export default function DropdownMenu() {
     "Resource Availability",
   ]
 
-  // Render the content based on selected step
   const renderStep = () => {
     switch (currentStep) {
       case 0: return <div className="p-4">Health System Setup Placeholder</div>
@@ -57,26 +58,15 @@ export default function DropdownMenu() {
     if (!steps[i].includes("Current pages")) {
       setCurrentStep(i)
     }
-    setOpen(false)
+    setMenuOpen(false)
   }
 
   return (
     <div className="relative w-full">
-      {/* Hamburger Icon */}
-      <div className="absolute left-4 top-4 z-50">
-        <button
-          onClick={() => setOpen(!open)}
-          aria-label="Toggle Menu"
-          title="Toggle Menu"
-          className="p-2 rounded-md hover:bg-gray-200"
-        >
-          <Menu size={20} />
-        </button>
-      </div>
 
-      {/* Popover Menu */}
-      {open && (
-        <div className="absolute left-4 top-14 w-64 bg-white shadow-xl border rounded-lg z-50">
+      {/* POPUP DROPDOWN MENU — Controlled by MenuIcon */}
+      {menuOpen && (
+        <div className="absolute left-4 top-4 w-64 bg-white shadow-xl border rounded-lg z-50">
           {steps.map((name, i) =>
             name.includes("Current pages") ? (
               <div
@@ -99,9 +89,10 @@ export default function DropdownMenu() {
       )}
 
       {/* PAGE CONTENT */}
-      <div className="mt-16 px-6">
+      <div className="mt-4 px-6">
         {renderStep()}
       </div>
+
     </div>
   )
 }

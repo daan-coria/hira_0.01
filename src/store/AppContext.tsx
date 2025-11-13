@@ -19,7 +19,6 @@ type FacilitySetup = {
   source?: string
 }
 
-// Resource Input row (Step 4)
 export type ResourceInputRow = {
   id?: number
   employee_id: string
@@ -32,7 +31,6 @@ export type ResourceInputRow = {
   vacancy_status?: string
 }
 
-// Availability Configuration row (Step 5)
 export type AvailabilityConfigRow = {
   id?: number
   employee_id?: string
@@ -44,7 +42,7 @@ export type AvailabilityConfigRow = {
 }
 
 // -----------------------
-// New: AI Agent State
+// AI Agent State
 // -----------------------
 export type AIMessage = { question: string; answer: string }
 
@@ -84,23 +82,26 @@ type AppContextType = {
   setToolType: (type: "IP" | "ED") => void
   currentStep: number
   setCurrentStep: React.Dispatch<React.SetStateAction<number>>
-  // Returns all FE values in one snapshot for AI agent
   getFrontendSnapshot: () => Record<string, any>
 
   // 🧠 AI Assistant
   aiState: AIState
   setAIState: React.Dispatch<React.SetStateAction<AIState>>
+
+  // GLOBAL MENU STATE
+  menuOpen: boolean
+  setMenuOpen: React.Dispatch<React.SetStateAction<boolean>>
 }
 
 // -----------------------
-// Context Setup
+// Context
 // -----------------------
 const AppContext = createContext<AppContextType | undefined>(undefined)
 
 export function useApp() {
-  const context = useContext(AppContext)
-  if (!context) throw new Error("useApp must be used within an AppProvider")
-  return context
+  const ctx = useContext(AppContext)
+  if (!ctx) throw new Error("useApp must be used inside AppProvider")
+  return ctx
 }
 
 // -----------------------
@@ -115,7 +116,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     toolType: "IP",
   })
 
-  // Shared Data (from multiple mock files)
+  // Data
   const [data, setData] = useState<DataState>({
     loading: true,
     positions: [
@@ -127,7 +128,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     categories: ["Nursing", "Support", "Other"],
   })
 
-  // Step control with localStorage persistence
+  // Step persistence
   const [currentStep, setCurrentStepState] = useState(() => {
     const saved = localStorage.getItem("hira_current_step")
     return saved ? Number(saved) : 0
@@ -142,7 +143,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   // -----------------------
-  // 🧠 AI Assistant State (Persistent)
+  // AI Assistant State
   // -----------------------
   const [aiState, setAIState] = useState<AIState>(() => {
     const saved = localStorage.getItem("hira_ai_state")
@@ -152,6 +153,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem("hira_ai_state", JSON.stringify(aiState))
   }, [aiState])
+
+  // -----------------------
+  //  GLOBAL MENU STATE
+  // -----------------------
+  const [menuOpen, setMenuOpen] = useState(false)
 
   // -----------------------
   // Data Management
@@ -192,9 +198,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return updated
     })
   }
-
   // -----------------------
-  // Reload Data from /mockdata
+  // Reload Data
   // -----------------------
   const reloadData = async () => {
     try {
@@ -229,7 +234,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           .catch(() => []),
       ])
 
-      const merged: DataState = {
+      setData({
         resourceInput,
         availabilityConfig,
         staffingConfig,
@@ -239,23 +244,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
         loading: false,
         positions: data.positions,
         categories: data.categories,
-      }
-
-      setData(merged)
-      console.log("✅ Loaded all mockdata:", merged)
+      })
     } catch (err) {
-      console.error("❌ Error loading mockdata:", err)
+      console.error("❌ mockdata load failed:", err)
       setData((prev) => ({ ...prev, loading: false }))
     }
   }
 
-  // Load mock data on mount
   useEffect(() => {
     reloadData()
   }, [])
 
   // -----------------------
-  // Facility + Tool Management
+  // Facility Setup
   // -----------------------
   const setFacilitySetup = (payload: FacilitySetup) => {
     setState((prev) => ({ ...prev, facilitySetup: payload }))
@@ -273,16 +274,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   // -----------------------
-  // AI Agent Snapshot Helper
+  // AI Snapshot
   // -----------------------
-  const getFrontendSnapshot = () => {
-    return {
-      facilitySetup: state.facilitySetup,
-      toolType: state.toolType,
-      currentStep,
-      ...data, // all current data values
-    }
-  }
+  const getFrontendSnapshot = () => ({
+    facilitySetup: state.facilitySetup,
+    toolType: state.toolType,
+    currentStep,
+    ...data,
+  })
 
   // -----------------------
   // Context Value
@@ -300,6 +299,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     getFrontendSnapshot,
     aiState,
     setAIState,
+    menuOpen,
+    setMenuOpen,
   }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
