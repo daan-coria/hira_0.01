@@ -181,6 +181,8 @@ export default function MasterFilters() {
               months={2}
               direction="horizontal"
               showDateDisplay={false}
+              showMonthArrow={true}
+              showMonthAndYearPickers={true}   
               className="!shadow-none !border-none rounded-lg"
             />
 
