@@ -1,6 +1,7 @@
 import { useNavigate, useLocation } from "react-router-dom"
 import { useAuth } from "@/store/AuthContext"
-import { LogOut, Menu } from "lucide-react"
+import { LogOut } from "lucide-react"
+import MenuIcon from "@/components/MenuIcon"   // ✅ use our stateful icon
 
 export default function ToolNavigator() {
   const navigate = useNavigate()
@@ -17,19 +18,11 @@ export default function ToolNavigator() {
 
   return (
     <nav className="w-full bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm py-3 px-6 flex justify-between items-center">
-
-      {/* Left side — hamburger icon + brand */}
+      {/* Left side — hamburger icon (only on /tool) + brand */}
       <div className="flex items-center space-x-4">
-
-        {/* 🔥 HAMBURGER ICON ONLY (no DropdownMenu here) */}
-        <button
-          aria-label="Open menu"
-          title="Open menu"
-          className="p-2 rounded-md hover:bg-gray-200"
-          onClick={() => navigate("/tool")} // optional behavior
-        >
-          <Menu size={20} />
-        </button>
+        
+        {/* Only show menu icon on /tool */}
+        {location.pathname === "/tool" && <MenuIcon />}
 
         <h1
           onClick={() => navigate("/")}
