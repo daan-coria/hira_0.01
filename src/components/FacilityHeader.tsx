@@ -553,52 +553,58 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
                           </td>
 
                           {/* Pool Participation */}
-                          <td className="px-2 py-2 border">
                             {row.floatPool ? (
+                              // FLOAT POOL = TRUE → Always N/A
                               <input
                                 title="Not applicable"
                                 disabled
                                 value="N/A"
                                 className="w-full border border-gray-300 rounded-md px-2 py-1 bg-gray-100 text-gray-400 text-sm"
                               />
+                            ) : floatPoolOptions.length === 0 ? (
+                              // NO FLOAT POOLS EXIST → Show info instead of empty dropdown
+                              <div className="text-gray-400 text-sm italic px-2 py-2">
+                                No float pools available
+                              </div>
                             ) : (
+                              // MULTI-SELECT DROPDOWN
                               <select
                                 id={`pool-${row.id}`}
                                 aria-label="Pool Participation"
                                 title="Select float pools"
-                                multiple
                                 className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
+                                multiple
                                 value={row.poolParticipation}
                                 onChange={(e) => {
-                                  const values = Array.from(
-                                    e.target.selectedOptions
-                                  ).map((o) => o.value)
-                                  updateRow(
-                                    row.id,
-                                    "poolParticipation",
-                                    values
-                                  )
+                                  const values = Array.from(e.target.selectedOptions).map((o) => o.value)
+                                  updateRow(row.id, "poolParticipation", values)
                                 }}
                               >
-                                {floatPoolOptions.length === 0 && (
-                                  <option disabled>No float pools</option>
-                                )}
+                                {/* CAMPUS FLOAT POOLS */}
+                                <optgroup label="Campus Float Pools">
+                                  {floatPoolOptions
+                                    .filter(opt => opt.label.toLowerCase().includes(row.campus.toLowerCase()))
+                                    .map(opt => (
+                                      <option key={opt.key} value={opt.key}>
+                                        {opt.label}
+                                      </option>
+                                    ))
+                                  }
+                                </optgroup>
 
-                                {floatPoolOptions
-                                  .filter(
-                                    (opt) => opt.key !== row.costCenter
-                                  )
-                                  .map((opt) => (
-                                    <option
-                                      key={opt.key}
-                                      value={opt.key}
-                                    >
-                                      {opt.label}
-                                    </option>
-                                  ))}
+                                {/* REGIONAL FLOAT POOLS */}
+                                <optgroup label="Regional Float Pools">
+                                  {floatPoolOptions
+                                    .filter(opt => !opt.label.toLowerCase().includes(row.campus.toLowerCase()))
+                                    .map(opt => (
+                                      <option key={opt.key} value={opt.key}>
+                                        {opt.label}
+                                      </option>
+                                    ))
+                                  }
+                                </optgroup>
                               </select>
                             )}
-                          </td>
 
                           {/* Unit of Service */}
                           <td className="px-2 py-2 border">
