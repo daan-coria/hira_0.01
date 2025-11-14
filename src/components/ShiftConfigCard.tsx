@@ -614,10 +614,6 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
           each cost center.
         </li>
         <li>
-          Shift Group and Shift Name are free-text inputs (multiple names can
-          belong to the same group).
-        </li>
-        <li>
           With sort set to <strong>None</strong>, you can drag and drop rows to
           arrange shifts on screen.
         </li>
