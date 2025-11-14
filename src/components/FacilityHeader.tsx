@@ -5,6 +5,7 @@ import Input from "@/components/ui/Input"
 import Select from "@/components/ui/Select"
 import { useApp } from "@/store/AppContext"
 import * as XLSX from "xlsx"
+import { Funnel } from "lucide-react"
 
 import {
   DragDropContext,
@@ -74,9 +75,22 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
   const [uploading, setUploading] = useState(false)
   const [warning, setWarning] = useState<string | null>(null)
 
+  const [filters, setFilters] = useState({
+    costCenterKey: "",
+    costCenterName: "",
+    campus: "",
+    functionalArea: "",
+    unitGrouping: "",
+    department: "",
+    floatPool: "",
+  })
+
   // --------------------------------
   // Dropdown option builders
   // --------------------------------
+  const [openFilter, setOpenFilter] = useState<string | null>(null)
+
+  
   const campusOptions = useMemo(
     () =>
       Array.from(new Set(rows.map((r) => r.campus).filter(Boolean))).sort(
