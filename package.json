@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@hello-pangea/dnd": "^18.0.1",
     "@types/lodash.debounce": "^4.0.9",
     "@types/papaparse": "^5.3.16",
     "@types/react-select": "^5.0.0",
