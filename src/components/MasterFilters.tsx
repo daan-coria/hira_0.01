@@ -180,10 +180,9 @@ export default function MasterFilters() {
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 animate-fadeIn">
           <div className="bg-white rounded-xl shadow-xl border border-gray-200 p-6 w-[780px] mt-16 animate-slideUp">
 
-            {/* ⭐ Custom Header */}
+            {/* Custom Azure-style header */}
             <DateRangeHeader date={currentDate} setDate={setCurrentDate} />
 
-            {/* ⭐ Calendar */}
             <DateRange
               ranges={[
                 {
@@ -218,9 +217,9 @@ export default function MasterFilters() {
                 Apply
               </button>
             </div>
-          </div>
         </div>
-      )}
+      </div>
+)}
     </div>
   );
 }
