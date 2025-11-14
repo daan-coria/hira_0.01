@@ -9,15 +9,26 @@ import React, {
 // -----------------------
 // Type Definitions
 // -----------------------
-type FacilitySetup = {
-  facility?: string
-  functionalArea?: string
-  department?: string
-  costCenter?: string
-  bedCount?: number
-  categories?: string[]
-  source?: string
+// Facility Setup now stores the FULL GRID:
+export type CostCenterRow = {
+  id: string
+  facility: string
+  campus: string
+  functionalArea: string
+  unit: string
+  costCenter: string
+  capacity: number | "N/A"
+  costCenterName: string
+  unitGrouping: string
+  floatPool: boolean
+  poolParticipation: string[]
+  unitOfService: string
+  sortOrder: number
 }
+
+// FacilitySetup = full array of rows
+type FacilitySetup = CostCenterRow[]
+
 
 type MasterFilters = {
   facility: string
@@ -127,9 +138,7 @@ export function useApp() {
 export function AppProvider({ children }: { children: ReactNode }) {
   // Core App State
   const [state, setState] = useState<AppState>({
-    facilitySetup: {
-      categories: ["Nursing", "Support", "Other"],
-    },
+    facilitySetup: [],
     toolType: "IP",
   })
 
@@ -211,26 +220,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         const uniqueCats: string[] = Array.from(new Set(rawCategories))
 
-        // Sync categories in both state and data
-        setState((prevState) => ({
-          ...prevState,
-          facilitySetup: {
-            ...(prevState.facilitySetup || {}),
-            categories:
-              uniqueCats.length > 0
-                ? uniqueCats
-                : prevState.facilitySetup?.categories || [
-                    "Nursing",
-                    "Support",
-                    "Other",
-                  ],
-          },
-        }))
-
         updated.categories =
-          uniqueCats.length > 0
-            ? uniqueCats
-            : prev.categories || ["Nursing", "Support", "Other"]
+          uniqueCats.length > 0 ? uniqueCats : prev.categories || ["Nursing", "Support", "Other"]
       }
 
       return updated
@@ -300,12 +291,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, facilitySetup: payload }))
   }
 
+  // For arrays, updateFacilitySetup should REPLACE — not merge — the array
   const updateFacilitySetup = (payload: FacilitySetup) => {
-    setState((prev) => ({
-      ...prev,
-      facilitySetup: { ...prev.facilitySetup, ...payload },
-    }))
+    setState((prev) => ({ ...prev, facilitySetup: payload }))
   }
+
 
   const setToolType = (type: "IP" | "ED") => {
     setState((prev) => ({ ...prev, toolType: type }))
