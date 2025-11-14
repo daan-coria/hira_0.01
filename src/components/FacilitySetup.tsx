@@ -322,32 +322,38 @@ export default function FacilitySetup() {
 
   // ---------- DnD sort ----------
 
-  const handleDragStart = (id: number) => () => {
-    dragRowId.current = id
-  }
+    const handleDragStart = (id: number) => (e: React.DragEvent<HTMLTableRowElement>) => {
+    dragRowId.current = id;
+    e.dataTransfer.effectAllowed = "move";
+    };
 
-  const handleDragOver: React.DragEventHandler<HTMLTableRowElement> = (e) => {
-    e.preventDefault()
-  }
+    const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>) => {
+    e.preventDefault(); // Required for drop to fire
+    e.dataTransfer.dropEffect = "move";
+    };
 
-  const handleDrop = (targetId: number) => (e: React.DragEvent<HTMLTableRowElement>) => {
-    e.preventDefault()
-    const sourceId = dragRowId.current
-    dragRowId.current = null
-    if (sourceId == null || sourceId === targetId) return
+    const handleDrop = (targetId: number) => (e: React.DragEvent<HTMLTableRowElement>) => {
+    e.preventDefault();
 
-    setRows((prev) => {
-      const sourceIndex = prev.findIndex((r) => r.id === sourceId)
-      const targetIndex = prev.findIndex((r) => r.id === targetId)
-      if (sourceIndex === -1 || targetIndex === -1) return prev
+    const sourceId = dragRowId.current;
+    dragRowId.current = null;
 
-      const copy = [...prev]
-      const [moved] = copy.splice(sourceIndex, 1)
-      copy.splice(targetIndex, 0, moved)
+    if (sourceId == null || sourceId === targetId) return;
 
-      return normalizeSortOrder(copy)
-    })
-  }
+    setRows(prev => {
+        const sourceIndex = prev.findIndex(r => r.id === sourceId);
+        const targetIndex = prev.findIndex(r => r.id === targetId);
+        if (sourceIndex === -1 || targetIndex === -1) return prev;
+
+        const newRows = [...prev];
+        const [moved] = newRows.splice(sourceIndex, 1);
+        newRows.splice(targetIndex, 0, moved);
+
+        // assign new sort order (hidden)
+        return newRows.map((r, i) => ({ ...r, sortOrder: i + 1 }));
+    });
+    };
+
 
   // ---------- create-on-the-fly dropdowns ----------
 
@@ -438,7 +444,6 @@ export default function FacilitySetup() {
             Export Excel
             </Button>
 
-
           <Button
             variant="ghost"
             className="border border-red-300 text-red-600 hover:bg-red-50"
@@ -473,7 +478,6 @@ export default function FacilitySetup() {
               <th className="px-3 py-2 text-left">Float Pool</th>
               <th className="px-3 py-2 text-left">Pool Participation</th>
               <th className="px-3 py-2 text-left">Unit of Service</th>
-              <th className="px-3 py-2 text-left">Sort Order</th>
               <th className="w-10 px-3 py-2" />
             </tr>
           </thead>
@@ -675,22 +679,6 @@ export default function FacilitySetup() {
                       <option value="Other">Other</option>
                     </Select>
                   )}
-                </td>
-
-                {/* sort order */}
-                <td className="px-3 py-2 align-middle">
-                  <Input
-                    id={`sortOrder-${row.id}`}  
-                    type="number"
-                    min={1}
-                    className="w-16"
-                    value={row.sortOrder}
-                    onChange={(e) =>
-                      updateRow(row.id, {
-                        sortOrder: Number(e.target.value) || row.sortOrder,
-                      })
-                    }
-                  />
                 </td>
 
                 {/* delete */}
