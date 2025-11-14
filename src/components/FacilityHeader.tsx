@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useState } from "react"
+import { useState, useEffect, useMemo, useRef, MouseEvent } from "react"
 import Card from "@/components/ui/Card"
 import Button from "@/components/ui/Button"
 import Input from "@/components/ui/Input"
 import Select from "@/components/ui/Select"
 import { useApp } from "@/store/AppContext"
 import * as XLSX from "xlsx"
-import { Filter } from "lucide-react"
 import {
   DragDropContext,
   Droppable,
@@ -14,11 +13,8 @@ import {
   DraggableProvided,
   DroppableProvided,
 } from "@hello-pangea/dnd"
+import { Filter } from "lucide-react"
 
-
-// --------------------------------
-// Types
-// --------------------------------
 type Props = {
   onNext?: () => void
   onSetupComplete?: () => void
@@ -62,9 +58,8 @@ type Filters = {
   unitOfService: string
 }
 
-// --------------------------------
-// Helpers
-// --------------------------------
+type FilterKey = keyof Filters
+
 const makeId = () => Math.random().toString(36).slice(2, 10)
 
 const capacityPlaceholder = (unit: string) => {
@@ -74,9 +69,6 @@ const capacityPlaceholder = (unit: string) => {
   return 15 + (h % 31)
 }
 
-// --------------------------------
-// Main Component
-// --------------------------------
 export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
   const { updateFacilitySetup } = useApp()
 
@@ -85,7 +77,6 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
   const [uploading, setUploading] = useState(false)
   const [warning, setWarning] = useState<string | null>(null)
 
-  
   // Filters
   const [filters, setFilters] = useState<Filters>({
     costCenterKey: "",
@@ -97,18 +88,23 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
     floatPool: "",
     unitOfService: "",
   })
-  const [openFilter, setOpenFilter] = useState<keyof Filters | null>(null)
+  const [openFilter, setOpenFilter] = useState<FilterKey | null>(null)
+  const [filterPos, setFilterPos] = useState<{ top: number; left: number }>({
+    top: 0,
+    left: 0,
+  })
+  const filterMenuRef = useRef<HTMLDivElement | null>(null)
 
-  // Functional Area modal
+  // New Functional Area modal
   const [showNewFA, setShowNewFA] = useState(false)
   const [newFAName, setNewFAName] = useState("")
   const [targetRowId, setTargetRowId] = useState<string | null>(null)
 
-  // Dropdown option builders
+  // --- Dropdown option helpers ---
   const campusOptions = useMemo(
     () =>
-      Array.from(new Set(rows.map((r) => r.campus).filter(Boolean))).sort((a, b) =>
-        a.localeCompare(b)
+      Array.from(new Set(rows.map((r) => r.campus).filter(Boolean))).sort(
+        (a, b) => a.localeCompare(b)
       ),
     [rows]
   )
@@ -149,8 +145,7 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
     [rows]
   )
 
-  // Excel Upload Handler
-
+  // --- Excel upload ---
   const handleUploadExcel = () => {
     if (!selectedFile) return
     setUploading(true)
@@ -197,7 +192,7 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
               unit: Unit,
               costCenter: cc,
               capacity: Capacity,
-              costCenterName: Unit, // default = Unit
+              costCenterName: Unit,
               unitGrouping: "",
               floatPool: false,
               poolParticipation: [],
@@ -214,7 +209,7 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
       } catch (err: any) {
         console.error("Excel parse error:", err)
         setRows([])
-        setWarning(`❌ ${err?.message || "Failed to read Excel."}`)
+        setWarning(`❌ ${err?.message || "Failed to read Excel file."}`)
       } finally {
         setUploading(false)
       }
@@ -223,8 +218,7 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
     reader.readAsArrayBuffer(selectedFile)
   }
 
-  // Row Updater
-  
+  // --- Row update helper ---
   const updateRow = <K extends keyof CostCenterRow>(
     id: string,
     key: K,
@@ -289,7 +283,7 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
     )
   }
 
-  // Filters applied to rows
+  // --- Filters applied to rows ---
   const filteredRows = useMemo(() => {
     return rows.filter((r) => {
       if (
@@ -299,13 +293,16 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
         return false
       if (
         filters.costCenterName &&
-        !r.costCenterName.toLowerCase().includes(filters.costCenterName.toLowerCase())
+        !r.costCenterName.toLowerCase().includes(
+          filters.costCenterName.toLowerCase()
+        )
       )
         return false
       if (filters.campus && r.campus !== filters.campus) return false
       if (filters.functionalArea && r.functionalArea !== filters.functionalArea)
         return false
-      if (filters.unitGrouping && r.unitGrouping !== filters.unitGrouping) return false
+      if (filters.unitGrouping && r.unitGrouping !== filters.unitGrouping)
+        return false
       if (
         filters.department &&
         !r.unit.toLowerCase().includes(filters.department.toLowerCase())
@@ -321,8 +318,7 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
     })
   }, [rows, filters])
 
-
-  // Drag & drop (works on filtered view, updates underlying rows)
+  // --- Drag & drop (use filteredRows indices but update source rows) ---
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return
 
@@ -351,7 +347,7 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
     })
   }
 
-  // Push to context
+  // --- Push to context ---
   useEffect(() => {
     updateFacilitySetup(rows)
   }, [rows, updateFacilitySetup])
@@ -361,13 +357,16 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
     onSetupComplete?.()
   }
 
-  // Helpers for filters
-  const handleFilterChange = (key: keyof Filters, value: string) => {
+  // --- Filter helpers ---
+  const handleFilterChange = (key: FilterKey, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }))
   }
 
-  const clearFilter = (key: keyof Filters) => {
-    setFilters((prev) => ({ ...prev, [key]: key === "floatPool" ? "" : "" }))
+  const clearFilter = (key: FilterKey) => {
+    setFilters((prev) => ({
+      ...prev,
+      [key]: key === "floatPool" ? "" : "",
+    }))
     setOpenFilter(null)
   }
 
@@ -389,765 +388,922 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
     Array.from(new Set(rows.map(getter).filter(Boolean))).sort((a, b) =>
       a.localeCompare(b)
     )
-    
-  
-  // Render
+
+  const handleFilterIconClick = (
+    e: MouseEvent<HTMLButtonElement>,
+    key: FilterKey
+  ) => {
+    const btn = e.currentTarget
+    const rect = btn.getBoundingClientRect()
+
+    setFilterPos({
+      top: rect.bottom + window.scrollY + 4,
+      left: rect.right + window.scrollX - 224, // 224px ≈ menu width 14rem
+    })
+
+    setOpenFilter((prev) => (prev === key ? null : key))
+  }
+
+  // Close filter menu on outside click
+  useEffect(() => {
+    if (!openFilter) return
+
+    const handler = (ev: MouseEvent | globalThis.MouseEvent) => {
+      const target = ev.target as Node | null
+      if (
+        filterMenuRef.current &&
+        target &&
+        !filterMenuRef.current.contains(target)
+      ) {
+        setOpenFilter(null)
+      }
+    }
+
+    document.addEventListener("mousedown", handler)
+    return () => document.removeEventListener("mousedown", handler)
+  }, [openFilter])
+
+  const renderFilterContent = (key: FilterKey) => {
+    switch (key) {
+      case "costCenterKey":
+        return (
+          <>
+            <div className="font-semibold text-xs mb-1">Cost Center Key</div>
+            <Input
+              id="filter-cc-key"
+              placeholder="Contains…"
+              className="w-full text-xs mb-2"
+              value={filters.costCenterKey}
+              onChange={(e) =>
+                handleFilterChange("costCenterKey", e.target.value)
+              }
+            />
+            <Button
+              variant="ghost"
+              className="text-xs"
+              onClick={() => clearFilter("costCenterKey")}
+            >
+              Clear
+            </Button>
+          </>
+        )
+      case "costCenterName":
+        return (
+          <>
+            <div className="font-semibold text-xs mb-1">Cost Center Name</div>
+            <Input
+              id="filter-cc-name"
+              placeholder="Contains…"
+              className="w-full text-xs mb-2"
+              value={filters.costCenterName}
+              onChange={(e) =>
+                handleFilterChange("costCenterName", e.target.value)
+              }
+            />
+            <Button
+              variant="ghost"
+              className="text-xs"
+              onClick={() => clearFilter("costCenterName")}
+            >
+              Clear
+            </Button>
+          </>
+        )
+      case "campus":
+        return (
+          <>
+            <div className="font-semibold text-xs mb-1">Campus</div>
+            <Select
+              id="filter-campus"
+              ariaLabel="Filter by campus"
+              hideLabel
+              className="w-full text-xs mb-2"
+              value={filters.campus}
+              onChange={(e) => handleFilterChange("campus", e.target.value)}
+            >
+              <option value="">All campuses</option>
+              {uniqueValues((r) => r.campus).map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </Select>
+            <Button
+              variant="ghost"
+              className="text-xs"
+              onClick={() => clearFilter("campus")}
+            >
+              Clear
+            </Button>
+          </>
+        )
+      case "functionalArea":
+        return (
+          <>
+            <div className="font-semibold text-xs mb-1">Functional Area</div>
+            <Select
+              id="filter-fa"
+              ariaLabel="Filter by functional area"
+              hideLabel
+              className="w-full text-xs mb-2"
+              value={filters.functionalArea}
+              onChange={(e) =>
+                handleFilterChange("functionalArea", e.target.value)
+              }
+            >
+              <option value="">All functional areas</option>
+              {uniqueValues((r) => r.functionalArea).map((fa) => (
+                <option key={fa} value={fa}>
+                  {fa}
+                </option>
+              ))}
+            </Select>
+            <Button
+              variant="ghost"
+              className="text-xs"
+              onClick={() => clearFilter("functionalArea")}
+            >
+              Clear
+            </Button>
+          </>
+        )
+      case "unitGrouping":
+        return (
+          <>
+            <div className="font-semibold text-xs mb-1">Unit Grouping</div>
+            <Select
+              id="filter-ug"
+              ariaLabel="Filter by unit grouping"
+              hideLabel
+              className="w-full text-xs mb-2"
+              value={filters.unitGrouping}
+              onChange={(e) =>
+                handleFilterChange("unitGrouping", e.target.value)
+              }
+            >
+              <option value="">All unit groupings</option>
+              {uniqueValues((r) => r.unitGrouping).map((ug) => (
+                <option key={ug} value={ug}>
+                  {ug}
+                </option>
+              ))}
+            </Select>
+            <Button
+              variant="ghost"
+              className="text-xs"
+              onClick={() => clearFilter("unitGrouping")}
+            >
+              Clear
+            </Button>
+          </>
+        )
+      case "department":
+        return (
+          <>
+            <div className="font-semibold text-xs mb-1">Department</div>
+            <Input
+              id="filter-dept"
+              placeholder="Contains…"
+              className="w-full text-xs mb-2"
+              value={filters.department}
+              onChange={(e) =>
+                handleFilterChange("department", e.target.value)
+              }
+            />
+            <Button
+              variant="ghost"
+              className="text-xs"
+              onClick={() => clearFilter("department")}
+            >
+              Clear
+            </Button>
+          </>
+        )
+      case "floatPool":
+        return (
+          <>
+            <div className="font-semibold text-xs mb-1">Float Pool</div>
+            <Select
+              id="filter-float"
+              ariaLabel="Filter by float pool"
+              hideLabel
+              className="w-full text-xs mb-2"
+              value={filters.floatPool}
+              onChange={(e) =>
+                handleFilterChange(
+                  "floatPool",
+                  e.target.value as Filters["floatPool"]
+                )
+              }
+            >
+              <option value="">All units</option>
+              <option value="true">Float pools only</option>
+              <option value="false">Non-float units</option>
+            </Select>
+            <Button
+              variant="ghost"
+              className="text-xs"
+              onClick={() => clearFilter("floatPool")}
+            >
+              Clear
+            </Button>
+          </>
+        )
+      case "unitOfService":
+        return (
+          <>
+            <div className="font-semibold text-xs mb-1">Unit of Service</div>
+            <Select
+              id="filter-uos"
+              ariaLabel="Filter by unit of service"
+              hideLabel
+              className="w-full text-xs mb-2"
+              value={filters.unitOfService}
+              onChange={(e) =>
+                handleFilterChange("unitOfService", e.target.value)
+              }
+            >
+              <option value="">All UOS</option>
+              {unitOfServiceOptions.map((u) => (
+                <option key={u} value={u}>
+                  {u}
+                </option>
+              ))}
+              {!unitOfServiceOptions.length && (
+                <>
+                  <option value="Patient Days">Patient Days</option>
+                  <option value="Visits">Visits</option>
+                  <option value="Cases">Cases</option>
+                  <option value="N/A">N/A</option>
+                </>
+              )}
+            </Select>
+            <Button
+              variant="ghost"
+              className="text-xs"
+              onClick={() => clearFilter("unitOfService")}
+            >
+              Clear
+            </Button>
+          </>
+        )
+      default:
+        return null
+    }
+  }
+
+  // --- Render ---
   return (
     <Card title="Facility Setup">
-      <div id="filter-menu-container" className="relative z-50"></div>
-      {/* Top controls */}
-      <div className="flex flex-wrap items-center gap-3 mb-4">
-        <input
-          type="file"
-          accept=".xlsx"
-          title="Upload Excel file"
-          onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-        />
+      <div className="relative">
+        {/* Top controls */}
+        <div className="flex flex-wrap items-center gap-3 mb-4">
+          <input
+            type="file"
+            accept=".xlsx"
+            title="Upload Excel file"
+            onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+          />
 
-        <Button
-          variant="primary"
-          onClick={handleUploadExcel}
-          disabled={!selectedFile || uploading}
-        >
-          {uploading ? "Parsing..." : "Upload Excel"}
-        </Button>
-
-        <Button variant="ghost" onClick={addRow}>
-          Add Cost Center
-        </Button>
-
-        <Button
-          variant="ghost"
-          onClick={() => {
-            setRows([])
-            setWarning(null)
-          }}
-        >
-          Clear All
-        </Button>
-
-        {warning && <span className="text-sm text-gray-600">{warning}</span>}
-
-        {(
-          filters.costCenterKey ||
-          filters.costCenterName ||
-          filters.campus ||
-          filters.functionalArea ||
-          filters.unitGrouping ||
-          filters.department ||
-          filters.floatPool ||
-          filters.unitOfService
-        ) && (
-          <Button variant="ghost" onClick={clearAllFilters}>
-            Clear Filters
+          <Button
+            variant="primary"
+            onClick={handleUploadExcel}
+            disabled={!selectedFile || uploading}
+          >
+            {uploading ? "Parsing..." : "Upload Excel"}
           </Button>
-        )}
-      </div>
 
-      {/* Table */}
-      <div className="border rounded-xl overflow-x-auto relative">
-        <DragDropContext onDragEnd={handleDragEnd}>
-          <Droppable droppableId="facility-rows">
-            {(droppableProvided: DroppableProvided) => (
-              <table className="min-w-full text-sm">
-                <thead className="bg-gray-50">
-                  <tr>     
-                    {/* Drag */}
-                    <th className="px-2 py-2 border w-10 text-left">Drag</th>
+          <Button variant="ghost" onClick={addRow}>
+            Add Cost Center
+          </Button>
 
-                    {/* Cost Center Key */}
-                    <th className="px-2 py-2 border min-w-[110px] relative text-left">
-                      <div className="flex items-center justify-between gap-1">
-                        <span>Cost Center Key</span>
-                        <button
-                          type="button"
-                          className="text-gray-500 hover:text-black"
-                          title="Filter by cost center key"
-                          onClick={() =>
-                            setOpenFilter(
-                              openFilter === "costCenterKey"
-                                ? null
-                                : "costCenterKey"
-                            )
-                          }
-                        >
-                          <Filter size={14} />
-                        </button>
-                      </div>
-                      {openFilter === "costCenterKey" && (
-                        <div className="absolute z-20 bg-white border rounded-lg shadow-lg p-2 mt-1 right-0 w-56">
-                          <input
-                            type="text"
-                            title="Filter by cost center key"
-                            placeholder="Contains…"
-                            className="w-full border rounded-md px-2 py-1 text-xs mb-2"
-                            value={filters.costCenterKey}
-                            onChange={(e) =>
-                              handleFilterChange("costCenterKey", e.target.value)
-                            }
-                          />
-                          <Button
-                            variant="ghost"
-                            onClick={() => clearFilter("costCenterKey")}
-                            className="text-xs"
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setRows([])
+              setWarning(null)
+            }}
+          >
+            Clear All
+          </Button>
+
+          {warning && <span className="text-sm text-gray-600">{warning}</span>}
+
+          {(
+            filters.costCenterKey ||
+            filters.costCenterName ||
+            filters.campus ||
+            filters.functionalArea ||
+            filters.unitGrouping ||
+            filters.department ||
+            filters.floatPool ||
+            filters.unitOfService
+          ) && (
+            <Button variant="ghost" onClick={clearAllFilters}>
+              Clear Filters
+            </Button>
+          )}
+        </div>
+
+        {/* Table */}
+        <div className="border rounded-xl overflow-x-auto">
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <Droppable droppableId="facility-rows">
+              {(droppableProvided: DroppableProvided) => (
+                <table className="min-w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      {/* Drag */}
+                      <th className="px-2 py-2 border w-10 text-left">Drag</th>
+
+                      {/* Cost Center Key */}
+                      <th className="px-2 py-2 border min-w-[130px] relative text-left">
+                        <div className="flex items-center justify-between">
+                          <span>Cost Center Key</span>
+                          <button
+                            type="button"
+                            data-filter="costCenterKey"
+                            aria-label="Filter by cost center key"
+                            title="Filter by Cost Center Key"
+                            className="text-gray-500 hover:text-black"
+                            onClick={(e) => handleFilterIconClick(e, "costCenterKey")}
                           >
-                            Clear
-                          </Button>
+                            <Filter size={14} />
+                          </button>
                         </div>
-                      )}
-                    </th>
+                      </th>
 
-                    {/* Cost Center Name */}
-                    <th className="px-2 py-2 border min-w-[130px] relative text-left">
-                      <div className="flex items-center justify-between gap-1">
-                        <span>Cost Center Name</span>
-                        <button
-                          type="button"
-                          className="text-gray-500 hover:text-black"
-                          title="Filter by cost center name"
-                          onClick={() =>
-                            setOpenFilter(
-                              openFilter === "costCenterName"
-                                ? null
-                                : "costCenterName"
-                            )
-                          }
-                        >
-                          <Filter size={14} />
-                        </button>
-                      </div>
-                      {openFilter === "costCenterName" && (
-                        <div className="absolute z-20 bg-white border rounded-lg shadow-lg p-2 mt-1 right-0 w-56">
-                          <input
-                            type="text"
-                            title="Filter by cost center name"
-                            placeholder="Contains…"
-                            className="w-full border rounded-md px-2 py-1 text-xs mb-2"
-                            value={filters.costCenterName}
-                            onChange={(e) =>
-                              handleFilterChange("costCenterName", e.target.value)
-                            }
-                          />
-                          <Button
-                            variant="ghost"
-                            onClick={() => clearFilter("costCenterName")}
-                            className="text-xs"
+                      {/* Cost Center Name */}
+                      <th className="px-2 py-2 border min-w-[150px] relative text-left">
+                        <div className="flex items-center justify-between">
+                          <span>Cost Center Name</span>
+                          <button
+                            type="button"
+                            data-filter="costCenterName"
+                            aria-label="Filter by cost center name"
+                            title="Filter by Cost Center Name"
+                            className="text-gray-500 hover:text-black"
+                            onClick={(e) => handleFilterIconClick(e, "costCenterName")}
                           >
-                            Clear
-                          </Button>
+                            <Filter size={14} />
+                          </button>
                         </div>
-                      )}
-                    </th>
+                      </th>
 
-                    {/* Campus */}
-                    <th className="px-2 py-2 border min-w-[130px] relative text-left">
-                      <div className="flex items-center justify-between gap-1">
-                        <span>Campus</span>
-                        <button
-                          type="button"
-                          className="text-gray-500 hover:text-black"
-                          title="Filter by campus"
-                          onClick={() =>
-                            setOpenFilter(openFilter === "campus" ? null : "campus")
-                          }
-                        >
-                          <Filter size={14} />
-                        </button>
-                      </div>
-                      {openFilter === "campus" && (
-                        <div className="absolute z-20 bg-white border rounded-lg shadow-lg p-2 mt-1 right-0 w-56">
-                          <select
-                            title="Filter by campus"
-                            className="w-full border rounded-md px-2 py-1 text-xs mb-2"
-                            value={filters.campus}
-                            onChange={(e) =>
-                              handleFilterChange("campus", e.target.value)
-                            }
+                      {/* Campus */}
+                      <th className="px-2 py-2 border min-w-[130px] relative text-left">
+                        <div className="flex items-center justify-between">
+                          <span>Campus</span>
+                          <button
+                            type="button"
+                            data-filter="campus"
+                            aria-label="Filter by campus"
+                            title="Filter by Campus"
+                            className="text-gray-500 hover:text-black"
+                            onClick={(e) => handleFilterIconClick(e, "campus")}
                           >
-                            <option value="">All campuses</option>
-                            {uniqueValues((r) => r.campus).map((c) => (
-                              <option key={c} value={c}>
-                                {c}
-                              </option>
-                            ))}
-                          </select>
-                          <Button
-                            variant="ghost"
-                            onClick={() => clearFilter("campus")}
-                            className="text-xs"
-                          >
-                            Clear
-                          </Button>
+                            <Filter size={14} />
+                          </button>
                         </div>
-                      )}
-                    </th>
+                      </th>
 
-                    {/* Functional Area */}
-                    <th className="px-2 py-2 border min-w-[160px] relative text-left">
-                      <div className="flex items-center justify-between gap-1">
-                        <span>Functional Area</span>
-                        <button
-                          type="button"
-                          className="text-gray-500 hover:text-black"
-                          title="Filter by functional area"
-                          onClick={() =>
-                            setOpenFilter(
-                              openFilter === "functionalArea"
-                                ? null
-                                : "functionalArea"
-                            )
-                          }
-                        >
-                          <Filter size={14} />
-                        </button>
-                      </div>
-                      {openFilter === "functionalArea" && (
-                        <div className="absolute z-20 bg-white border rounded-lg shadow-lg p-2 mt-1 right-0 w-56">
-                          <select
-                            title="Filter by functional area"
-                            className="w-full border rounded-md px-2 py-1 text-xs mb-2"
-                            value={filters.functionalArea}
-                            onChange={(e) =>
-                              handleFilterChange("functionalArea", e.target.value)
-                            }
+                      {/* Functional Area */}
+                      <th className="px-2 py-2 border min-w-[160px] relative text-left">
+                        <div className="flex items-center justify-between">
+                          <span>Functional Area</span>
+                          <button
+                            type="button"
+                            data-filter="functionalArea"
+                            aria-label="Filter by functional area"
+                            title="Filter by Functional Area"
+                            className="text-gray-500 hover:text-black"
+                            onClick={(e) => handleFilterIconClick(e, "functionalArea")}
                           >
-                            <option value="">All functional areas</option>
-                            {uniqueValues((r) => r.functionalArea).map((fa) => (
-                              <option key={fa} value={fa}>
-                                {fa}
-                              </option>
-                            ))}
-                          </select>
-                          <Button
-                            variant="ghost"
-                            onClick={() => clearFilter("functionalArea")}
-                            className="text-xs"
-                          >
-                            Clear
-                          </Button>
+                            <Filter size={14} />
+                          </button>
                         </div>
-                      )}
-                    </th>
+                      </th>
 
-                    {/* Unit Grouping */}
-                    <th className="px-2 py-2 border min-w-[170px] relative text-left">
-                      <div className="flex items-center justify-between gap-1">
-                        <span>Unit Grouping</span>
-                        <button
-                          type="button"
-                          className="text-gray-500 hover:text-black"
-                          title="Filter by unit grouping"
-                          onClick={() =>
-                            setOpenFilter(
-                              openFilter === "unitGrouping"
-                                ? null
-                                : "unitGrouping"
-                            )
-                          }
-                        >
-                          <Filter size={14} />
-                        </button>
-                      </div>
-                      {openFilter === "unitGrouping" && (
-                        <div className="absolute z-20 bg-white border rounded-lg shadow-lg p-2 mt-1 right-0 w-56">
-                          <select
-                            title="Filter by unit grouping"
-                            className="w-full border rounded-md px-2 py-1 text-xs mb-2"
-                            value={filters.unitGrouping}
-                            onChange={(e) =>
-                              handleFilterChange("unitGrouping", e.target.value)
-                            }
+                      {/* Unit Grouping */}
+                      <th className="px-2 py-2 border min-w-[170px] relative text-left">
+                        <div className="flex items-center justify-between">
+                          <span>Unit Grouping</span>
+                          <button
+                            type="button"
+                            data-filter="unitGrouping"
+                            aria-label="Filter by unit grouping"
+                            title="Filter by Unit Grouping"
+                            className="text-gray-500 hover:text-black"
+                            onClick={(e) => handleFilterIconClick(e, "unitGrouping")}
                           >
-                            <option value="">All unit groupings</option>
-                            {uniqueValues((r) => r.unitGrouping).map((ug) => (
-                              <option key={ug} value={ug}>
-                                {ug}
-                              </option>
-                            ))}
-                          </select>
-                          <Button
-                            variant="ghost"
-                            onClick={() => clearFilter("unitGrouping")}
-                            className="text-xs"
-                          >
-                            Clear
-                          </Button>
+                            <Filter size={14} />
+                          </button>
                         </div>
-                      )}
-                    </th>
+                      </th>
 
-                    {/* Capacity */}
-                    <th className="px-2 py-2 border w-[80px] text-left">Capacity</th>
+                      {/* Department */}
+                      <th className="px-2 py-2 border min-w-[150px] relative text-left">
+                        <div className="flex items-center justify-between">
+                          <span>Department</span>
+                          <button
+                            type="button"
+                            data-filter="department"
+                            aria-label="Filter by department"
+                            title="Filter by Department"
+                            className="text-gray-500 hover:text-black"
+                            onClick={(e) => handleFilterIconClick(e, "department")}
+                          >
+                            <Filter size={14} />
+                          </button>
+                        </div>
+                      </th>
 
-                    {/* Float Pool */}
-                    <th className="px-2 py-2 border w-[90px] relative text-left">
-                      <div className="flex items-center justify-between gap-1">
-                        <span>Float Pool</span>
-                        <button
-                          type="button"
-                          className="text-gray-500 hover:text-black"
-                          title="Filter by float pool"        
-                          onClick={() =>
-                            setOpenFilter(
-                              openFilter === "floatPool" ? null : "floatPool"
-                            )
-                          }
+                      {/* Capacity */}
+                      <th className="px-2 py-2 border w-[80px] text-left">
+                        Capacity
+                      </th>
+
+                      {/* Float Pool */}
+                      <th className="px-2 py-2 border w-[110px] relative text-left">
+                        <div className="flex items-center justify-between">
+                          <span>Float Pool</span>
+                          <button
+                            type="button"
+                            data-filter="floatPool"
+                            aria-label="Filter by float pool"
+                            title="Filter by Float Pool"
+                            className="text-gray-500 hover:text-black"
+                            onClick={(e) => handleFilterIconClick(e, "floatPool")}
+                          >
+                            <Filter size={14} />
+                          </button>
+                        </div>
+                      </th>
+
+                      {/* Pool Participation */}
+                      <th className="px-2 py-2 border min-w-[230px] max-w-[280px] text-left">
+                        Pool Participation
+                      </th>
+
+                      {/* Unit of Service */}
+                      <th className="px-2 py-2 border min-w-[150px] relative text-left">
+                        <div className="flex items-center justify-between">
+                          <span>Unit of Service</span>
+                          <button
+                            type="button"
+                            data-filter="unitOfService"
+                            aria-label="Filter by unit of service"
+                            title="Filter by Unit of Service"
+                            className="text-gray-500 hover:text-black"
+                            onClick={(e) => handleFilterIconClick(e, "unitOfService")}
+                          >
+                            <Filter size={14} />
+                          </button>
+                        </div>
+                      </th>
+
+                      {/* Actions */}
+                      <th className="px-2 py-2 border w-[100px] text-left">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody
+                    ref={droppableProvided.innerRef}
+                    {...droppableProvided.droppableProps}
+                    className="min-h-[200px]"
+                  >
+                    {filteredRows.length === 0 && (
+                      <tr>
+                        <td
+                          colSpan={12}
+                          className="px-4 py-8 text-center text-gray-500"
                         >
-                          <Filter size={14} />
-                        </button>
-                      </div>
-                      {openFilter === "floatPool" && (
-                        <div className="absolute z-20 bg-white border rounded-lg shadow-lg p-2 mt-1 right-0 w-56">
-                          <select
-                            title="Filter by float pool"
-                            className="w-full border rounded-md px-2 py-1 text-xs mb-2"
-                            value={filters.floatPool}
-                            onChange={(e) =>
-                              handleFilterChange(
-                                "floatPool",
-                                e.target.value as Filters["floatPool"]
-                              )
+                          No rows match the current filters.
+                        </td>
+                      </tr>
+                    )}
+
+                    {filteredRows.map((row, idx) => (
+                      <Draggable
+                        key={row.id}
+                        draggableId={row.id}
+                        index={idx}
+                      >
+                        {(draggableProvided: DraggableProvided) => (
+                          <tr
+                            ref={draggableProvided.innerRef}
+                            {...draggableProvided.draggableProps}
+                            className={
+                              idx % 2 === 0 ? "bg-white" : "bg-gray-50"
                             }
                           >
-                            <option value="">All units</option>
-                            <option value="true">Float pools only</option>
-                            <option value="false">Non-float units</option>
-                          </select>
-                          <Button
-                            variant="ghost"
-                            onClick={() => clearFilter("floatPool")}
-                            className="text-xs"
-                          >
-                            Clear
-                          </Button>
-                        </div>
-                      )}
-                    </th>
+                            {/* Drag handle */}
+                            <td className="px-2 py-2 border w-10">
+                              <div
+                                {...draggableProvided.dragHandleProps}
+                                className="cursor-grab text-lg"
+                                title="Drag to reorder"
+                              >
+                                ⠿
+                              </div>
+                            </td>
 
-                    {/* Pool Participation */}
-                    <th className="px-2 py-2 border min-w-[220px] max-w-[260px] text-left">
-                      Pool Participation
-                    </th>
-
-                    {/* Unit of Service */}
-                    <th className="px-2 py-2 border min-w-[150px] relative text-left">
-                      <div className="flex items-center justify-between gap-1">
-                        <span>Unit of Service</span>
-                        <button
-                          type="button"
-                          className="text-gray-500 hover:text-black"
-                          title="Filter by unit of service"
-                          onClick={() =>
-                            setOpenFilter(
-                              openFilter === "unitOfService"
-                                ? null
-                                : "unitOfService"
-                            )
-                          }
-                        >
-                          <Filter size={14} />
-                        </button>
-                      </div>
-                      {openFilter === "unitOfService" && (
-                        <div className="absolute z-20 bg-white border rounded-lg shadow-lg p-2 mt-1 right-0 w-56">
-                          <select
-                            title="Filter by unit of service"
-                            className="w-full border rounded-md px-2 py-1 text-xs mb-2"
-                            value={filters.unitOfService}
-                            onChange={(e) =>
-                              handleFilterChange("unitOfService", e.target.value)
-                            }
-                          >
-                            <option value="">All UOS</option>
-                            {unitOfServiceOptions.map((u) => (
-                              <option key={u} value={u}>
-                                {u}
-                              </option>
-                            ))}
-                            {/* fallbacks in case no rows yet */}
-                            {!unitOfServiceOptions.length && (
-                              <>
-                                <option value="Patient Days">Patient Days</option>
-                                <option value="Visits">Visits</option>
-                                <option value="Cases">Cases</option>
-                                <option value="N/A">N/A</option>
-                              </>
-                            )}
-                          </select>
-                          <Button
-                            variant="ghost"
-                            onClick={() => clearFilter("unitOfService")}
-                            className="text-xs"
-                          >
-                            Clear
-                          </Button>
-                        </div>
-                      )}
-                    </th>
-
-                    {/* Actions */}
-                    <th className="px-2 py-2 border w-[100px] text-left">Actions</th>
-                  </tr>
-                </thead>
-
-                <tbody
-                  ref={droppableProvided.innerRef}
-                  {...droppableProvided.droppableProps}
-                >
-                  {filteredRows.map((row, idx) => (
-                    <Draggable
-                      key={row.id}
-                      draggableId={row.id}
-                      index={idx}
-                    >
-                      {(draggableProvided: DraggableProvided) => (
-                        <tr
-                          ref={draggableProvided.innerRef}
-                          {...draggableProvided.draggableProps}
-                          className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
-                        >
-                          {/* Drag handle */}
-                          <td className="px-2 py-2 border w-10">
-                            <div
-                              {...draggableProvided.dragHandleProps}
-                              className="cursor-grab text-lg"
-                              title="Drag to reorder"
-                            >
-                              ⠿
-                            </div>
-                          </td>
-
-
-                          {/* Cost Center Key */}
-                          <td className="px-2 py-2 border min-w-[110px]">
-                            <Input
-                              id={`cc-key-${row.id}`}
-                              value={row.costCenter}
-                              onChange={(e) =>
-                                updateRow(row.id, "costCenter", e.target.value)
-                              }
-                            />
-                          </td>
-
-                          {/* Cost Center Name */}
-                          <td className="px-2 py-2 border min-w-[130px]">
-                            <Input
-                              id={`cc-name-${row.id}`}
-                              value={row.costCenterName}
-                              onChange={(e) =>
-                                updateRow(row.id, "costCenterName", e.target.value)
-                              }
-                            />
-                          </td>
-
-                          {/* Campus */}
-                          <td className="px-2 py-2 border min-w-[130px]">
-                            <Select
-                              id={`campus-${row.id}`}
-                              value={row.campus}
-                              onChange={(e) =>
-                                updateRow(row.id, "campus", e.target.value)
-                              }
-                            >
-                              <option value="">-- Select --</option>
-                              {campusOptions.map((c) => (
-                                <option key={c} value={c}>
-                                  {c}
-                                </option>
-                              ))}
-                            </Select>
-                          </td>
-
-                          {/* Functional Area with + modal */}
-                          <td className="px-2 py-2 border min-w-[160px]">
-                            <div className="flex items-center gap-2">
-                              <Select
-                                id={`fa-${row.id}`}
-                                value={row.functionalArea}
+                            {/* Cost Center Key */}
+                            <td className="px-2 py-2 border min-w-[110px]">
+                              <Input
+                                id={`cc-key-${row.id}`}
+                                value={row.costCenter}
                                 onChange={(e) =>
                                   updateRow(
                                     row.id,
-                                    "functionalArea",
+                                    "costCenter",
+                                    e.target.value
+                                  )
+                                }
+                              />
+                            </td>
+
+                            {/* Cost Center Name */}
+                            <td className="px-2 py-2 border min-w-[130px]">
+                              <Input
+                                id={`cc-name-${row.id}`}
+                                value={row.costCenterName}
+                                onChange={(e) =>
+                                  updateRow(
+                                    row.id,
+                                    "costCenterName",
+                                    e.target.value
+                                  )
+                                }
+                              />
+                            </td>
+
+                            {/* Campus */}
+                            <td className="px-2 py-2 border min-w-[130px]">
+                              <Select
+                                id={`campus-${row.id}`}
+                                ariaLabel="Campus"
+                                hideLabel
+                                value={row.campus}
+                                onChange={(e) => updateRow(row.id, "campus", e.target.value)}
+                              >
+
+                                <option value="">-- Select --</option>
+                                {campusOptions.map((c) => (
+                                  <option key={c} value={c}>
+                                    {c}
+                                  </option>
+                                ))}
+                              </Select>
+                            </td>
+
+                            {/* Functional Area with + modal */}
+                            <td className="px-2 py-2 border min-w-[160px]">
+                              <div className="flex items-center gap-2">
+                                <Select
+                                  id={`fa-${row.id}`}
+                                  ariaLabel="Functional Area"
+                                  hideLabel
+                                  value={row.functionalArea}
+                                  onChange={(e) =>
+                                    updateRow(
+                                      row.id,
+                                      "functionalArea",
+                                      e.target.value
+                                    )
+                                  }
+                                >
+                                  <option value="">-- Select --</option>
+                                  {functionalAreaOptions.map((fa) => (
+                                    <option key={fa} value={fa}>
+                                      {fa}
+                                    </option>
+                                  ))}
+                                </Select>
+                                <Button
+                                  variant="ghost"
+                                  title="Add new functional area"
+                                  onClick={() => {
+                                    setTargetRowId(row.id)
+                                    setShowNewFA(true)
+                                    setNewFAName("")
+                                  }}
+                                >
+                                  +
+                                </Button>
+                              </div>
+                            </td>
+
+                            {/* Unit Grouping */}
+                            <td className="px-2 py-2 border min-w-[170px]">
+                              <Select
+                                id={`ug-${row.id}`}
+                                ariaLabel="Unit Grouping"   
+                                hideLabel
+                                value={row.unitGrouping}
+                                onChange={(e) =>
+                                  updateRow(
+                                    row.id,
+                                    "unitGrouping",
                                     e.target.value
                                   )
                                 }
                               >
                                 <option value="">-- Select --</option>
-                                {functionalAreaOptions.map((fa) => (
-                                  <option key={fa} value={fa}>
-                                    {fa}
+                                {unitGroupingOptions.map((ug) => (
+                                  <option key={ug} value={ug}>
+                                    {ug}
                                   </option>
                                 ))}
                               </Select>
+                              <Input
+                                id={`ug-new-${row.id}`}
+                                className="mt-1"
+                                placeholder="Or type new"
+                                value={row.unitGrouping}
+                                onChange={(e) =>
+                                  updateRow(
+                                    row.id,
+                                    "unitGrouping",
+                                    e.target.value
+                                  )
+                                }
+                              />
+                            </td>
+
+                            {/* Department */}
+                            <td className="px-2 py-2 border min-w-[150px]">
+                              <Input
+                                id={`unit-${row.id}`}
+                                value={row.unit}
+                                onChange={(e) =>
+                                  updateRow(row.id, "unit", e.target.value)
+                                }
+                              />
+                            </td>
+
+                            {/* Capacity */}
+                            <td className="px-2 py-2 border w-[80px] text-center">
+                              {row.floatPool ? (
+                                <input
+                                  title="Not applicable"
+                                  disabled
+                                  value="N/A"
+                                  className="w-full border border-gray-300 rounded-md px-2 py-1 bg-gray-100 text-gray-400 text-sm"
+                                />
+                              ) : (
+                                <Input
+                                  id={`cap-${row.id}`}
+                                  type="number"
+                                  value={
+                                    row.capacity === "N/A"
+                                      ? ""
+                                      : String(row.capacity)
+                                  }
+                                  onChange={(e) =>
+                                    updateRow(
+                                      row.id,
+                                      "capacity",
+                                      e.target.value === ""
+                                        ? 0
+                                        : Number(e.target.value) || 0
+                                    )
+                                  }
+                                />
+                              )}
+                            </td>
+
+                            {/* Float Pool */}
+                            <td className="px-2 py-2 border w-[90px] text-center">
+                              <input
+                                type="checkbox"
+                                title="Toggle float pool"
+                                aria-label="Toggle float pool"
+                                checked={row.floatPool}
+                                onChange={(e) =>
+                                  updateRow(
+                                    row.id,
+                                    "floatPool",
+                                    e.target.checked
+                                  )
+                                }
+                              />
+                            </td>
+
+                            {/* Pool Participation */}
+                            <td className="px-2 py-2 border min-w-[220px] max-w-[260px] align-top">
+                              {row.floatPool ? (
+                                <input
+                                  title="Not applicable"
+                                  disabled
+                                  value="N/A"
+                                  className="w-full border border-gray-300 rounded-md px-2 py-1 bg-gray-100 text-gray-400 text-sm"
+                                />
+                              ) : floatPoolOptions.length === 0 ? (
+                                <div className="text-gray-400 text-sm italic px-2 py-2">
+                                  No float pools available
+                                </div>
+                              ) : (
+                                (() => {
+                                  const campusPools = floatPoolOptions.filter(
+                                    (opt) =>
+                                      opt.campus === row.campus &&
+                                      opt.key !== row.costCenter
+                                  )
+                                  const regionalPools = floatPoolOptions.filter(
+                                    (opt) =>
+                                      opt.campus !== row.campus &&
+                                      opt.key !== row.costCenter
+                                  )
+
+                                  return (
+                                    <select
+                                      id={`pool-${row.id}`}
+                                      aria-label="Pool Participation"
+                                      title="Select float pools"
+                                      multiple
+                                      className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
+                                      value={row.poolParticipation}
+                                      onChange={(e) => {
+                                        const values = Array.from(
+                                          e.target.selectedOptions
+                                        ).map((o) => o.value)
+                                        updateRow(
+                                          row.id,
+                                          "poolParticipation",
+                                          values
+                                        )
+                                      }}
+                                    >
+                                      {campusPools.length > 0 && (
+                                        <optgroup label="Campus Float Pools">
+                                          {campusPools.map((opt) => (
+                                            <option
+                                              key={opt.key}
+                                              value={opt.key}
+                                            >
+                                              {opt.label}
+                                            </option>
+                                          ))}
+                                        </optgroup>
+                                      )}
+                                      {regionalPools.length > 0 && (
+                                        <optgroup label="Regional Float Pools">
+                                          {regionalPools.map((opt) => (
+                                            <option
+                                              key={opt.key}
+                                              value={opt.key}
+                                            >
+                                              {opt.label}
+                                            </option>
+                                          ))}
+                                        </optgroup>
+                                      )}
+                                    </select>
+                                  )
+                                })()
+                              )}
+                            </td>
+
+                            {/* Unit of Service */}
+                            <td className="px-2 py-2 border min-w-[150px]">
+                              {row.floatPool ? (
+                                <input
+                                  title="Not applicable"
+                                  disabled
+                                  value="N/A"
+                                  className="w-full border border-gray-300 rounded-md px-2 py-1 bg-gray-100 text-gray-400 text-sm"
+                                />
+                              ) : (
+                                <Select
+                                  id={`uos-${row.id}`}
+                                  value={row.unitOfService}
+                                  onChange={(e) =>
+                                    updateRow(
+                                      row.id,
+                                      "unitOfService",
+                                      e.target.value as UnitOfService
+                                    )
+                                  }
+                                >
+                                  <option value="">
+                                    -- Unit of Service --
+                                  </option>
+                                  <option value="Patient Days">
+                                    Patient Days
+                                  </option>
+                                  <option value="Visits">Visits</option>
+                                  <option value="Cases">Cases</option>
+                                  <option value="N/A">N/A</option>
+                                </Select>
+                              )}
+                            </td>
+
+                            {/* Actions */}
+                            <td className="px-2 py-2 border w-[100px]">
                               <Button
                                 variant="ghost"
-                                title="Add new functional area"
-                                onClick={() => {
-                                  setTargetRowId(row.id)
-                                  setShowNewFA(true)
-                                  setNewFAName("")
-                                }}
+                                onClick={() => deleteRow(row.id)}
                               >
-                                +
+                                Delete
                               </Button>
-                            </div>
-                          </td>
+                            </td>
+                          </tr>
+                        )}
+                      </Draggable>
+                    ))}
 
-                          {/* Unit Grouping (keep inline 'type new') */}
-                          <td className="px-2 py-2 border min-w-[170px]">
-                            <Select
-                              id={`ug-${row.id}`}
-                              value={row.unitGrouping}
-                              onChange={(e) =>
-                                updateRow(row.id, "unitGrouping", e.target.value)
-                              }
-                            >
-                              <option value="">-- Select --</option>
-                              {unitGroupingOptions.map((ug) => (
-                                <option key={ug} value={ug}>
-                                  {ug}
-                                </option>
-                              ))}
-                            </Select>
-                            <Input
-                              id={`ug-new-${row.id}`}
-                              className="mt-1"
-                              placeholder="Or type new"
-                              value={row.unitGrouping}
-                              onChange={(e) =>
-                                updateRow(row.id, "unitGrouping", e.target.value)
-                              }
-                            />
-                          </td>
+                    {droppableProvided.placeholder}
+                  </tbody>
+                </table>
+              )}
+            </Droppable>
+          </DragDropContext>
+        </div>
 
-                          {/* Capacity */}
-                          <td className="px-2 py-2 border w-[80px] text-center">
-                            {row.floatPool ? (
-                              <input
-                                title="Not applicable"
-                                disabled
-                                value="N/A"
-                                className="w-full border border-gray-300 rounded-md px-2 py-1 bg-gray-100 text-gray-400 text-sm"
-                              />
-                            ) : (
-                              <Input
-                                id={`cap-${row.id}`}
-                                type="number"
-                                value={
-                                  row.capacity === "N/A" ? "" : String(row.capacity)
-                                }
-                                onChange={(e) =>
-                                  updateRow(
-                                    row.id,
-                                    "capacity",
-                                    e.target.value === ""
-                                      ? 0
-                                      : Number(e.target.value) || 0
-                                  )
-                                }
-                              />
-                            )}
-                          </td>
+        {/* Continue */}
+        <div className="flex justify-end mt-6">
+          <Button
+            variant="primary"
+            onClick={handleContinue}
+            disabled={!rows.length}
+          >
+            Continue →
+          </Button>
+        </div>
 
-                          {/* Float Pool */}
-                          <td className="px-2 py-2 border w-[90px] text-center">
-                            <input
-                              type="checkbox"
-                              title="Toggle float pool"
-                              aria-label="Toggle float pool"
-                              checked={row.floatPool}
-                              onChange={(e) =>
-                                updateRow(row.id, "floatPool", e.target.checked)
-                              }
-                            />
-                          </td>
+        <p className="mt-4 text-xs text-gray-500">
+          Note: Cost Center Name is initialized from the Department (Unit) name
+          when importing from Excel. You can edit it in the table at any time.
+        </p>
 
-                          {/* Pool Participation */}
-                          <td className="px-2 py-2 border min-w-[220px] max-w-[260px] align-top">
-                            {row.floatPool ? (
-                              <input
-                                title="Not applicable"
-                                disabled
-                                value="N/A"
-                                className="w-full border border-gray-300 rounded-md px-2 py-1 bg-gray-100 text-gray-400 text-sm"
-                              />
-                            ) : floatPoolOptions.length === 0 ? (
-                              <div className="text-gray-400 text-sm italic px-2 py-2">
-                                No float pools available
-                              </div>
-                            ) : (
-                              (() => {
-                                const campusPools = floatPoolOptions.filter(
-                                  (opt) =>
-                                    opt.campus === row.campus &&
-                                    opt.key !== row.costCenter
-                                )
-                                const regionalPools = floatPoolOptions.filter(
-                                  (opt) =>
-                                    opt.campus !== row.campus &&
-                                    opt.key !== row.costCenter
-                                )
+        {/* Filter dropdown overlay (fixed, outside table scroll) */}
+        {openFilter && (
+          <div
+            ref={filterMenuRef}
+            className={`
+              fixed z-50 bg-white border rounded-lg shadow-lg p-3
+              top-[${filterPos.top}px]
+              left-[${filterPos.left}px]
+            `}
+          >
+            {renderFilterContent(openFilter)}
+          </div>
+        )}
 
-                                return (
-                                  <select
-                                    id={`pool-${row.id}`}
-                                    aria-label="Pool Participation"
-                                    title="Select float pools"
-                                    multiple
-                                    className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
-                                    value={row.poolParticipation}
-                                    onChange={(e) => {
-                                      const values = Array.from(
-                                        e.target.selectedOptions
-                                      ).map((o) => o.value)
-                                      updateRow(
-                                        row.id,
-                                        "poolParticipation",
-                                        values
-                                      )
-                                    }}
-                                  >
-                                    {campusPools.length > 0 && (
-                                      <optgroup label="Campus Float Pools">
-                                        {campusPools.map((opt) => (
-                                          <option
-                                            key={opt.key}
-                                            value={opt.key}
-                                          >
-                                            {opt.label}
-                                          </option>
-                                        ))}
-                                      </optgroup>
-                                    )}
-                                    {regionalPools.length > 0 && (
-                                      <optgroup label="Regional Float Pools">
-                                        {regionalPools.map((opt) => (
-                                          <option
-                                            key={opt.key}
-                                            value={opt.key}
-                                          >
-                                            {opt.label}
-                                          </option>
-                                        ))}
-                                      </optgroup>
-                                    )}
-                                  </select>
-                                )
-                              })()
-                            )}
-                          </td>
+        {/* New Functional Area Modal */}
+        {showNewFA && (
+          <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+            <div className="bg-white rounded-2xl shadow-xl w-[min(400px,90vw)] p-6">
+              <h3 className="text-lg font-semibold mb-4">
+                Add New Functional Area
+              </h3>
 
-                          {/* Unit of Service */}
-                          <td className="px-2 py-2 border min-w-[150px]">
-                            {row.floatPool ? (
-                              <input
-                                title="Not applicable"
-                                disabled
-                                value="N/A"
-                                className="w-full border border-gray-300 rounded-md px-2 py-1 bg-gray-100 text-gray-400 text-sm"
-                              />
-                            ) : (
-                              <Select
-                                id={`uos-${row.id}`}
-                                value={row.unitOfService}
-                                onChange={(e) =>
-                                  updateRow(
-                                    row.id,
-                                    "unitOfService",
-                                    e.target.value as UnitOfService
-                                  )
-                                }
-                              >
-                                <option value="">-- Unit of Service --</option>
-                                <option value="Patient Days">Patient Days</option>
-                                <option value="Visits">Visits</option>
-                                <option value="Cases">Cases</option>
-                                <option value="N/A">N/A</option>
-                              </Select>
-                            )}
-                          </td>
+              <Input
+                id="new-functional-area"
+                label="Functional Area Name"
+                placeholder="e.g. Nursing, ED, Radiology"
+                value={newFAName}
+                onChange={(e) => setNewFAName(e.target.value)}
+              />
 
-                          {/* Actions */}
-                          <td className="px-2 py-2 border w-[100px]">
-                            <Button variant="ghost" onClick={() => deleteRow(row.id)}>
-                              Delete
-                            </Button>
-                          </td>
-                        </tr>
-                      )}
-                    </Draggable>
-                  ))}
+              <div className="flex justify-end mt-6 gap-3">
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setShowNewFA(false)
+                    setNewFAName("")
+                    setTargetRowId(null)
+                  }}
+                >
+                  Cancel
+                </Button>
 
-                  {droppableProvided.placeholder}
-                </tbody>
-              </table>
-            )}
-          </Droppable>
-        </DragDropContext>
-      </div>
+                <Button
+                  variant="primary"
+                  disabled={!newFAName.trim()}
+                  onClick={() => {
+                    const cleaned = newFAName.trim()
+                    if (!cleaned) return
 
-      {/* Continue */}
-      <div className="flex justify-end mt-6">
-        <Button variant="primary" onClick={handleContinue} disabled={!rows.length}>
-          Continue →
-        </Button>
-      </div>
+                    if (targetRowId) {
+                      updateRow(targetRowId, "functionalArea", cleaned)
+                    }
 
-      <p className="mt-4 text-xs text-gray-500">
-        Note: Cost Center Name is initialized from the Department (Unit) name when
-        importing from Excel. You can edit it in the table at any time.
-      </p>
-
-      {/* New Functional Area Modal */}
-      {showNewFA && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-2xl shadow-xl w-[min(400px,90vw)] p-6">
-            <h3 className="text-lg font-semibold mb-4">
-              Add New Functional Area
-            </h3>
-
-            <Input
-              id="new-functional-area"
-              label="Functional Area Name"
-              placeholder="e.g. Nursing, ED, Radiology"
-              value={newFAName}
-              onChange={(e) => setNewFAName(e.target.value)}
-            />
-
-            <div className="flex justify-end mt-6 gap-3">
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setShowNewFA(false)
-                  setNewFAName("")
-                  setTargetRowId(null)
-                }}
-              >
-                Cancel
-              </Button>
-
-              <Button
-                variant="primary"
-                disabled={!newFAName.trim()}
-                onClick={() => {
-                  const cleaned = newFAName.trim()
-                  if (!cleaned) return
-
-                  if (targetRowId) {
-                    updateRow(targetRowId, "functionalArea", cleaned)
-                  }
-
-                  setShowNewFA(false)
-                  setNewFAName("")
-                  setTargetRowId(null)
-                }}
-              >
-                Add
-              </Button>
+                    setShowNewFA(false)
+                    setNewFAName("")
+                    setTargetRowId(null)
+                  }}
+                >
+                  Add
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </Card>
   )
 }
