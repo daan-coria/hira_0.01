@@ -57,12 +57,11 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
   // Debounced autosave to context
   const debouncedSave = useCallback(
     debounce((updated: ShiftRow[]) => {
-      setSaving(true)
       updateData("shiftConfig", updated)
-      setTimeout(() => setSaving(false), 600)
-    }, 500),
-    [updateData]
+    }, 1500),
+    []
   )
+
 
   // Normalize any existing data from context (old structure → new structure)
   useEffect(() => {
@@ -146,28 +145,26 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
     value: any,
     recalcHours: boolean = false
   ) => {
-    const updated = rows.map((row) => {
-      if (row.id !== id) return row
+    setRows(prev => {
+      const updated = prev.map(row => {
+        if (row.id !== id) return row
 
-      const newRow: ShiftRow = {
-        ...row,
-        [field]: field === "break_minutes" ? Number(value) || 0 : value,
-      }
+        const newRow = {
+          ...row,
+          [field]: field === "break_minutes" ? Number(value) || 0 : value,
+        }
 
-      if (
-        recalcHours ||
-        field === "start_time" ||
-        field === "end_time" ||
-        field === "break_minutes"
-      ) {
-        return recalcRowHours(newRow)
-      }
+        return recalcHours ||
+          field === "start_time" ||
+          field === "end_time" ||
+          field === "break_minutes"
+          ? recalcRowHours(newRow)
+          : newRow
+      })
 
-      return newRow
+      debouncedSave(updated)
+      return updated
     })
-
-    setRows(updated)
-    debouncedSave(updated)
   }
 
   const updateRowDays = (id: number, selected: string[]) => {
@@ -389,12 +386,13 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
               {displayRows.map((row) => (
                 <tr
                   key={row.id}
-                  className="odd:bg-white even:bg-gray-50 hover:bg-gray-100"
+                  className="odd:bg-white even:bg-gray-50 hover:bg-gray-100 h-[180px]"
                   draggable={sortMode === "none"}
                   onDragStart={() => handleDragStart(row.id)}
                   onDragOver={(e) => sortMode === "none" && e.preventDefault()}
                   onDrop={() => sortMode === "none" && handleDrop(row.id)}
                 >
+
                   {/* drag handle */}
                   <td
                     className={`border px-2 py-1 text-center select-none ${
@@ -499,7 +497,7 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
 
                   {/* Days checkboxes */}
                   <td className="border px-2 py-1 text-left align-top">
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-1 min-h-[120px] overflow-y-auto">
                       {daysOfWeek.map((day) => {
                         const checked = row.days.includes(day)
                         return (
@@ -532,7 +530,7 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
 
                   {/* Campus checkboxes */}
                   <td className="border px-2 py-1 text-left align-top">
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-1 min-h-[120px] overflow-y-auto">
                       {campusOptions.map((campus) => {
                         const checked = row.campuses.includes(campus)
                         return (
@@ -560,7 +558,7 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
 
                   {/* Roles checkboxes */}
                   <td className="border px-2 py-1 text-left align-top">
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-1 min-h-[120px] overflow-y-auto">
                       {availableRoles.map((role) => {
                         const checked = row.roles.includes(role)
                         return (
@@ -616,15 +614,9 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
           each cost center.
         </li>
         <li>
-          Total Hours are calculated from start and end time minus the Non-Shift
-          Break Time.
-        </li>
-        <li>Day of week and Campus are multi-select.</li>
-        <li>
           Shift Group and Shift Name are free-text inputs (multiple names can
           belong to the same group).
         </li>
-        <li>Use “+ Add Shift” to create additional shifts.</li>
         <li>
           With sort set to <strong>None</strong>, you can drag and drop rows to
           arrange shifts on screen.
