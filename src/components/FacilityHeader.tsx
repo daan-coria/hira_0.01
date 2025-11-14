@@ -335,18 +335,18 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
               <table className="min-w-full text-sm">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-2 py-2 border">Drag</th>
-                    <th className="px-2 py-2 border">Cost Center Key</th>
-                    <th className="px-2 py-2 border">Cost Center Name</th>
-                    <th className="px-2 py-2 border">Campus</th>
-                    <th className="px-2 py-2 border">Functional Area</th>
-                    <th className="px-2 py-2 border">Unit Grouping</th>
-                    <th className="px-2 py-2 border">Department</th>
-                    <th className="px-2 py-2 border">Capacity</th>
-                    <th className="px-2 py-2 border">Float Pool</th>
-                    <th className="px-2 py-2 border">Pool Participation</th>
-                    <th className="px-2 py-2 border">Unit of Service</th>
-                    <th className="px-2 py-2 border">Actions</th>
+                    <th className="px-2 py-2 border w-10">Drag</th>
+                    <th className="px-2 py-2 border min-w-[110px]">Cost Center Key</th>
+                    <th className="px-2 py-2 border min-w-[130px]">Cost Center Name</th>
+                    <th className="px-2 py-2 border min-w-[130px]">Campus</th>
+                    <th className="px-2 py-2 border min-w-[160px]">Functional Area</th>
+                    <th className="px-2 py-2 border min-w-[170px]">Unit Grouping</th>
+                    <th className="px-2 py-2 border min-w-[150px]">Department</th>
+                    <th className="px-2 py-2 border w-[80px]">Capacity</th>
+                    <th className="px-2 py-2 border w-[90px]">Float Pool</th>
+                    <th className="px-2 py-2 border min-w-[220px] max-w-[260px]">Pool Participation</th>
+                    <th className="px-2 py-2 border min-w-[150px]">Unit of Service</th>
+                    <th className="px-2 py-2 border w-[100px]">Actions</th>
                   </tr>
                 </thead>
 
@@ -369,7 +369,7 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
                           }
                         >
                           {/* Drag Handle Only */}
-                          <td className="px-2 py-2 border">
+                          <td className="px-2 py-2 border w-10">
                             <div
                               {...provided.dragHandleProps}
                               className="cursor-grab text-lg"
@@ -380,7 +380,7 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
                           </td>
 
                           {/* Key */}
-                          <td className="px-2 py-2 border">
+                          <td className="px-2 py-2 border min-w-[110px]">
                             <Input
                               id={`cc-key-${row.id}`}
                               value={row.costCenter}
@@ -395,7 +395,7 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
                           </td>
 
                           {/* Name */}
-                          <td className="px-2 py-2 border">
+                          <td className="px-2 py-2 border min-w-[130px]">
                             <Input
                               id={`cc-name-${row.id}`}
                               value={row.costCenterName}
@@ -410,7 +410,7 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
                           </td>
 
                           {/* Campus */}
-                          <td className="px-2 py-2 border">
+                          <td className="px-2 py-2 border min-w-[130px]">
                             <Select
                               id={`campus-${row.id}`}
                               value={row.campus}
@@ -432,7 +432,7 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
                           </td>
 
                           {/* Functional Area */}
-                          <td className="px-2 py-2 border">
+                          <td className="px-2 py-2 border min-w-[160px]">
                             <div className="flex items-center gap-2">
                               <Select
                                 id={`fa-${row.id}`}
@@ -462,7 +462,7 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
                           </td>
 
                           {/* Unit Grouping */}
-                          <td className="px-2 py-2 border">
+                          <td className="px-2 py-2 border min-w-[170px]">
                             <Select
                               id={`ug-${row.id}`}
                               value={row.unitGrouping}
@@ -498,7 +498,7 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
                           </td>
 
                           {/* Department */}
-                          <td className="px-2 py-2 border">
+                          <td className="px-2 py-2 border min-w-[150px]">
                             <Input
                               id={`unit-${row.id}`}
                               value={row.unit}
@@ -509,7 +509,7 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
                           </td>
 
                           {/* Capacity */}
-                          <td className="px-2 py-2 border">
+                          <td className="px-2 py-2 border w-[80px] text-center">
                             {row.floatPool ? (
                               <input
                                 title="Not applicable"
@@ -536,7 +536,7 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
                           </td>
 
                           {/* Float Pool */}
-                          <td className="px-2 py-2 border text-center">
+                          <td className="px-2 py-2 border w-[90px] text-center">
                             <input
                               type="checkbox"
                               title="Toggle Float Pool"
@@ -559,7 +559,7 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
                                 title="Not applicable"
                                 disabled
                                 value="N/A"
-                                className="w-full border border-gray-300 rounded-md px-2 py-1 bg-gray-100 text-gray-400 text-sm"
+                                className="px-2 py-2 border min-w-[220px] max-w-[260px] align-top whitespace-normal"
                               />
                             ) : floatPoolOptions.length === 0 ? (
                               // NO FLOAT POOLS EXIST → Show info instead of empty dropdown
@@ -572,7 +572,7 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
                                 id={`pool-${row.id}`}
                                 aria-label="Pool Participation"
                                 title="Select float pools"
-                                className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
+                                className="px-2 py-2 border min-w-[220px] max-w-[260px] align-top whitespace-normal"
                                 multiple
                                 value={row.poolParticipation}
                                 onChange={(e) => {
@@ -607,7 +607,7 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
                             )}
 
                           {/* Unit of Service */}
-                          <td className="px-2 py-2 border">
+                          <td className="px-2 py-2 border min-w-[150px]">
                             {row.floatPool ? (
                               <input
                                 title="Not applicable"
@@ -641,7 +641,7 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
                           </td>
 
                           {/* Actions */}
-                          <td className="px-2 py-2 border">
+                          <td className="px-2 py-2 border w-[100px]">
                             <Button variant="ghost" onClick={() => deleteRow(row.id)}>
                               Delete
                             </Button>
