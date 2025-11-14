@@ -394,6 +394,7 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
   // Render
   return (
     <Card title="Facility Setup">
+      <div id="filter-menu-container" className="relative z-50"></div>
       {/* Top controls */}
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <input
@@ -455,7 +456,7 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
                     <th className="px-2 py-2 border w-10 text-left">Drag</th>
 
                     {/* Cost Center Key */}
-                    <th className="px-2 py-2 border min-w-[110px] relative text-left">
+                    <th className="px-2 py-2 border min-w-[110px] relative text-right">
                       <div className="flex items-center justify-between gap-1">
                         <span>Cost Center Key</span>
                         <button
