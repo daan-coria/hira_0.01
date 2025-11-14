@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import toast from "react-hot-toast"
 import {
   GripVertical,
   Plus,
@@ -43,14 +44,19 @@ function reorderByKey(
   toKey: string
 ): Campus[] {
   if (fromKey === toKey) return campuses
+
   const list = [...campuses]
   const fromIndex = list.findIndex((c) => c.key === fromKey)
   const toIndex = list.findIndex((c) => c.key === toKey)
+
   if (fromIndex === -1 || toIndex === -1) return campuses
+
   const [moved] = list.splice(fromIndex, 1)
   list.splice(toIndex, 0, moved)
+
   return list
 }
+
 
 export default function HealthSystemSetupPage() {
   const [campuses, setCampuses] = useState<Campus[]>([])
@@ -67,11 +73,14 @@ export default function HealthSystemSetupPage() {
     region: "",
   })
 
+  // Track if region was modified
+  const [regionChanged, setRegionChanged] = useState(false)
+
   // Region drawer
   const [regionDrawerOpen, setRegionDrawerOpen] = useState(false)
   const [newRegionName, setNewRegionName] = useState("")
 
-  // ---------- INITIAL LOAD (JSON + localStorage) ----------
+  // ---------- LOAD DATA (JSON + localStorage) ----------
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -81,33 +90,26 @@ export default function HealthSystemSetupPage() {
         ])
 
         let baseCampuses: Campus[] = []
-        if (campusRes.ok) {
-          baseCampuses = await campusRes.json()
-        }
+        if (campusRes.ok) baseCampuses = await campusRes.json()
 
         let baseRegions: string[] = []
-        if (regionRes.ok) {
-          baseRegions = await regionRes.json()
-        }
+        if (regionRes.ok) baseRegions = await regionRes.json()
 
-        // Derive regions from campuses as well
-        const regionsFromCampuses = baseCampuses
+        const derivedRegions = baseCampuses
           .map((c) => c.region)
           .filter(Boolean)
 
         let mergedRegions = Array.from(
-          new Set([...baseRegions, ...regionsFromCampuses])
+          new Set([...baseRegions, ...derivedRegions])
         ).sort((a, b) => a.localeCompare(b))
 
-        // Override regions from localStorage if present
         const storedRegions = window.localStorage.getItem(STORAGE_KEY_REGIONS)
         if (storedRegions) {
-          mergedRegions = JSON.parse(storedRegions) as string[]
+          mergedRegions = JSON.parse(storedRegions)
         }
 
         setRegions(mergedRegions)
 
-        // Load campuses from localStorage if present
         const storedCampuses = window.localStorage.getItem(STORAGE_KEY_CAMPUSES)
         const storedMode = window.localStorage.getItem(
           STORAGE_KEY_SORTMODE
@@ -120,7 +122,6 @@ export default function HealthSystemSetupPage() {
         } else {
           const alpha = sortAlphabetical(baseCampuses)
           setCampuses(alpha)
-          setSortMode("alphabetical")
         }
       } catch (err) {
         console.error("Failed to load mockdata:", err)
@@ -130,43 +131,29 @@ export default function HealthSystemSetupPage() {
     loadData()
   }, [])
 
-  // ---------- PERSIST CHANGES ----------
+  // ---------- PERSIST ----------
   useEffect(() => {
     if (!campuses.length) return
-    try {
-      window.localStorage.setItem(
-        STORAGE_KEY_CAMPUSES,
-        JSON.stringify(campuses)
-      )
-      window.localStorage.setItem(STORAGE_KEY_SORTMODE, sortMode)
-    } catch (err) {
-      console.error("Failed to save campuses:", err)
-    }
+    window.localStorage.setItem(STORAGE_KEY_CAMPUSES, JSON.stringify(campuses))
+    window.localStorage.setItem(STORAGE_KEY_SORTMODE, sortMode)
   }, [campuses, sortMode])
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem(
-        STORAGE_KEY_REGIONS,
-        JSON.stringify(regions)
-      )
-    } catch (err) {
-      console.error("Failed to save regions:", err)
-    }
+    window.localStorage.setItem(STORAGE_KEY_REGIONS, JSON.stringify(regions))
   }, [regions])
 
-  // ---------- SORT HANDLERS ----------
+  // ---------- SORT ----------
   const handleSortAlphabetical = () => {
-    setCampuses((prev) => sortAlphabetical(prev))
+    setCampuses(sortAlphabetical(campuses))
     setSortMode("alphabetical")
   }
 
   const handleSortByRegion = () => {
-    setCampuses((prev) => sortByRegion(prev, regions))
+    setCampuses(sortByRegion(campuses, regions))
     setSortMode("region")
   }
 
-  // ---------- DRAG & DROP ----------
+  // ---------- DRAG ----------
   const handleDragStart = (e: React.DragEvent, key: string) => {
     e.dataTransfer.effectAllowed = "move"
     e.dataTransfer.setData("text/plain", key)
@@ -177,7 +164,7 @@ export default function HealthSystemSetupPage() {
     e.preventDefault()
     const sourceKey = draggingKey || e.dataTransfer.getData("text/plain")
     if (!sourceKey || sourceKey === targetKey) return
-    setCampuses((prev) => reorderByKey(prev, sourceKey, targetKey))
+    setCampuses(reorderByKey(campuses, sourceKey, targetKey))
     setSortMode("custom")
   }
 
@@ -185,9 +172,10 @@ export default function HealthSystemSetupPage() {
     setDraggingKey(null)
   }
 
-  // ---------- CAMPUS CRUD ----------
+  // ---------- OPEN DRAWERS ----------
   const openNewCampusDrawer = () => {
     setEditingCampusKey(null)
+    setRegionChanged(false)
     setCampusForm({
       key: "",
       name: "",
@@ -198,6 +186,7 @@ export default function HealthSystemSetupPage() {
 
   const openEditCampusDrawer = (campus: Campus) => {
     setEditingCampusKey(campus.key)
+    setRegionChanged(false)
     setCampusForm({ ...campus })
     setCampusDrawerOpen(true)
   }
@@ -207,66 +196,90 @@ export default function HealthSystemSetupPage() {
     setEditingCampusKey(null)
   }
 
+  // ---------- FORM CHANGE ----------
   const handleCampusFormChange = (field: keyof Campus, value: string) => {
     setCampusForm((prev) => ({ ...prev, [field]: value }))
+    if (field === "region") setRegionChanged(true)
   }
 
+  // ---------- SAVE CAMPUS ----------
   const handleSaveCampus = () => {
-    const trimmedKey = campusForm.key.trim()
-    const trimmedName = campusForm.name.trim()
-    const trimmedRegion = campusForm.region.trim()
+    const key = campusForm.key.trim()
+    const name = campusForm.name.trim()
+    const region = campusForm.region.trim()
 
-    if (!trimmedKey || !trimmedName) {
-      alert("Campus Key and Campus Name are required.")
+    if (!key || !name) {
+      toast.error("Campus Key and Campus Name are required.")
       return
     }
 
-    // ensure region in list
-    if (trimmedRegion && !regions.includes(trimmedRegion)) {
+    if (!region) {
+      toast.error("Region cannot be empty.")
+      return
+    }
+
+    if (!regions.includes(region)) {
       setRegions((prev) =>
-        [...prev, trimmedRegion].sort((a, b) => a.localeCompare(b))
+        [...prev, region].sort((a, b) => a.localeCompare(b))
       )
     }
 
     if (editingCampusKey) {
-      // update existing
       setCampuses((prev) =>
         prev.map((c) =>
-          c.key === editingCampusKey
-            ? { key: trimmedKey, name: trimmedName, region: trimmedRegion }
-            : c
+          c.key === editingCampusKey ? { key, name, region } : c
         )
       )
     } else {
-      // add new
-      const newCampus: Campus = {
-        key: trimmedKey,
-        name: trimmedName,
-        region: trimmedRegion,
-      }
-      setCampuses((prev) => [...prev, newCampus])
+      setCampuses([...campuses, { key, name, region }])
     }
 
     setSortMode("custom")
+    setRegionChanged(false)
+
+    toast.success("Campus saved!")
     closeCampusDrawer()
   }
 
   const handleDeleteCampus = (key: string) => {
-    const campus = campuses.find((c) => c.key === key)
-    const label = campus ? `${campus.key} — ${campus.name}` : key
-    if (!window.confirm(`Delete campus "${label}"? This cannot be undone.`)) {
-      return
-    }
-    setCampuses((prev) => prev.filter((c) => c.key !== key))
-    if (editingCampusKey === key) {
-      closeCampusDrawer()
-    }
-    setSortMode("custom")
+    if (!window.confirm("Delete this campus?")) return
+    setCampuses(campuses.filter((c) => c.key !== key))
+    closeCampusDrawer()
   }
 
-  // ---------- REGION MANAGEMENT ----------
-  const openRegionDrawer = () => {
-    setRegionDrawerOpen(true)
+  // ---------- INLINE ADD REGION ----------
+  const handleAddInlineRegion = () => {
+    const region = campusForm.region.trim()
+    if (!region) return
+    if (!regions.includes(region)) {
+      setRegions((prev) =>
+        [...prev, region].sort((a, b) => a.localeCompare(b))
+      )
+      setRegionChanged(true)
+    }
+  }
+
+  // ---------- REGION DRAWER ----------
+  const handleAddRegion = () => {
+    const trimmed = newRegionName.trim()
+    if (!trimmed) return
+    if (regions.includes(trimmed)) {
+      toast.error("Region already exists.")
+      return
+    }
+    setRegions([...regions, trimmed].sort((a, b) => a.localeCompare(b)))
+    setNewRegionName("")
+    toast.success("Region added!")
+  }
+
+  const handleDeleteRegion = (name: string) => {
+    const inUse = campuses.some((c) => c.region === name)
+    if (inUse) {
+      toast.error("Region is assigned to campuses and cannot be deleted.")
+      return
+    }
+    setRegions(regions.filter((r) => r !== name))
+    toast.success("Region deleted!")
   }
 
   const closeRegionDrawer = () => {
@@ -274,67 +287,39 @@ export default function HealthSystemSetupPage() {
     setNewRegionName("")
   }
 
-  const handleAddRegion = () => {
-    const trimmed = newRegionName.trim()
-    if (!trimmed) return
-    if (regions.includes(trimmed)) {
-      alert("That region already exists.")
-      return
-    }
-    setRegions((prev) => [...prev, trimmed].sort((a, b) => a.localeCompare(b)))
-    setNewRegionName("")
-  }
-
-  const handleDeleteRegion = (name: string) => {
-    const inUse = campuses.some((c) => c.region === name)
-    if (inUse) {
-      alert(
-        `Region "${name}" is currently assigned to one or more campuses and cannot be deleted.`
-      )
-      return
-    }
-    if (!window.confirm(`Delete region "${name}"?`)) return
-    setRegions((prev) => prev.filter((r) => r !== name))
-  }
-
-  // ---------- INLINE REGION ADD IN CAMPUS DRAWER ----------
-  const handleAddInlineRegion = () => {
-    const trimmed = campusForm.region.trim()
-    if (!trimmed) return
-    if (!regions.includes(trimmed)) {
-      setRegions((prev) =>
-        [...prev, trimmed].sort((a, b) => a.localeCompare(b))
-      )
-    }
-  }
+  // ====================================================
+  //                      RENDER UI
+  // ====================================================
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-6 md:px-8">
+
+      {/* MAIN CARD */}
       <div className="mx-auto max-w-5xl rounded-2xl bg-white p-6 shadow-sm border border-gray-200">
+
         {/* Header */}
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-lg font-semibold text-gray-900">
-              Health System Set-Up &mdash; Campuses
+              Health System Set-Up — Campuses
             </h1>
             <p className="mt-0.5 text-xs text-gray-500">
-              Define individual campuses, assign regions, and control the
-              display order used across tools.
+              Define campuses, manage regions, and control order.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
+
+          <div className="flex gap-2">
             <button
-              type="button"
-              onClick={openRegionDrawer}
+              onClick={() => setRegionDrawerOpen(true)}
               className="inline-flex items-center gap-1 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
             >
               <Settings className="h-4 w-4" />
               Manage Regions
             </button>
+
             <button
-              type="button"
               onClick={openNewCampusDrawer}
-              className="inline-flex items-center gap-1 rounded-xl border border-transparent bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700"
+              className="inline-flex items-center gap-1 rounded-xl bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700"
             >
               <Plus className="h-4 w-4" />
               Add Campus
@@ -342,10 +327,9 @@ export default function HealthSystemSetupPage() {
           </div>
         </div>
 
-        {/* Sort controls */}
-        <div className="mb-4 flex flex-wrap gap-2">
+        {/* Sort Controls */}
+        <div className="mb-4 flex gap-2">
           <button
-            type="button"
             onClick={handleSortAlphabetical}
             className={`rounded-xl border px-3 py-1.5 text-xs ${
               sortMode === "alphabetical"
@@ -353,10 +337,10 @@ export default function HealthSystemSetupPage() {
                 : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
             }`}
           >
-            Sort A &rarr; Z
+            Sort A → Z
           </button>
+
           <button
-            type="button"
             onClick={handleSortByRegion}
             className={`rounded-xl border px-3 py-1.5 text-xs ${
               sortMode === "region"
@@ -372,234 +356,211 @@ export default function HealthSystemSetupPage() {
         <div className="overflow-x-auto rounded-2xl border border-gray-200">
           <table className="min-w-full border-collapse bg-white">
             <thead className="bg-gray-50">
-              <tr className="text-left text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-                <th className="px-4 py-3 w-32">Campus Key</th>
-                <th className="px-4 py-3">Campus Name</th>
-                <th className="px-4 py-3 w-40">Region</th>
-                <th className="px-4 py-3 w-32 text-right">Actions</th>
+              <tr className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                <th className="px-4 py-3">Key</th>
+                <th className="px-4 py-3">Name</th>
+                <th className="px-4 py-3">Region</th>
+                <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
+
             <tbody>
-              {campuses.map((campus) => (
+              {campuses.map((c) => (
                 <tr
-                  key={campus.key}
-                  onDragOver={(e) => handleDragOverRow(e, campus.key)}
+                  key={c.key}
+                  onDragOver={(e) => handleDragOverRow(e, c.key)}
                   onDragEnd={handleDragEnd}
-                  className="border-t border-gray-100 text-sm hover:bg-gray-50"
+                  className="border-t text-sm hover:bg-gray-50"
                 >
-                  <td className="px-4 py-2 align-middle font-mono text-xs text-gray-800">
-                    {campus.key}
-                  </td>
-                  <td className="px-4 py-2 align-middle">
-                    <span className="text-sm text-gray-900">{campus.name}</span>
-                  </td>
-                  <td className="px-4 py-2 align-middle">
-                    {campus.region ? (
-                      <span className="text-xs text-gray-800">
-                        {campus.region}
-                      </span>
-                    ) : (
-                      <span className="text-xs italic text-gray-400">
-                        No region
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2 pr-3 text-right align-middle">
-                    <div className="flex items-center justify-end gap-1.5">
+                  <td className="px-4 py-2">{c.key}</td>
+                  <td className="px-4 py-2">{c.name}</td>
+                  <td className="px-4 py-2">{c.region}</td>
+
+                  <td className="px-3 py-2 pr-3 text-right">
+                    <div className="flex justify-end gap-1.5">
+
                       <button
-                        type="button"
-                        onClick={() => openEditCampusDrawer(campus)}
-                        className="inline-flex items-center justify-center rounded-full border border-gray-200 bg-white p-1.5 text-gray-500 hover:bg-gray-100"
                         aria-label="Edit campus"
+                        onClick={() => openEditCampusDrawer(c)}
+                        className="rounded-full p-1.5 border bg-white text-gray-500 hover:bg-gray-100"
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
+
                       <button
-                        type="button"
-                        onClick={() => handleDeleteCampus(campus.key)}
-                        className="inline-flex items-center justify-center rounded-full border border-gray-200 bg-white p-1.5 text-red-500 hover:bg-red-50"
                         aria-label="Delete campus"
+                        onClick={() => handleDeleteCampus(c.key)}
+                        className="rounded-full p-1.5 border bg-white text-red-500 hover:bg-red-50"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
+
                       <button
-                        type="button"
+                        aria-label="Reorder campus"
                         draggable
-                        onDragStart={(e) => handleDragStart(e, campus.key)}
-                        className="inline-flex cursor-move items-center justify-center rounded-full border border-gray-200 bg-gray-50 p-1.5 text-gray-500 hover:bg-gray-100"
-                        aria-label="Drag to reorder"
+                        onDragStart={(e) => handleDragStart(e, c.key)}
+                        className="cursor-move rounded-full p-1.5 border bg-gray-50 text-gray-500 hover:bg-gray-100"
                       >
                         <GripVertical className="h-4 w-4" />
                       </button>
+
                     </div>
                   </td>
                 </tr>
               ))}
-              {campuses.length === 0 && (
-                <tr>
-                  <td
-                    className="px-4 py-4 text-center text-sm text-gray-500"
-                    colSpan={4}
-                  >
-                    No campuses defined yet.
-                  </td>
-                </tr>
-              )}
             </tbody>
+
           </table>
         </div>
 
-        <p className="mt-4 text-[11px] text-gray-500">
-          Drag the{" "}
-          <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5">
-            <GripVertical className="mr-1 h-3 w-3" />
-            handle
-          </span>{" "}
-          on the right to control the display order. The order is saved and
-          will not reset automatically.
-        </p>
       </div>
 
-      {/* CAMPUS DRAWER */}
+      {/* ====================== CAMPUS DRAWER ====================== */}
       {campusDrawerOpen && (
         <>
           <div
-            className="fixed inset-0 z-40 bg-black/30"
             onClick={closeCampusDrawer}
+            className="fixed inset-0 bg-black/30 z-40"
           />
-          <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md transform bg-white shadow-xl transition-transform">
-            <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+
+          <div className="fixed inset-y-0 right-0 w-full max-w-md bg-white z-50 shadow-xl">
+
+            <div className="flex justify-between items-center border-b px-4 py-3">
               <div>
-                <h2 className="text-sm font-semibold text-gray-900">
+                <h2 className="text-sm font-semibold">
                   {editingCampusKey ? "Edit Campus" : "Add Campus"}
                 </h2>
                 <p className="text-[11px] text-gray-500">
-                  Configure campus identifiers and region assignment.
+                  Modify campus info and region assignment.
                 </p>
               </div>
+
               <button
-                type="button"
+                aria-label="Close drawer"
+                className="rounded-full p-1.5 hover:bg-gray-100"
                 onClick={closeCampusDrawer}
-                className="rounded-full p-1.5 text-gray-500 hover:bg-gray-100"
-                aria-label="Close campus drawer"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="flex h-full flex-col justify-between">
-              <div className="space-y-4 px-4 py-4">
+            <div className="flex flex-col h-full justify-between">
+
+              <div className="px-4 py-4 space-y-4">
+                {/* Campus Key */}
                 <div>
-                  <label className="mb-1 block text-xs font-semibold text-gray-700">
-                    Campus Key
-                  </label>
+                  <label
+                    htmlFor="campus-key"
+                    className="text-xs font-semibold">Campus Key</label>
                   <input
-                    type="text"
+                    id="campus-key"   
                     value={campusForm.key}
                     onChange={(e) =>
                       handleCampusFormChange("key", e.target.value)
                     }
-                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-                    placeholder="e.g., LAN"
+                    className="w-full border rounded-lg px-3 py-1.5 text-sm focus:ring-brand-500 focus:border-brand-500"
                   />
-                  <p className="mt-1 text-[11px] text-gray-400">
-                    Unique identifier used internally (e.g., LAN, BAY).
-                  </p>
                 </div>
 
+                {/* Campus Name */}
                 <div>
-                  <label className="mb-1 block text-xs font-semibold text-gray-700">
-                    Campus Name
-                  </label>
+                  <label 
+                    htmlFor="campus-name"
+                    className="text-xs font-semibold">Campus Name</label>
                   <input
-                    type="text"
+                    id="campus-name"
                     value={campusForm.name}
                     onChange={(e) =>
                       handleCampusFormChange("name", e.target.value)
                     }
-                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-                    placeholder="e.g., Lansing"
+                    className="w-full border rounded-lg px-3 py-1.5 text-sm focus:ring-brand-500 focus:border-brand-500"
                   />
                 </div>
 
+                {/* Region */}
                 <div>
-                  <label className="mb-1 block text-xs font-semibold text-gray-700">
+                  <label htmlFor="campus-region" className="text-xs font-semibold">
                     Region
-                  </label>
-                  <div className="flex gap-2">
-                    <select
-                      aria-label="Select region"
-                      value={campusForm.region}
-                      onChange={(e) =>
-                        handleCampusFormChange("region", e.target.value)
-                      }
-                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-                    >
-                      <option value="">Select region…</option>
-                      {regions.map((r) => (
-                        <option key={r} value={r}>
-                          {r}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="mt-2 flex gap-2">
+                  </label>        
+
+                  <select
+                    aria-label="Select region"
+                    value={campusForm.region}
+                    onChange={(e) =>
+                      handleCampusFormChange("region", e.target.value)
+                    }
+                    className="w-full border rounded-lg px-3 py-1.5 text-sm focus:ring-brand-500 focus:border-brand-500"
+                  >
+                    <option value="">Select region…</option>
+                    {regions.map((r) => (
+                      <option key={r}>{r}</option>
+                    ))}
+                  </select>
+
+                  {/* Inline add new region */}
+                  <div className="flex gap-2 mt-2">
                     <input
-                      aria-label="Type a new region name"
+                      aria-label="Add new region"
                       type="text"
                       value={campusForm.region}
                       onChange={(e) =>
                         handleCampusFormChange("region", e.target.value)
                       }
-                      className="w-full rounded-lg border border-dashed border-gray-300 bg-white px-3 py-1.5 text-xs outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-                      placeholder="Type a new region name…"
+                      className="w-full border border-dashed rounded-lg px-3 py-1.5 text-xs"
+                      placeholder="Type a new region…"
                     />
                     <button
-                      type="button"
                       onClick={handleAddInlineRegion}
-                      className="shrink-0 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-[11px] font-medium text-gray-700 hover:bg-gray-100"
-                      aria-label="Add new region"
-                    >   
+                      className="px-3 py-1 text-xs border rounded-lg hover:bg-gray-100"
+                    >
                       Add
                     </button>
                   </div>
-                  <p className="mt-1 text-[11px] text-gray-400">
-                    Pick an existing region or type a new one and click Add.
+
+                  <p className="text-[11px] text-gray-500 mt-1">
+                    Pick or create a region.
                   </p>
+
+                  {/* Save Region Button (Appears ONLY when region changed) */}
+                  {regionChanged && (
+                    <div className="mt-3 text-right">
+                      <button
+                        onClick={handleSaveCampus}
+                        className="px-3 py-1.5 rounded-xl bg-brand-600 text-white text-xs hover:bg-brand-700"
+                      >
+                        Save Region
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div className="border-t border-gray-200 px-4 py-3">
-                <div className="flex items-center justify-between gap-2">
-                  {editingCampusKey && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        campusForm.key &&
-                        handleDeleteCampus(editingCampusKey)
-                      }
-                      className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      Delete
-                    </button>
-                  )}
-                  <div className="ml-auto flex gap-2">
-                    <button
-                      type="button"
-                      onClick={closeCampusDrawer}
-                      className="rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleSaveCampus}
-                      className="rounded-xl border border-transparent bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700"
-                    >
-                      Save Campus
-                    </button>
-                  </div>
+              {/* Footer Buttons */}
+              <div className="border-t px-4 py-3 flex justify-between">
+                {editingCampusKey && (
+                  <button
+                    aria-label="Delete campus"
+                    onClick={() => handleDeleteCampus(editingCampusKey)}
+                    className="px-3 py-1.5 text-xs border border-red-200 bg-red-50 text-red-600 rounded-xl hover:bg-red-100"
+                  >
+                    Delete
+                  </button>
+                )}
+
+                <div className="ml-auto flex gap-2">
+                  <button
+                    onClick={closeCampusDrawer}
+                    className="px-3 py-1.5 text-xs border rounded-xl hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    onClick={handleSaveCampus}
+                    className="px-3 py-1.5 text-xs bg-brand-600 text-white rounded-xl hover:bg-brand-700"
+                  >
+                    Save Campus
+                  </button>
                 </div>
               </div>
             </div>
@@ -607,100 +568,87 @@ export default function HealthSystemSetupPage() {
         </>
       )}
 
-      {/* REGION DRAWER */}
+      {/* ====================== REGION DRAWER ====================== */}
       {regionDrawerOpen && (
         <>
           <div
-            className="fixed inset-0 z-40 bg-black/30"
             onClick={closeRegionDrawer}
+            className="fixed inset-0 bg-black/30 z-40"
           />
-          <div className="fixed inset-y-0 right-0 z-50 w-full max-w-sm bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
-              <div>
-                <h2 className="text-sm font-semibold text-gray-900">
-                  Manage Regions
-                </h2>
-                <p className="text-[11px] text-gray-500">
-                  Add or remove regions used to group campuses.
-                </p>
-              </div>
+
+          <div className="fixed inset-y-0 right-0 w-full max-w-sm bg-white z-50 shadow-xl">
+
+            <div className="flex justify-between items-center border-b px-4 py-3">
+              <h2 className="text-sm font-semibold">Manage Regions</h2>
               <button
-                type="button"
-                onClick={closeRegionDrawer}
-                className="rounded-full p-1.5 text-gray-500 hover:bg-gray-100"
                 aria-label="Close region drawer"
+                onClick={closeRegionDrawer}
+                className="p-1.5 rounded-full hover:bg-gray-100"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="flex h-full flex-col justify-between">
-              <div className="px-4 py-4">
-                <div className="mb-3">
-                  <label className="mb-1 block text-xs font-semibold text-gray-700">
-                    Add Region
-                  </label>
-                  <div className="flex gap-2">
+            <div className="flex flex-col h-full justify-between">
+
+              <div className="px-4 py-4 space-y-3">
+
+                {/* Add Region */}
+                <div>
+                  <label className="text-xs font-semibold">New Region</label>
+                  <div className="flex gap-2 mt-1">
                     <input
-                      type="text"
                       value={newRegionName}
                       onChange={(e) => setNewRegionName(e.target.value)}
-                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-                      placeholder="e.g., Central MI"
+                      className="w-full border rounded-lg px-3 py-1.5 text-sm"
+                      placeholder="e.g., North MI"
                     />
                     <button
-                      type="button"
                       onClick={handleAddRegion}
-                      className="shrink-0 rounded-lg border border-transparent bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700"
+                      className="px-3 py-1.5 text-xs bg-brand-600 text-white rounded-xl hover:bg-brand-700"
                     >
                       Add
                     </button>
                   </div>
                 </div>
 
-                <div className="mt-4">
-                  <p className="mb-1 text-xs font-semibold text-gray-700">
-                    Existing Regions
-                  </p>
-                  <div className="space-y-1.5">
+                {/* Existing */}
+                <div>
+                  <label className="text-xs font-semibold">Existing Regions</label>
+                  <div className="space-y-1.5 mt-1">
                     {regions.map((r) => (
                       <div
                         key={r}
-                        className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-3 py-1.5"
+                        className="flex justify-between items-center border rounded-lg bg-gray-50 px-3 py-1.5"
                       >
-                        <span className="text-xs text-gray-800">{r}</span>
+                        <span className="text-xs">{r}</span>
                         <button
-                          type="button"
+                          aria-label="Delete region"
                           onClick={() => handleDeleteRegion(r)}
-                          className="rounded-full p-1 text-red-500 hover:bg-red-50"
-                          aria-label={`Delete region ${r}`}
+                          className="p-1 text-red-500 hover:bg-red-50 rounded-full"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
                     ))}
-                    {regions.length === 0 && (
-                      <p className="py-2 text-[11px] text-gray-400">
-                        No regions defined yet.
-                      </p>
-                    )}
                   </div>
                 </div>
               </div>
 
-              <div className="border-t border-gray-200 px-4 py-3 text-right">
+              <div className="border-t px-4 py-3 text-right">
                 <button
-                  type="button"
                   onClick={closeRegionDrawer}
-                  className="rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                  className="px-3 py-1.5 text-xs border rounded-xl hover:bg-gray-50"
                 >
                   Close
                 </button>
               </div>
+
             </div>
           </div>
         </>
       )}
+
     </div>
   )
 }
