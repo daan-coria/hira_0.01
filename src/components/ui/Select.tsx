@@ -3,10 +3,10 @@ import clsx from "clsx"
 
 type SelectProps = SelectHTMLAttributes<HTMLSelectElement> & {
   label?: string        // Optional visible label
-  id?: string           // Optional, but recommended when label is used
+  id?: string           // Recommended when label is used
   children: ReactNode
-  ariaLabel?: string    // Custom accessible label
-  hideLabel?: boolean   // Allows invisible label for accessibility
+  ariaLabel?: string    // Accessible label
+  hideLabel?: boolean   // For screen-reader-only labels
 };
 
 export default function Select({
@@ -18,9 +18,22 @@ export default function Select({
   className,
   ...props
 }: SelectProps) {
+
+  // -------------------------------
+  // 🔒 Accessibility Name Logic
+  // -------------------------------
+  // Priority:
+  // 1. ariaLabel prop (best)
+  // 2. label (visible or hidden)
+  // 3. fallback string "Select an option"
+  const accessibleName =
+    ariaLabel ||
+    label ||
+    "Select an option";
+
   return (
     <div className="space-y-1">
-      {/* Only render <label> if a visible label was provided */}
+      {/* Visible label */}
       {label && !hideLabel && (
         <label
           htmlFor={id}
@@ -30,7 +43,7 @@ export default function Select({
         </label>
       )}
 
-      {/* If label is hidden but needed for accessibility */}
+      {/* Hidden but accessible label */}
       {label && hideLabel && (
         <label
           htmlFor={id}
@@ -42,8 +55,9 @@ export default function Select({
 
       <select
         id={id}
-        aria-label={ariaLabel || (hideLabel ? label : undefined)}
-        title={ariaLabel || label || props.title}
+        aria-label={accessibleName}
+        // Title helps assistive tech AND tooltips
+        title={accessibleName}
         {...props}
         className={clsx(
           "w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-brand-500 focus:border-brand-500",
