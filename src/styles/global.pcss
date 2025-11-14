@@ -53,18 +53,35 @@ html {
   animation: slideUp 0.25s ease-out;
 }
 
-/* force month/year header to appear */
+/* Show navigation arrows */
+.rdrNextPrevButton {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Month title centered */
 .rdrMonthAndYearWrapper {
   display: flex !important;
   justify-content: center;
-  padding: 8px 0;
+  padding: 10px 0;
 }
 
-.rdrMonthAndYearPickers {
-  display: flex !important;
-  gap: 8px;
+/* Enable dropdowns for month & year */
+.rdrMonthAndYearPickers select {
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: white;
+  cursor: pointer;
 }
 
-.rdrNextPrevButton {
-  display: block !important;
+/* Match Azure underline */
+.rdrCalendarWrapper {
+  padding-top: 10px;
+}
+
+.rdrMonths {
+  border-top: 2px solid #e5e7eb;
+  margin-top: 6px;
 }

@@ -1,83 +1,91 @@
-import { useState } from "react"
-import * as XLSX from "xlsx"
-import { useApp } from "@/store/AppContext"
-import { DateRange } from "react-date-range"
+import { useState } from "react";
+import * as XLSX from "xlsx";
+import { useApp } from "@/store/AppContext";
+import { DateRange } from "react-date-range";
+import DateRangeHeader from "./DateRangeHeader";
 
 export default function MasterFilters() {
-  const { master, setMaster } = useApp()
+  const { master, setMaster } = useApp();
 
-  const [loading, setLoading] = useState(false)
-  const [showCalendar, setShowCalendar] = useState(false)
+  const [loading, setLoading] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
 
-  // -----------------------
-  // FILE UPLOAD → PARSE XLS/CSV
-  // -----------------------
+  // Calendar state (controls both months)
+  const [currentDate, setCurrentDate] = useState(
+    master.startDate ? new Date(master.startDate) : new Date()
+  );
+
+  // --------------------------------------
+  // FILE UPLOAD
+  // --------------------------------------
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-    setLoading(true)
+    setLoading(true);
 
-    const buffer = await file.arrayBuffer()
-    const workbook = XLSX.read(buffer, { type: "array" })
-    const sheet = workbook.Sheets[workbook.SheetNames[0]]
-    const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" }) as any[]
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: "array" });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" }) as any[];
 
-    const facilities = Array.from(new Set(rows.map(r => r.Facility))).filter(Boolean)
-    const units = Array.from(new Set(rows.map(r => r.Unit))).filter(Boolean)
-    const functionalAreas = Array.from(new Set(rows.map(r => r["Functional Area"]))).filter(Boolean)
+    const facilities = Array.from(new Set(rows.map((r) => r.Facility))).filter(Boolean);
+    const units = Array.from(new Set(rows.map((r) => r.Unit))).filter(Boolean);
+    const functionalAreas = Array.from(new Set(rows.map((r) => r["Functional Area"]))).filter(Boolean);
 
-    setMaster(prev => ({
+    setMaster((prev) => ({
       ...prev,
       options: {
         facilities,
         units,
-        functionalAreas
-      }
-    }))
+        functionalAreas,
+      },
+    }));
 
-    setLoading(false)
-  }
+    setLoading(false);
+  };
 
-  // -----------------------
-  // UPDATE FILTER STATE
-  // -----------------------
+  // --------------------------------------
+  // UPDATE FILTERS
+  // --------------------------------------
   const updateFilter = (key: string, value: any) => {
-    setMaster(prev => ({
+    setMaster((prev) => ({
       ...prev,
-      [key]: value
-    }))
-  }
+      [key]: value,
+    }));
+  };
 
   // --------------------------------------
   // UPDATE DATE RANGE
   // --------------------------------------
   const handleDateChange = (ranges: any) => {
-    const sel = ranges.selection
-    setMaster(prev => ({
+    const sel = ranges.selection;
+    setMaster((prev) => ({
       ...prev,
       startDate: sel.startDate,
       endDate: sel.endDate,
-    }))
-  }
+    }));
+  };
 
   // --------------------------------------
-  // FORMAT DATE FOR DISPLAY
+  // FORMAT DATE
   // --------------------------------------
   const formatDate = (d: any) => {
-    if (!d) return ""
-    return new Date(d).toLocaleDateString("en-US")
-  }
+    if (!d) return "";
+    return new Date(d).toLocaleDateString("en-US");
+  };
 
+  // --------------------------------------
+  // RENDER
+  // --------------------------------------
   return (
     <div className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-md border-b border-gray-300 px-6 py-4 shadow-sm">
 
-      {/* TOP RIGHT ACTIONS */}
+      {/* TOP BAR --------------------------------------------------- */}
       <div className="flex justify-between items-center mb-4">
         <div className="text-lg font-semibold text-gray-800">Master Filters</div>
 
         <div className="flex gap-6 text-sm text-blue-600">
-          {/* Upload button (testing only) */}
           <label className="cursor-pointer hover:underline">
             📁 Upload XLS/CSV
             <input type="file" className="hidden" onChange={handleFileUpload} />
@@ -85,10 +93,7 @@ export default function MasterFilters() {
 
           {loading && <span className="text-gray-500">Loading…</span>}
 
-          <button
-            className="hover:underline"
-            onClick={() => window.location.reload()}
-          >
+          <button className="hover:underline" onClick={() => window.location.reload()}>
             ↻ Refresh
           </button>
 
@@ -101,7 +106,7 @@ export default function MasterFilters() {
                 functionalArea: "",
                 startDate: "",
                 endDate: "",
-                options: master.options
+                options: master.options,
               })
             }
           >
@@ -110,7 +115,7 @@ export default function MasterFilters() {
         </div>
       </div>
 
-      {/* FILTER BAR */}
+      {/* FILTER ROW ------------------------------------------------ */}
       <div className="flex flex-wrap gap-4">
 
         {/* Facility */}
@@ -118,11 +123,13 @@ export default function MasterFilters() {
           aria-label="Select Facility"
           className="px-4 py-2 bg-white border rounded-lg shadow-sm"
           value={master.facility}
-          onChange={e => updateFilter("facility", e.target.value)}
+          onChange={(e) => updateFilter("facility", e.target.value)}
         >
           <option value="">Campus</option>
           {master.options.facilities.map((f, i) => (
-            <option key={i} value={f}>{f}</option>
+            <option key={i} value={f}>
+              {f}
+            </option>
           ))}
         </select>
 
@@ -131,11 +138,13 @@ export default function MasterFilters() {
           aria-label="Select Functional Area"
           className="px-4 py-2 bg-white border rounded-lg shadow-sm"
           value={master.functionalArea}
-          onChange={e => updateFilter("functionalArea", e.target.value)}
+          onChange={(e) => updateFilter("functionalArea", e.target.value)}
         >
           <option value="">Functional Area</option>
           {master.options.functionalAreas.map((fa, i) => (
-            <option key={i} value={fa}>{fa}</option>
+            <option key={i} value={fa}>
+              {fa}
+            </option>
           ))}
         </select>
 
@@ -144,16 +153,19 @@ export default function MasterFilters() {
           aria-label="Select Unit"
           className="px-4 py-2 bg-white border rounded-lg shadow-sm"
           value={master.unit}
-          onChange={e => updateFilter("unit", e.target.value)}
+          onChange={(e) => updateFilter("unit", e.target.value)}
         >
           <option value="">Unit</option>
           {master.options.units.map((u, i) => (
-            <option key={i} value={u}>{u}</option>
+            <option key={i} value={u}>
+              {u}
+            </option>
           ))}
         </select>
 
-        {/* DATE RANGE PICKER BUTTON */}
+        {/* Date Button */}
         <button
+          aria-label="Select Date Range"
           className="px-4 py-2 bg-white border rounded-lg shadow-sm min-w-[220px] text-left"
           onClick={() => setShowCalendar(true)}
         >
@@ -163,11 +175,15 @@ export default function MasterFilters() {
         </button>
       </div>
 
-      {/* DATE RANGE MODAL */}
+      {/* DATE RANGE MODAL ------------------------------------------------ */}
       {showCalendar && (
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 animate-fadeIn">
-          <div className="bg-white rounded-xl shadow-xl border border-gray-200 p-6 w-[700px] animate-slideUp">
+          <div className="bg-white rounded-xl shadow-xl border border-gray-200 p-6 w-[780px] mt-16 animate-slideUp">
 
+            {/* ⭐ Custom Header */}
+            <DateRangeHeader date={currentDate} setDate={setCurrentDate} />
+
+            {/* ⭐ Calendar */}
             <DateRange
               ranges={[
                 {
@@ -179,10 +195,11 @@ export default function MasterFilters() {
               onChange={handleDateChange}
               moveRangeOnFirstSelection={false}
               months={2}
+              month={currentDate}
               direction="horizontal"
+              showMonthAndYearPickers={false}
+              showMonthArrow={false}
               showDateDisplay={false}
-              showMonthArrow={true}
-              showMonthAndYearPickers={true}   
               className="!shadow-none !border-none rounded-lg"
             />
 
@@ -205,5 +222,5 @@ export default function MasterFilters() {
         </div>
       )}
     </div>
-  )
+  );
 }
