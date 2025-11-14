@@ -456,7 +456,7 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
                     <th className="px-2 py-2 border w-10 text-left">Drag</th>
 
                     {/* Cost Center Key */}
-                    <th className="px-2 py-2 border min-w-[110px] relative text-right">
+                    <th className="px-2 py-2 border min-w-[110px] relative text-left">
                       <div className="flex items-center justify-between gap-1">
                         <span>Cost Center Key</span>
                         <button
