@@ -1,0 +1,5 @@
+[
+  { "key": "LAN", "name": "Lansing", "region": "Central MI" },
+  { "key": "BAY", "name": "Bay", "region": "Central MI" },
+  { "key": "FLT", "name": "Flint", "region": "Central MI" }
+]
