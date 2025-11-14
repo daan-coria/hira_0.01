@@ -47,20 +47,14 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
 
   const campusOptions = ["Lansing", "Bay", "Flint"]
 
-  const shiftGroupSuggestions = [
-    "Day",
-    "Evening",
-    "Night",
-    "Weekend",
-    "Weekday",
-  ]
+  const shiftGroupSuggestions = ["Day", "Evening", "Night", "Weekend", "Weekday"]
 
   const availableRoles =
     Array.isArray(data?.positionStaffing) && data.positionStaffing.length > 0
       ? data.positionStaffing.map((r: any) => r.role)
       : ["RN", "LPN", "CNA", "Clerk"]
 
-  // Debounced save
+  // Debounced autosave to context
   const debouncedSave = useCallback(
     debounce((updated: ShiftRow[]) => {
       setSaving(true)
@@ -70,39 +64,50 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
     [updateData]
   )
 
-  // Normalize incoming stored data
+  // Normalize any existing data from context (old structure → new structure)
   useEffect(() => {
-    const arrRaw = Array.isArray(data?.shiftConfig)
-      ? (data.shiftConfig as any[])
-      : []
-
+    const arrRaw = Array.isArray(data?.shiftConfig) ? (data.shiftConfig as any[]) : []
     if (arrRaw.length === 0) return
 
     const normalized: ShiftRow[] = arrRaw.map((r, idx) => {
-      const id = typeof r.id === "number" ? r.id : Date.now() + idx
+      const id =
+        typeof r.id === "number"
+          ? r.id
+          : Date.now() + idx // ensure an ID
+      const shift_group = r.shift_group ?? ""
+      const shift_name = r.shift_name ?? r.shift_label ?? ""
+      const start_time = r.start_time ?? ""
+      const end_time = r.end_time ?? ""
+      const break_minutes =
+        typeof r.break_minutes === "number" ? r.break_minutes : 0
+      const total_hours =
+        typeof r.total_hours === "number" ? r.total_hours : 0
+      const shift_type: ShiftType = r.shift_type ?? ""
+      const days = Array.isArray(r.days) ? r.days : []
+      const roles = Array.isArray(r.roles) ? r.roles : []
+      const campuses = Array.isArray(r.campuses) ? r.campuses : []
 
       return {
         id,
-        shift_group: r.shift_group ?? "",
-        shift_name: r.shift_name ?? r.shift_label ?? "",
-        start_time: r.start_time ?? "",
-        end_time: r.end_time ?? "",
-        break_minutes:
-          typeof r.break_minutes === "number" ? r.break_minutes : 0,
-        total_hours:
-          typeof r.total_hours === "number" ? r.total_hours : 0,
-        shift_type: r.shift_type ?? "",
-        days: Array.isArray(r.days) ? r.days : [],
-        campuses: Array.isArray(r.campuses) ? r.campuses : [],
-        roles: Array.isArray(r.roles) ? r.roles : [],
+        shift_group,
+        shift_name,
+        start_time,
+        end_time,
+        break_minutes,
+        total_hours,
+        shift_type,
+        days,
+        roles,
+        campuses,
       }
     })
 
     setRows(normalized)
-    updateData("shiftConfig", normalized)
-  }, [data?.shiftConfig, updateData])
+    // ❌ DO NOT call updateData here or it will loop
+  }, [data?.shiftConfig])
 
   // ---------- Helpers ----------
+
   const isValidTime = (value: string) =>
     /^([01]\d|2[0-3]):([0-5]\d)$/.test(value)
 
@@ -110,7 +115,7 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
     start: string,
     end: string,
     breakMinutes: number = 0
-  ): number => {
+  ) => {
     if (!isValidTime(start) || !isValidTime(end)) return 0
 
     const [sH, sM] = start.split(":").map(Number)
@@ -119,8 +124,8 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
     const startDate = new Date(0, 0, 0, sH, sM)
     const endDate = new Date(0, 0, 0, eH, eM)
 
-    let diff = (endDate.getTime() - startDate.getTime()) / 3600000
-    if (diff < 0) diff += 24 // overnight
+    let diff = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60)
+    if (diff < 0) diff += 24 // overnight shift
 
     diff -= (breakMinutes || 0) / 60
     if (diff < 0) diff = 0
@@ -131,15 +136,10 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
   const recalcRowHours = (row: ShiftRow): ShiftRow => {
     return {
       ...row,
-      total_hours: calculateHours(
-        row.start_time,
-        row.end_time,
-        row.break_minutes
-      ),
+      total_hours: calculateHours(row.start_time, row.end_time, row.break_minutes),
     }
   }
 
-  // Update a field in a row
   const updateRowField = (
     id: number,
     field: keyof ShiftRow,
@@ -149,24 +149,27 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
     const updated = rows.map((row) => {
       if (row.id !== id) return row
 
-      const newRow = {
+      const newRow: ShiftRow = {
         ...row,
         [field]: field === "break_minutes" ? Number(value) || 0 : value,
       }
 
-      return recalcHours ||
+      if (
+        recalcHours ||
         field === "start_time" ||
         field === "end_time" ||
         field === "break_minutes"
-        ? recalcRowHours(newRow)
-        : newRow
+      ) {
+        return recalcRowHours(newRow)
+      }
+
+      return newRow
     })
 
     setRows(updated)
     debouncedSave(updated)
   }
 
-  // Update days array
   const updateRowDays = (id: number, selected: string[]) => {
     const updated = rows.map((row) =>
       row.id === id ? { ...row, days: selected } : row
@@ -175,7 +178,6 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
     debouncedSave(updated)
   }
 
-  // Update campuses array
   const updateRowCampuses = (id: number, selected: string[]) => {
     const updated = rows.map((row) =>
       row.id === id ? { ...row, campuses: selected } : row
@@ -184,7 +186,6 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
     debouncedSave(updated)
   }
 
-  // Add new row
   const addRow = () => {
     const newRow: ShiftRow = {
       id: Date.now(),
@@ -196,26 +197,22 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
       total_hours: 0,
       shift_type: "",
       days: [],
-      campuses: [],
       roles: [],
+      campuses: [],
     }
-
     const updated = [...rows, newRow]
     setRows(updated)
     debouncedSave(updated)
   }
 
-  // Remove row
   const removeRow = (id: number) => {
     const updated = rows.filter((r) => r.id !== id)
     setRows(updated)
     updateData("shiftConfig", updated)
   }
 
-  // Clear all rows
   const clearAll = () => {
     if (rows.length === 0) return
-
     Swal.fire({
       title: "Clear All Shifts?",
       text: "This will remove all shift entries.",
@@ -233,23 +230,17 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
     })
   }
 
-  // Day summary display
-  const getDaySummary = (days: string[]) => {
+  const getDaySummary = (days: string[] | undefined) => {
     if (!days || days.length === 0) return ""
-
     const weekdays = daysOfWeek.slice(0, 5)
     const weekends = daysOfWeek.slice(5)
-
-    const allWeekdays = weekdays.every((d) => days.includes(d))
-    const allWeekends = weekends.every((d) => days.includes(d))
-
-    if (allWeekdays && days.length === 5) return "Weekdays"
-    if (allWeekends && days.length === 2) return "Weekend"
-
+    const hasAllWeekdays = weekdays.every((d) => days.includes(d))
+    const hasAllWeekends = weekends.every((d) => days.includes(d))
+    if (hasAllWeekdays && days.length === 5) return "Weekdays"
+    if (hasAllWeekends && days.length === 2) return "Weekend"
     return days.join(", ")
   }
 
-  // Drag & drop handlers
   const handleDragStart = (id: number) => {
     setDragId(id)
   }
@@ -257,28 +248,26 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
   const handleDrop = (targetId: number) => {
     if (dragId === null || dragId === targetId) return
 
-    const from = rows.findIndex((r) => r.id === dragId)
-    const to = rows.findIndex((r) => r.id === targetId)
-
-    if (from === -1 || to === -1) return
+    const currentIndex = rows.findIndex((r) => r.id === dragId)
+    const targetIndex = rows.findIndex((r) => r.id === targetId)
+    if (currentIndex === -1 || targetIndex === -1) return
 
     const updated = [...rows]
-    const [moved] = updated.splice(from, 1)
-    updated.splice(to, 0, moved)
+    const [moved] = updated.splice(currentIndex, 1)
+    updated.splice(targetIndex, 0, moved)
 
     setRows(updated)
     debouncedSave(updated)
     setDragId(null)
   }
 
-  // Unique shift groups for filter
+  // Build list of shift groups for filter
   const shiftGroups = Array.from(
     new Set(rows.map((r) => r.shift_group).filter(Boolean))
   )
 
-  // Filter + sort rows for display
+  // Apply filter + sort for display
   let displayRows = rows
-
   if (filterGroup) {
     displayRows = displayRows.filter((r) => r.shift_group === filterGroup)
   }
@@ -302,15 +291,12 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
 
   return (
     <Card className="p-4 space-y-4">
-      {/* Header */}
       <div className="flex justify-between items-center mb-2">
         <h3 className="text-lg font-semibold text-gray-800">
           Shift Configuration
         </h3>
-
         <div className="flex flex-col items-end gap-1 text-xs text-gray-500">
           {saving && <span>Saving…</span>}
-
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
@@ -319,7 +305,6 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
             >
               🗑 Clear All
             </Button>
-
             <Button
               onClick={addRow}
               className="bg-green-600 hover:bg-green-700"
@@ -330,9 +315,8 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
         </div>
       </div>
 
-      {/* Filter + Sort Bar */}
+      {/* Filter + Sort bar */}
       <div className="flex flex-wrap md:flex-nowrap items-center gap-3 text-sm mb-2">
-        {/* Filter */}
         <div className="flex items-center gap-2">
           <span className="text-gray-600">Filter by Shift Group:</span>
           <select
@@ -350,7 +334,6 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
           </select>
         </div>
 
-        {/* Sort */}
         <div className="flex items-center gap-2">
           <span className="text-gray-600">Sort:</span>
           <select
@@ -372,12 +355,13 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
         </div>
       </div>
 
-      {/* Suggestions for shift groups */}
+      {/* suggestions for shift groups */}
       <datalist id="shift-group-suggestions">
         {shiftGroupSuggestions.map((g) => (
           <option key={g} value={g} />
         ))}
       </datalist>
+
       {displayRows.length === 0 ? (
         <p className="text-gray-500">No shift data yet.</p>
       ) : (
@@ -411,7 +395,7 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                   onDragOver={(e) => sortMode === "none" && e.preventDefault()}
                   onDrop={() => sortMode === "none" && handleDrop(row.id)}
                 >
-                  {/* Drag handle */}
+                  {/* drag handle */}
                   <td
                     className={`border px-2 py-1 text-center select-none ${
                       sortMode === "none"
@@ -449,12 +433,12 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                     />
                   </td>
 
-                  {/* Start Time */}
+                  {/* Start */}
                   <td className="border px-2 py-1">
                     <Input
                       id={`start_${row.id}`}
                       placeholder="07:00"
-                      title="Enter start time (24h format)"
+                      title="Enter start time in 24h format (e.g., 07:00, 18:30)"
                       value={row.start_time}
                       onChange={(e) =>
                         updateRowField(
@@ -468,12 +452,12 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                     />
                   </td>
 
-                  {/* End Time */}
+                  {/* End */}
                   <td className="border px-2 py-1">
                     <Input
                       id={`end_${row.id}`}
                       placeholder="19:00"
-                      title="Enter end time (24h format)"
+                      title="Enter end time in 24h format (e.g., 19:00, 06:30)"
                       value={row.end_time}
                       onChange={(e) =>
                         updateRowField(
@@ -487,14 +471,13 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                     />
                   </td>
 
-                  {/* Break Minutes */}
+                  {/* Break minutes */}
                   <td className="border px-2 py-1 text-right">
                     <Input
                       id={`break_${row.id}`}
                       type="number"
                       min={0}
                       step={5}
-                      placeholder="0"
                       value={row.break_minutes.toString()}
                       onChange={(e) =>
                         updateRowField(
@@ -505,6 +488,7 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                         )
                       }
                       className="!m-0 !p-1 w-20 text-right"
+                      placeholder="0"
                     />
                   </td>
 
@@ -513,30 +497,32 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                     {Number(row.total_hours || 0).toFixed(2)}
                   </td>
 
-                  {/* Days */}
+                  {/* Days checkboxes */}
                   <td className="border px-2 py-1 text-left align-top">
                     <div className="flex flex-col gap-1">
-                      {daysOfWeek.map((day) => (
-                        <label
-                          key={day}
-                          className="flex items-center gap-1 text-xs"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={row.days.includes(day)}
-                            onChange={(e) => {
-                              const selected = e.target.checked
-                                ? [...row.days, day]
-                                : row.days.filter((d) => d !== day)
-                              updateRowDays(row.id, selected)
-                            }}
-                            className="rounded text-green-600 focus:ring-green-500"
-                          />
-                          {day}
-                        </label>
-                      ))}
+                      {daysOfWeek.map((day) => {
+                        const checked = row.days.includes(day)
+                        return (
+                          <label
+                            key={day}
+                            className="flex items-center gap-1 text-xs"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(e) => {
+                                const selected = e.target.checked
+                                  ? [...row.days, day]
+                                  : row.days.filter((d) => d !== day)
+                                updateRowDays(row.id, selected)
+                              }}
+                              className="rounded text-green-600 focus:ring-green-500"
+                            />
+                            {day}
+                          </label>
+                        )
+                      })}
                     </div>
-
                     {row.days.length > 0 && (
                       <div className="mt-1 text-gray-500 text-xs italic">
                         {getDaySummary(row.days)}
@@ -544,60 +530,60 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                     )}
                   </td>
 
-                  {/* Campus */}
+                  {/* Campus checkboxes */}
                   <td className="border px-2 py-1 text-left align-top">
                     <div className="flex flex-col gap-1">
-                      {campusOptions.map((campus) => (
-                        <label
-                          key={campus}
-                          className="flex items-center gap-1 text-xs"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={row.campuses.includes(campus)}
-                            onChange={(e) => {
-                              const selected = e.target.checked
-                                ? [...row.campuses, campus]
-                                : row.campuses.filter((c) => c !== campus)
-                              updateRowCampuses(row.id, selected)
-                            }}
-                            className="rounded text-green-600 focus:ring-green-500"
-                          />
-                          {campus}
-                        </label>
-                      ))}
+                      {campusOptions.map((campus) => {
+                        const checked = row.campuses.includes(campus)
+                        return (
+                          <label
+                            key={campus}
+                            className="flex items-center gap-1 text-xs"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(e) => {
+                                const selected = e.target.checked
+                                  ? [...row.campuses, campus]
+                                  : row.campuses.filter((c) => c !== campus)
+                                updateRowCampuses(row.id, selected)
+                              }}
+                              className="rounded text-green-600 focus:ring-green-500"
+                            />
+                            {campus}
+                          </label>
+                        )
+                      })}
                     </div>
                   </td>
 
-                  {/* Roles */}
+                  {/* Roles checkboxes */}
                   <td className="border px-2 py-1 text-left align-top">
                     <div className="flex flex-col gap-1">
-                      {availableRoles.map((role) => (
-                        <label
-                          key={role}
-                          className="flex items-center gap-1 text-xs"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={row.roles.includes(role)}
-                            onChange={(e) => {
-                              const selected = e.target.checked
-                                ? [...row.roles, role]
-                                : row.roles.filter((r) => r !== role)
-                              updateRowField(
-                                row.id,
-                                "roles",
-                                selected,
-                                false
-                              )
-                            }}
-                            className="rounded text-green-600 focus:ring-green-500"
-                          />
-                          {role}
-                        </label>
-                      ))}
+                      {availableRoles.map((role) => {
+                        const checked = row.roles.includes(role)
+                        return (
+                          <label
+                            key={role}
+                            className="flex items-center gap-1 text-xs"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(e) => {
+                                const selected = e.target.checked
+                                  ? [...row.roles, role]
+                                  : row.roles.filter((r) => r !== role)
+                                updateRowField(row.id, "roles", selected, false)
+                              }}
+                              className="rounded text-green-600 focus:ring-green-500"
+                            />
+                            {role}
+                          </label>
+                        )
+                      })}
                     </div>
-
                     {row.roles.length === 0 && (
                       <div className="text-gray-400 text-xs italic mt-1">
                         Select…
@@ -621,7 +607,8 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
           </table>
         </div>
       )}
-      {/* Requirements / helper instructions */}
+
+      {/* Requirements / helper text */}
       <ul className="mt-4 text-xs text-gray-600 list-disc pl-5 space-y-1">
         <li>
           Define the shift types that should be available to be used and what
@@ -632,28 +619,26 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
           Total Hours are calculated from start and end time minus the Non-Shift
           Break Time.
         </li>
-        <li>Day of week and Campus are multi-select fields.</li>
+        <li>Day of week and Campus are multi-select.</li>
         <li>
-          Shift Group and Shift Name are free-text inputs (multiple names may
+          Shift Group and Shift Name are free-text inputs (multiple names can
           belong to the same group).
         </li>
         <li>Use “+ Add Shift” to create additional shifts.</li>
         <li>
-          With sort set to <strong>None</strong>, drag the ☰ handle to reorder
-          shifts manually.
+          With sort set to <strong>None</strong>, you can drag and drop rows to
+          arrange shifts on screen.
         </li>
         <li>
-          Use the filter and sort controls at the top of the card to change
-          which shifts appear in view.
+          Use the filter and sort controls above the grid to change which shifts
+          are in view.
         </li>
       </ul>
 
-      {/* Navigation buttons */}
       <div className="flex justify-between mt-6">
         <Button variant="ghost" onClick={onPrev}>
           ← Previous
         </Button>
-
         <Button variant="primary" onClick={onNext}>
           Next →
         </Button>
