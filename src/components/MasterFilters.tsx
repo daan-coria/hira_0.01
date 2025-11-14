@@ -177,20 +177,21 @@ export default function MasterFilters() {
 
       {/* DATE RANGE MODAL ------------------------------------------------ */}
       {showCalendar && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 animate-fadeIn">
-          <div className="bg-white rounded-xl shadow-xl border border-gray-200 p-6 w-[780px] mt-16 animate-slideUp">
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm 
+                        flex items-start justify-center 
+                        z-50 pt-32 animate-fadeIn">
 
-            {/* Custom Azure-style header */}
+          <div className="bg-white rounded-xl shadow-xl border border-gray-200 
+                          p-6 w-[780px] animate-slideUp">
+
             <DateRangeHeader date={currentDate} setDate={setCurrentDate} />
 
             <DateRange
-              ranges={[
-                {
-                  startDate: master.startDate ? new Date(master.startDate) : new Date(),
-                  endDate: master.endDate ? new Date(master.endDate) : new Date(),
-                  key: "selection",
-                },
-              ]}
+              ranges={[{
+                startDate: master.startDate ? new Date(master.startDate) : new Date(),
+                endDate: master.endDate ? new Date(master.endDate) : new Date(),
+                key: "selection",
+              }]}
               onChange={handleDateChange}
               moveRangeOnFirstSelection={false}
               months={2}
@@ -217,9 +218,11 @@ export default function MasterFilters() {
                 Apply
               </button>
             </div>
+
+          </div>
         </div>
-      </div>
-)}
+      )}
+
     </div>
   );
 }
