@@ -481,6 +481,7 @@ export default function HealthSystemSetupPage() {
                 type="button"
                 onClick={closeCampusDrawer}
                 className="rounded-full p-1.5 text-gray-500 hover:bg-gray-100"
+                aria-label="Close campus drawer"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -527,6 +528,7 @@ export default function HealthSystemSetupPage() {
                   </label>
                   <div className="flex gap-2">
                     <select
+                      aria-label="Select region"
                       value={campusForm.region}
                       onChange={(e) =>
                         handleCampusFormChange("region", e.target.value)
@@ -543,6 +545,7 @@ export default function HealthSystemSetupPage() {
                   </div>
                   <div className="mt-2 flex gap-2">
                     <input
+                      aria-label="Type a new region name"
                       type="text"
                       value={campusForm.region}
                       onChange={(e) =>
@@ -555,7 +558,8 @@ export default function HealthSystemSetupPage() {
                       type="button"
                       onClick={handleAddInlineRegion}
                       className="shrink-0 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-[11px] font-medium text-gray-700 hover:bg-gray-100"
-                    >
+                      aria-label="Add new region"
+                    >   
                       Add
                     </button>
                   </div>
@@ -624,6 +628,7 @@ export default function HealthSystemSetupPage() {
                 type="button"
                 onClick={closeRegionDrawer}
                 className="rounded-full p-1.5 text-gray-500 hover:bg-gray-100"
+                aria-label="Close region drawer"
               >
                 <X className="h-4 w-4" />
               </button>
