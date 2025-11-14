@@ -112,6 +112,10 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
     [rows]
   )
 
+  const [showNewFA, setShowNewFA] = useState(false)
+  const [newFAName, setNewFAName] = useState("")
+  const [targetRowId, setTargetRowId] = useState<string | null>(null)
+
   // --------------------------------
   // Excel Upload Handler
   // --------------------------------
@@ -429,38 +433,32 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
 
                           {/* Functional Area */}
                           <td className="px-2 py-2 border">
-                            <Select
-                              id={`fa-${row.id}`}
-                              value={row.functionalArea}
-                              onChange={(e) =>
-                                updateRow(
-                                  row.id,
-                                  "functionalArea",
-                                  e.target.value
-                                )
-                              }
-                            >
-                              <option value="">-- Select --</option>
-                              {functionalAreaOptions.map((fa) => (
-                                <option key={fa} value={fa}>
-                                  {fa}
-                                </option>
-                              ))}
-                            </Select>
+                            <div className="flex items-center gap-2">
+                              <Select
+                                id={`fa-${row.id}`}
+                                value={row.functionalArea}
+                                onChange={(e) => updateRow(row.id, "functionalArea", e.target.value)}
+                              >
+                                <option value="">-- Select --</option>
+                                {functionalAreaOptions.map((fa) => (
+                                  <option key={fa} value={fa}>
+                                    {fa}
+                                  </option>
+                                ))}
+                              </Select>
 
-                            <Input
-                              id={`fa-new-${row.id}`}
-                              className="mt-1"
-                              placeholder="Or type new"
-                              value={row.functionalArea}
-                              onChange={(e) =>
-                                updateRow(
-                                  row.id,
-                                  "functionalArea",
-                                  e.target.value
-                                )
-                              }
-                            />
+                              {/* ADD NEW BUTTON */}
+                              <Button
+                                variant="ghost"
+                                title="Add new functional area"
+                                onClick={() => {
+                                  setTargetRowId(row.id)
+                                  setShowNewFA(true)
+                                }}
+                              >
+                                +
+                              </Button>
+                            </div>
                           </td>
 
                           {/* Unit Grouping */}
@@ -665,6 +663,57 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
       <p className="mt-4 text-xs text-gray-500">
         Note: Cost Center Name defaults to the Unit name. You can edit it at any time.
       </p>
+
+      {/* NEW FUNCTIONAL AREA MODAL */}
+      {showNewFA && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-2xl shadow-xl w-[min(400px,90vw)] p-6">
+            <h3 className="text-lg font-semibold mb-4">Add New Functional Area</h3>
+
+            <Input
+              id="new-functional-area"
+              label="Functional Area Name"
+              placeholder="e.g. Nursing, ED, Radiology"
+              value={newFAName}
+              onChange={(e) => setNewFAName(e.target.value)}
+            />
+
+            <div className="flex justify-end mt-6 gap-3">
+              <Button variant="ghost" onClick={() => { setShowNewFA(false); setNewFAName(""); }}>
+                Cancel
+              </Button>
+
+              <Button
+                variant="primary"
+                disabled={!newFAName.trim()}
+                onClick={() => {
+                  const cleaned = newFAName.trim()
+
+                  // 1. Update the target row
+                  if (targetRowId) {
+                    updateRow(targetRowId, "functionalArea", cleaned)
+                  }
+
+                  // 2. Insert into dropdown options (by updating rows list)
+                  setRows((prev) => {
+                    // If already exists, do nothing
+                    if (prev.some((r) => r.functionalArea === cleaned)) return prev
+                    return [...prev] // no structural change, dropdown is derived automatically
+                  })
+
+                  // 3. Reset modal
+                  setShowNewFA(false)
+                  setNewFAName("")
+                  setTargetRowId(null)
+                }}
+              >
+                Add
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </Card>
   )
 }
