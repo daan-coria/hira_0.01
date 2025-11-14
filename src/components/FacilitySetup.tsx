@@ -342,16 +342,19 @@ export default function FacilitySetup() {
 	// -----------------------
 	// Drag & Drop Sorting
 	// -----------------------
-	const handleDragStart =
-		(id: number) => (e: React.DragEvent<HTMLTableRowElement>) => {
-			dragRowId.current = id;
-			e.dataTransfer.effectAllowed = "move";
-		};
+	const handleDragStart = (id: number) => (e: React.DragEvent) => {
+        dragRowId.current = id;
+        // Remove the default drag image to avoid heavy layout work
+        const img = new Image();
+        img.src = "";
+        e.dataTransfer.setDragImage(img, 0, 0); 
+    };
+
 
 	const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>) => {
-		e.preventDefault();
-		e.dataTransfer.dropEffect = "move";
-	};
+        e.preventDefault(); // allow drop but no layout work
+    };
+
 
 	const handleDrop =
 		(targetId: number) => (e: React.DragEvent<HTMLTableRowElement>) => {
@@ -514,7 +517,7 @@ export default function FacilitySetup() {
 								onDragStart={handleDragStart(row.id)}
 								onDragOver={handleDragOver}
 								onDrop={handleDrop(row.id)}
-								className="border-t last:border-b-0 hover:bg-gray-50 cursor-move"
+								className="border-t last:border-b-0 cursor-move"
 							>
 								{/* Drag handle */}
 								<td className="px-2 py-2 align-middle text-gray-400">
