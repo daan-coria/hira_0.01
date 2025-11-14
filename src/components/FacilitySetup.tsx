@@ -1,8 +1,726 @@
+import { useEffect, useMemo, useRef, useState } from "react"
+import * as XLSX from "xlsx"
+import { GripVertical, Plus, Trash2, Upload } from "lucide-react"
+
+import { useApp } from "@/store/AppContext"
+import Card from "@/components/ui/Card"
+import Button from "@/components/ui/Button"
+import Input from "@/components/ui/Input"
+import Select from "@/components/ui/Select"
+
+type FacilityRow = {
+  id: number
+  costCenterKey: string
+  costCenterName: string
+  campus: string
+  functionalArea: string
+  unitGrouping: string
+  capacity: number | "" | "N/A"
+  isFloatPool: boolean
+  poolParticipation: string[]
+  unitOfService: string
+  sortOrder: number
+}
+
+type Campus = {
+  key: string
+  name: string
+  region: string
+}
+
+const STORAGE_KEY_FACILITY_SETUP = "hira_facilitySetup"
+const STORAGE_KEY_CAMPUSES = "hira_campuses"
+
+// ----------------- helpers -----------------
+
+function normalizeHeaders(row: any): Record<string, any> {
+  return Object.keys(row).reduce((acc: any, key) => {
+    acc[key.trim().toLowerCase()] = row[key]
+    return acc
+  }, {})
+}
+
+function parseExcelToRows(rawRows: any[]): FacilityRow[] {
+  return rawRows.map((raw, index) => {
+    const keys = normalizeHeaders(raw)
+
+    const facility = keys["facility"] ?? ""
+    const unit = keys["unit"] ?? ""
+    const functionalArea =
+      keys["functional area"] ?? keys["functional_area"] ?? ""
+    const costCenter =
+      keys["cost center"] ?? keys["cost_center"] ?? keys["cost centre"] ?? ""
+    const capacityRaw = keys["capacity"] ?? ""
+
+    let capacity: number | "" = ""
+    if (capacityRaw !== "" && capacityRaw != null && !Number.isNaN(capacityRaw)) {
+      const n = Number(capacityRaw)
+      if (Number.isFinite(n)) capacity = n
+    }
+
+    const sortOrder = index + 1
+
+    const row: FacilityRow = {
+      id: sortOrder,
+      costCenterKey: String(costCenter ?? ""),
+      costCenterName: String(unit ?? ""),
+      campus: String(facility ?? ""),
+      functionalArea: String(functionalArea ?? ""),
+      unitGrouping: "",
+      capacity,
+      isFloatPool: false,
+      poolParticipation: [],
+      unitOfService: "",
+      sortOrder,
+    }
+
+    return row
+  })
+}
+
+function normalizeSortOrder(rows: FacilityRow[]): FacilityRow[] {
+  return rows
+    .slice()
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((r, i) => ({ ...r, sortOrder: i + 1 }))
+}
+
+// ----------------- component -----------------
+
 export default function FacilitySetup() {
-    return (    
-        <div className="p-4">
-            <h2 className="text-xl font-bold mb-2">Facility Setup</h2>
-            <p>This is the Facility Setup component.</p>
+  const { data, updateData } = useApp()
+
+  const [rows, setRows] = useState<FacilityRow[]>([])
+  const [functionalAreas, setFunctionalAreas] = useState<string[]>([])
+  const [unitGroupings, setUnitGroupings] = useState<string[]>([])
+  const [campusOptions, setCampusOptions] = useState<string[]>([])
+  const [uploading, setUploading] = useState(false)
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const dragRowId = useRef<number | null>(null)
+
+  const handleExportCSV = () => {
+    const headers = [
+        "Cost Center Key",
+        "Cost Center Name",
+        "Campus",
+        "Functional Area",
+        "Unit Grouping",
+        "Capacity",
+        "Is Float Pool",
+        "Pool Participation",
+        "Unit of Service",
+        "Sort Order",
+    ];
+
+    const csvRows = [
+        headers.join(","), // header row
+        ...rows.map((r) =>
+        [
+            r.costCenterKey,
+            r.costCenterName,
+            r.campus,
+            r.functionalArea,
+            r.unitGrouping,
+            r.capacity === "" ? "" : r.capacity,
+            r.isFloatPool ? "TRUE" : "FALSE",
+            r.poolParticipation.join("|"),
+            r.unitOfService,
+            r.sortOrder,
+        ]
+            .map((v) => `"${v ?? ""}"`)
+            .join(",")
+        ),
+    ];
+
+    const blob = new Blob([csvRows.join("\n")], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "facility_setup.csv";
+    a.click();
+    window.URL.revokeObjectURL(url);
+    };
+
+
+    const handleExportExcel = () => {
+        const exportRows = rows.map((r) => ({
+            "Cost Center Key": r.costCenterKey,
+            "Cost Center Name": r.costCenterName,
+            Campus: r.campus,
+            "Functional Area": r.functionalArea,
+            "Unit Grouping": r.unitGrouping,
+            Capacity: r.capacity,
+            "Is Float Pool": r.isFloatPool ? "TRUE" : "FALSE",
+            "Pool Participation": r.poolParticipation.join("|"),
+            "Unit of Service": r.unitOfService,
+            "Sort Order": r.sortOrder,
+        }));
+
+        const worksheet = XLSX.utils.json_to_sheet(exportRows);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Facility Setup");
+
+        XLSX.writeFile(workbook, "facility_setup.xlsx");
+        };
+
+  // ---------- initial load ----------
+
+  useEffect(() => {
+    // campuses (from Campus step)
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY_CAMPUSES)
+      if (stored) {
+        const parsed = JSON.parse(stored) as Campus[]
+        const names = Array.from(new Set(parsed.map((c) => c.name))).sort()
+        setCampusOptions(names)
+      }
+    } catch (err) {
+      console.error("Error loading campuses", err)
+    }
+
+    // facility setup (from context or localStorage)
+    let initial: FacilityRow[] = []
+
+    if ((data as any)?.facilitySetup && Array.isArray((data as any).facilitySetup)) {
+      initial = (data as any).facilitySetup as FacilityRow[]
+    } else {
+      try {
+        const storedSetup = localStorage.getItem(STORAGE_KEY_FACILITY_SETUP)
+        if (storedSetup) initial = JSON.parse(storedSetup) as FacilityRow[]
+      } catch (err) {
+        console.error("Error loading facility setup", err)
+      }
+    }
+
+    if (initial.length > 0) {
+      initial = normalizeSortOrder(initial)
+      setRows(initial)
+
+      setFunctionalAreas(
+        Array.from(
+          new Set(initial.map((r) => r.functionalArea).filter(Boolean))
+        )
+      )
+      setUnitGroupings(
+        Array.from(
+          new Set(initial.map((r) => r.unitGrouping).filter(Boolean))
+        )
+      )
+    }
+  }, [data])
+
+  // ---------- persistence ----------
+
+  useEffect(() => {
+    const normalized = normalizeSortOrder(rows)
+    updateData("facilitySetup", normalized)
+    try {
+      localStorage.setItem(STORAGE_KEY_FACILITY_SETUP, JSON.stringify(normalized))
+    } catch (err) {
+      console.error("Error saving facility setup", err)
+    }
+  }, [rows, updateData])
+
+  // ---------- derived ----------
+
+  const sortedRows = useMemo(
+    () => [...rows].sort((a, b) => a.sortOrder - b.sortOrder),
+    [rows]
+  )
+
+  const floatPoolOptions = useMemo(
+    () =>
+      rows
+        .filter((r) => r.isFloatPool)
+        .map((r) => r.costCenterName || r.costCenterKey)
+        .filter(Boolean),
+    [rows]
+  )
+
+  // ---------- helpers ----------
+
+  const normalizeRow = (row: FacilityRow): FacilityRow => {
+    if (row.isFloatPool) {
+      return {
+        ...row,
+        capacity: "N/A",
+        poolParticipation: [],
+        unitOfService: "N/A",
+      }
+    }
+    if (row.capacity === "N/A") row.capacity = ""
+    if (row.unitOfService === "N/A") row.unitOfService = ""
+    return row
+  }
+
+  const updateRow = (id: number, patch: Partial<FacilityRow>) => {
+    setRows((prev) =>
+      prev.map((row) =>
+        row.id === id ? normalizeRow({ ...row, ...patch }) : row
+      )
+    )
+  }
+
+  const addRow = () => {
+    const nextId = rows.length ? Math.max(...rows.map((r) => r.id)) + 1 : 1
+    const row: FacilityRow = {
+      id: nextId,
+      costCenterKey: "",
+      costCenterName: "",
+      campus: "",
+      functionalArea: "",
+      unitGrouping: "",
+      capacity: "",
+      isFloatPool: false,
+      poolParticipation: [],
+      unitOfService: "",
+      sortOrder: rows.length + 1,
+    }
+    setRows((prev) => [...prev, row])
+  }
+
+  const deleteRow = (id: number) => {
+    setRows((prev) => normalizeSortOrder(prev.filter((r) => r.id !== id)))
+  }
+
+  const clearAll = () => {
+    if (!window.confirm("Clear all cost centers from Facility Set-up?")) return
+    setRows([])
+  }
+
+  // ---------- excel upload ----------
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploading(true)
+    try {
+      const buffer = await file.arrayBuffer()
+      const workbook = XLSX.read(buffer, { type: "array" })
+      const sheet = workbook.Sheets[workbook.SheetNames[0]]
+      const rowsRaw = XLSX.utils.sheet_to_json(sheet, { defval: "" }) as any[]
+
+      const parsed = parseExcelToRows(rowsRaw)
+      const normalized = normalizeSortOrder(parsed)
+
+      setRows(normalized)
+
+      setFunctionalAreas(
+        Array.from(new Set(normalized.map((r) => r.functionalArea).filter(Boolean)))
+      )
+    } catch (err) {
+      console.error("Error parsing facility setup Excel", err)
+      window.alert("Error reading the Excel file. Please check the format.")
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ""
+    }
+  }
+
+  // ---------- DnD sort ----------
+
+  const handleDragStart = (id: number) => () => {
+    dragRowId.current = id
+  }
+
+  const handleDragOver: React.DragEventHandler<HTMLTableRowElement> = (e) => {
+    e.preventDefault()
+  }
+
+  const handleDrop = (targetId: number) => (e: React.DragEvent<HTMLTableRowElement>) => {
+    e.preventDefault()
+    const sourceId = dragRowId.current
+    dragRowId.current = null
+    if (sourceId == null || sourceId === targetId) return
+
+    setRows((prev) => {
+      const sourceIndex = prev.findIndex((r) => r.id === sourceId)
+      const targetIndex = prev.findIndex((r) => r.id === targetId)
+      if (sourceIndex === -1 || targetIndex === -1) return prev
+
+      const copy = [...prev]
+      const [moved] = copy.splice(sourceIndex, 1)
+      copy.splice(targetIndex, 0, moved)
+
+      return normalizeSortOrder(copy)
+    })
+  }
+
+  // ---------- create-on-the-fly dropdowns ----------
+
+  const handleFunctionalAreaChange = (row: FacilityRow, value: string) => {
+    if (value === "__add_new__") {
+      const name = window.prompt("New functional area name?")
+      if (name && name.trim()) {
+        const trimmed = name.trim()
+        setFunctionalAreas((prev) =>
+          prev.includes(trimmed) ? prev : [...prev, trimmed]
+        )
+        updateRow(row.id, { functionalArea: trimmed })
+      }
+    } else {
+      updateRow(row.id, { functionalArea: value })
+    }
+  }
+
+  const handleUnitGroupingChange = (row: FacilityRow, value: string) => {
+    if (value === "__add_new__") {
+      const name = window.prompt("New unit grouping name?")
+      if (name && name.trim()) {
+        const trimmed = name.trim()
+        setUnitGroupings((prev) =>
+          prev.includes(trimmed) ? prev : [...prev, trimmed]
+        )
+        updateRow(row.id, { unitGrouping: trimmed })
+      }
+    } else {
+      updateRow(row.id, { unitGrouping: value })
+    }
+  }
+
+  const handlePoolParticipationChange = (
+    row: FacilityRow,
+    e: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    const selected: string[] = []
+    const options = e.target.options
+    for (let i = 0; i < options.length; i++) {
+      const opt = options[i]
+      if (opt.selected && opt.value) selected.push(opt.value)
+    }
+    updateRow(row.id, { poolParticipation: selected })
+  }
+
+  // ---------- render ----------
+
+  return (
+    <div className="p-4 space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold">Facility Set-up</h2>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Upload Excel */}
+          <input
+            aria-label="Upload Excel"
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls"
+            className="hidden"
+            onChange={handleFileUpload}
+          />
+          <Button
+            variant="primary"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+          >
+            <Upload className="w-4 h-4" />
+            {uploading ? "Uploading..." : "Upload Excel"}
+          </Button>
+
+            {/* Export CSV */}
+            <Button
+            variant="primary"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            onClick={handleExportCSV}
+            >
+            Export CSV
+            </Button>
+
+            {/* Export Excel */}
+            <Button
+            variant="ghost"
+            className="border border-gray-300 text-gray-700 hover:bg-gray-100"
+            onClick={handleExportExcel}
+            >
+            Export Excel
+            </Button>
+
+
+          <Button
+            variant="ghost"
+            className="border border-red-300 text-red-600 hover:bg-red-50"
+            onClick={clearAll}
+            >
+            Clear All
+            </Button>
+
+
+          <Button
+            variant="ghost"
+            className="border border-gray-300 text-gray-700 hover:bg-gray-100"
+            onClick={addRow}
+            >
+            <Plus className="w-4 h-4" />
+            Add Cost Center
+            </Button>
         </div>
-    );
+      </div>
+
+      <Card className="overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr className="bg-gray-50 text-xs font-semibold text-gray-600">
+              <th className="w-8 px-2 py-2" />
+              <th className="px-3 py-2 text-left">Cost Center Key</th>
+              <th className="px-3 py-2 text-left">Cost Center Name</th>
+              <th className="px-3 py-2 text-left">Campus</th>
+              <th className="px-3 py-2 text-left">Functional Area</th>
+              <th className="px-3 py-2 text-left">Unit Grouping</th>
+              <th className="px-3 py-2 text-left">Capacity</th>
+              <th className="px-3 py-2 text-left">Float Pool</th>
+              <th className="px-3 py-2 text-left">Pool Participation</th>
+              <th className="px-3 py-2 text-left">Unit of Service</th>
+              <th className="px-3 py-2 text-left">Sort Order</th>
+              <th className="w-10 px-3 py-2" />
+            </tr>
+          </thead>
+
+          <tbody>
+            {sortedRows.map((row) => (
+              <tr
+                key={row.id}
+                className="border-t last:border-b-0 hover:bg-gray-50"
+                draggable
+                onDragStart={handleDragStart(row.id)}
+                onDragOver={handleDragOver}
+                onDrop={handleDrop(row.id)}
+              >
+                {/* drag handle */}
+                <td className="px-2 py-2 align-middle text-gray-400 cursor-grab">
+                  <GripVertical className="w-4 h-4" />
+                </td>
+
+                {/* cost center key */}
+                <td className="px-3 py-2 align-middle">
+                  <Input
+                    id={`costCenterKey-${row.id}`}
+                    value={row.costCenterKey}
+                    onChange={(e) =>
+                      updateRow(row.id, { costCenterKey: e.target.value })
+                    }
+                    placeholder="e.g., 5W"
+                  />
+                </td>
+
+                {/* cost center name */}
+                <td className="px-3 py-2 align-middle">
+                  <Input
+                    id={`costCenterName-${row.id}`}
+                    value={row.costCenterName}      
+                    onChange={(e) =>
+                      updateRow(row.id, { costCenterName: e.target.value })
+                    }
+                    placeholder="e.g., Med/Surg"
+                  />
+                </td>
+
+                {/* campus */}
+                <td className="px-3 py-2 align-middle">
+                  {campusOptions.length ? (
+                    <Select
+                      value={row.campus}
+                      onChange={(e) =>
+                        updateRow(row.id, { campus: e.target.value })
+                      }
+                    >
+                      <option value="">Select campus</option>
+                      {campusOptions.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </Select>
+                  ) : (
+                    <Input
+                      id={`campus-${row.id}`}       
+                      value={row.campus}
+                      onChange={(e) =>
+                        updateRow(row.id, { campus: e.target.value })
+                      }
+                      placeholder="Campus"
+                    />
+                  )}
+                </td>
+
+                {/* functional area */}
+                <td className="px-3 py-2 align-middle">
+                  <Select
+                    value={row.functionalArea}
+                    onChange={(e) =>
+                      handleFunctionalAreaChange(row, e.target.value)
+                    }
+                  >
+                    <option value="">Select functional area</option>
+                    {functionalAreas.map((fa) => (
+                      <option key={fa} value={fa}>
+                        {fa}
+                      </option>
+                    ))}
+                    <option value="__add_new__">+ Add new functional area</option>
+                  </Select>
+                </td>
+
+                {/* unit grouping */}
+                <td className="px-3 py-2 align-middle">
+                  <Select
+                    value={row.unitGrouping}
+                    onChange={(e) =>
+                      handleUnitGroupingChange(row, e.target.value)
+                    }
+                  >
+                    <option value="">No unit grouping</option>
+                    {unitGroupings.map((ug) => (
+                      <option key={ug} value={ug}>
+                        {ug}
+                      </option>
+                    ))}
+                    <option value="__add_new__">+ Add new unit grouping</option>
+                  </Select>
+                </td>
+
+                {/* capacity */}
+                <td className="px-3 py-2 align-middle">
+                  {row.isFloatPool ? (
+                    <div className="px-3 py-2 text-center text-xs text-gray-500 bg-gray-100 rounded-xl">
+                      N/A
+                    </div>
+                  ) : (
+                    <Input
+                      id={`capacity-${row.id}`}         
+                      type="number"
+                      min={0}
+                      value={row.capacity === "" ? "" : String(row.capacity)}
+                      onChange={(e) =>
+                        updateRow(row.id, {
+                          capacity:
+                            e.target.value === "" ? "" : Number(e.target.value),
+                        })
+                      }
+                      placeholder="Capacity"
+                    />
+                  )}
+                </td>
+
+                {/* float pool toggle */}
+                <td className="px-3 py-2 align-middle">
+                  <label className="inline-flex items-center cursor-pointer">
+                    <input
+                        id={`isFloatPool-${row.id}`}
+                        type="checkbox"
+                        className="sr-only peer"
+                        />
+                        <label htmlFor={`isFloatPool-${row.id}`} className="inline-flex items-center cursor-pointer">
+                        ...
+                        </label>
+                    <div className="relative h-5 w-10 rounded-full bg-gray-200 transition-colors peer-checked:bg-emerald-500">
+                      <div className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5" />
+                    </div>
+                  </label>
+                </td>
+
+                {/* pool participation */}
+                <td className="px-3 py-2 align-middle">
+                  {row.isFloatPool ? (
+                    <div className="px-3 py-2 text-center text-xs text-gray-500 bg-gray-100 rounded-xl">
+                      N/A
+                    </div>
+                  ) : floatPoolOptions.length === 0 ? (
+                    <div className="text-xs text-gray-400">
+                      No float pools defined
+                    </div>
+                  ) : (
+                    <select
+                      id={`poolParticipation-${row.id}`}
+                      multiple
+                      className="w-full rounded-xl border border-gray-300 bg-white px-2 py-1 text-xs shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      value={row.poolParticipation}
+                      onChange={(e) => handlePoolParticipationChange(row, e)}
+                    >
+                      {floatPoolOptions
+                        .filter(
+                          (name) =>
+                            name !==
+                            (row.costCenterName || row.costCenterKey)
+                        )
+                        .map((name) => (
+                          <option key={name} value={name}>
+                            {name}
+                          </option>
+                        ))}
+                    </select>
+                  )}
+                </td>
+
+                {/* unit of service */}
+                <td className="px-3 py-2 align-middle">
+                  {row.isFloatPool ? (
+                    <div className="px-3 py-2 text-center text-xs text-gray-500 bg-gray-100 rounded-xl">
+                      N/A
+                    </div>
+                  ) : (
+                    <Select
+                      id={`unitOfService-${row.id}`}
+                      value={row.unitOfService}
+                      onChange={(e) =>
+                        updateRow(row.id, { unitOfService: e.target.value })
+                      }
+                    >
+                      <option value="">Select UOS</option>
+                      <option value="Patient Days">Patient Days</option>
+                      <option value="Visits">Visits</option>
+                      <option value="Procedures">Procedures</option>
+                      <option value="Other">Other</option>
+                    </Select>
+                  )}
+                </td>
+
+                {/* sort order */}
+                <td className="px-3 py-2 align-middle">
+                  <Input
+                    id={`sortOrder-${row.id}`}  
+                    type="number"
+                    min={1}
+                    className="w-16"
+                    value={row.sortOrder}
+                    onChange={(e) =>
+                      updateRow(row.id, {
+                        sortOrder: Number(e.target.value) || row.sortOrder,
+                      })
+                    }
+                  />
+                </td>
+
+                {/* delete */}
+                <td className="px-3 py-2 align-middle text-right">
+                  <button
+                    type="button"
+                    onClick={() => deleteRow(row.id)}
+                    className="inline-flex items-center justify-center rounded-full p-1 text-gray-400 hover:bg-red-50 hover:text-red-500"
+                    aria-label="Delete cost center"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </td>
+              </tr>
+            ))}
+
+            {sortedRows.length === 0 && (
+              <tr>
+                <td
+                  colSpan={12}
+                  className="px-3 py-6 text-center text-sm text-gray-400"
+                >
+                  No cost centers defined yet. Upload an Excel file or add a cost
+                  center manually.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </Card>
+    </div>
+  )
 }
