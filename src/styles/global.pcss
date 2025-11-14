@@ -41,8 +41,8 @@ html {
 }
 
 @keyframes slideUp {
-  from { transform: translateY(20px); opacity: 0;}
-  to   { transform: translateY(0); opacity: 1;}
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
 }
 
 .animate-fadeIn {
@@ -53,34 +53,28 @@ html {
   animation: slideUp 0.25s ease-out;
 }
 
-/* Show navigation arrows */
+/* ----------------------------- */
+/* 🎯 CUSTOM DATE RANGE FIXES    */
+/* ----------------------------- */
+
+/* Make sure NAVIGATION arrows show */
 .rdrNextPrevButton {
   display: flex !important;
   align-items: center;
   justify-content: center;
 }
 
-/* Month title centered */
+/* Remove react-date-range DEFAULT header */
 .rdrMonthAndYearWrapper {
-  display: flex !important;
-  justify-content: center;
-  padding: 10px 0;
+  display: none !important;
 }
 
-/* Enable dropdowns for month & year */
-.rdrMonthAndYearPickers select {
-  padding: 4px 8px;
-  border-radius: 6px;
-  border: 1px solid #d1d5db;
-  background: white;
-  cursor: pointer;
+/* Remove the top month name text */
+.rdrMonthName {
+  display: none !important;
 }
 
-/* Match Azure underline */
-.rdrCalendarWrapper {
-  padding-top: 10px;
-}
-
+/* Add Azure-style top border below our custom header */
 .rdrMonths {
   border-top: 2px solid #e5e7eb;
   margin-top: 6px;
