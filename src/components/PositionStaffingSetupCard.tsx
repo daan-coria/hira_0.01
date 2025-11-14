@@ -30,11 +30,12 @@ type Props = {
 }
 
 export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
-  const { state, updateData } = useApp()
+  const { state, updateData, data } = useApp()
   const [rows, setRows] = useState<Row[]>([])
-  const [categories, setCategories] = useState<string[]>(
-    state.facilitySetup?.categories || ["Nursing", "Support", "Other"]
-  )
+  const categories =
+    data.categories && data.categories.length
+      ? data.categories
+      : ["Nursing", "Support", "Other"]
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -169,7 +170,11 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
 
   // 🔢 FTE calculation
   const calcFTE = (row: Row): number => {
-    const bedCount = state.facilitySetup?.bedCount || 0
+    const facilityRows = (state.facilitySetup as any[]) || []
+    const bedCount =
+      typeof facilityRows[0]?.capacity === "number"
+        ? facilityRows[0].capacity
+        : 0
     const ratio = typeof row.ratio === "number" ? row.ratio : 0
     const carePct = row.direct_care_percent / 100
     if (!ratio || ratio <= 0) return 0
@@ -254,7 +259,7 @@ export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
       const newCat = prompt("Enter new category name:")
       if (newCat && !categories.includes(newCat)) {
         const updatedCats = [...categories, newCat]
-        setCategories(updatedCats)
+        updateData("categories", updatedCats)
         handleChange(i, "category", newCat)
       }
     } else handleChange(i, "category", value)
