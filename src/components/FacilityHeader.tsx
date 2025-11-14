@@ -355,7 +355,6 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
                     <th className="px-2 py-2 border min-w-[130px]">Campus</th>
                     <th className="px-2 py-2 border min-w-[160px]">Functional Area</th>
                     <th className="px-2 py-2 border min-w-[170px]">Unit Grouping</th>
-                    <th className="px-2 py-2 border min-w-[150px]">Department</th>
                     <th className="px-2 py-2 border w-[80px]">Capacity</th>
                     <th className="px-2 py-2 border w-[90px]">Float Pool</th>
                     <th className="px-2 py-2 border min-w-[220px] max-w-[260px]">Pool Participation</th>
@@ -507,17 +506,6 @@ export default function FacilityHeader({ onNext, onSetupComplete }: Props) {
                                   "unitGrouping",
                                   e.target.value
                                 )
-                              }
-                            />
-                          </td>
-
-                          {/* Department */}
-                          <td className="px-2 py-2 border min-w-[150px]">
-                            <Input
-                              id={`unit-${row.id}`}
-                              value={row.unit}
-                              onChange={(e) =>
-                                updateRow(row.id, "unit", e.target.value)
                               }
                             />
                           </td>
