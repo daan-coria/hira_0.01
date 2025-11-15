@@ -291,8 +291,6 @@ function FacilityRowItem({
             />
           )}
         </td>
-
-
               {/* Float Pool Toggle */}
         <td className="px-3 py-2 align-middle">
           <label
