@@ -146,19 +146,16 @@ function FacilityRowItem({
   } = useSortable({ id: row.id });
 
   const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+    transform: transform ? CSS.Transform.toString(transform) : undefined,
+    transition: transition || undefined,
   };
 
   return (
     <tr
-        ref={setNodeRef}
-        style={{
-            transform: CSS.Transform.toString(transform),
-            transition,
-        }}
-        className="border-t last:border-b-0 hover:bg-gray-50"
-        >
+      ref={setNodeRef}
+      style={style}   // use the computed style ONLY
+      className="border-t last:border-b-0 hover:bg-gray-50"
+    >
 
         {/* drag handle */}
                   <td
@@ -173,6 +170,7 @@ function FacilityRowItem({
         {/* Cost Center Key */}
         <td className="px-3 py-2 align-middle">
           <Input
+            onPointerDown={(e) => e.stopPropagation()}
             id={`costCenterKey-${row.id}`}
             aria-label="Cost Center Key"
             value={row.costCenterKey}
@@ -186,6 +184,7 @@ function FacilityRowItem({
         {/* Cost Center Name */}
         <td className="px-3 py-2 align-middle">
           <Input
+            onPointerDown={(e) => e.stopPropagation()}
             id={`costCenterName-${row.id}`}
             aria-label="Cost Center Name"
             value={row.costCenterName}
@@ -200,6 +199,7 @@ function FacilityRowItem({
         <td className="px-3 py-2 align-middle">
           {campusOptions.length ? (
             <Select
+              onPointerDown={(e) => e.stopPropagation()}
               aria-label="Campus"
               value={row.campus}
               onChange={(e) =>
@@ -215,6 +215,7 @@ function FacilityRowItem({
             </Select>
           ) : (
             <Input
+              onPointerDown={(e) => e.stopPropagation()}
               id={`campus-${row.id}`}
               aria-label="Campus"
               value={row.campus}
@@ -229,6 +230,7 @@ function FacilityRowItem({
         {/* Functional Area */}
         <td className="px-3 py-2 align-middle">
           <Select
+            onPointerDown={(e) => e.stopPropagation()}
             aria-label="Functional Area"
             value={row.functionalArea}
             onChange={(e) =>
@@ -248,6 +250,7 @@ function FacilityRowItem({
         {/* Unit Grouping */}
         <td className="px-3 py-2 align-middle">
           <Select
+            onPointerDown={(e) => e.stopPropagation()}
             aria-label="Unit Grouping"
             value={row.unitGrouping}
             onChange={(e) =>
@@ -272,6 +275,7 @@ function FacilityRowItem({
             </div>
           ) : (
             <Input
+              onPointerDown={(e) => e.stopPropagation()}
               id={`capacity-${row.id}`}
               aria-label="Capacity"
               type="number"
@@ -294,6 +298,7 @@ function FacilityRowItem({
             className="inline-flex items-center cursor-pointer"
           >
             <input
+              onPointerDown={(e) => e.stopPropagation()}
               id={`isFloatPool-${row.id}`}
               aria-label="Float Pool"
               type="checkbox"
@@ -321,6 +326,7 @@ function FacilityRowItem({
             </div>
           ) : (
             <select
+              onPointerDown={(e) => e.stopPropagation()}
               id={`poolParticipation-${row.id}`}
               aria-label="Pool Participation"
               multiple
@@ -350,6 +356,7 @@ function FacilityRowItem({
             </div>
           ) : (
             <Select
+              onPointerDown={(e) => e.stopPropagation()}
               aria-label="Unit of Service"
               id={`unitOfService-${row.id}`}
               value={row.unitOfService}
@@ -373,6 +380,7 @@ function FacilityRowItem({
             onClick={() => onDeleteRow(row.id)}
             className="inline-flex items-center justify-center rounded-full p-1 text-gray-400 hover:bg-red-50 hover:text-red-500"
             aria-label="Delete row"
+            onPointerDown={(e) => e.stopPropagation()}
           >
             <Trash2 className="h-4 w-4" />
           </button>
@@ -810,7 +818,7 @@ export default function FacilitySetup() {
                     onPoolParticipationChange={handlePoolParticipationChange}
                   />
                 ))}
-
+\\
                 {sortedRows.length === 0 && (
                   <tr>
                     <td
