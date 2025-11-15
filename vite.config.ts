@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => {
       fs: {
         allow: [path.resolve(__dirname)],
       },
-      // 👌 No proxy — clean setup for frontend-only dev
+      
     },
 
     resolve: {
