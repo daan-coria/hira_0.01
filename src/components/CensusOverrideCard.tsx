@@ -15,7 +15,6 @@ import {
 } from "recharts";
 
 import { DateRange } from "react-date-range";
-import DateRangeHeader from "@/components/DateRangeHeader";
 
 // Excel serial or US-style string (9/25/2024) → US date MM/DD/YYYY
 function excelSerialToUSDate(v: unknown): string {
@@ -108,9 +107,6 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
 
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
-
-  // MasterFilters uses currentDate for month navigation
-  const [currentDate, setCurrentDate] = useState(new Date());
 
   const handleDateChange = (ranges: any) => {
     const sel = ranges.selection;
@@ -206,12 +202,6 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
     });
   }, [rows, startDate, endDate]);
 
-  // Sync calendar month with selected start date
-  useEffect(() => {
-    if (startDate) {
-      setCurrentDate(startDate);
-    }
-  }, [startDate]);
 
   // ================================
   // Pagination 
@@ -298,8 +288,6 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
       {showCalendar && (
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-start justify-center z-50 pt-32 animate-fadeIn">
           <div className="bg-white rounded-xl shadow-xl border border-gray-200 p-6 w-[780px] animate-slideUp">
-
-            <DateRangeHeader date={currentDate} setDate={setCurrentDate} />
 
             <DateRange
               ranges={[
