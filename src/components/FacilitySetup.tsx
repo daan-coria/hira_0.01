@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback, memo } from "react";
 import * as XLSX from "xlsx";
 import { GripVertical, Plus, Trash2, Upload } from "lucide-react";
 
@@ -388,6 +388,8 @@ function FacilityRowItem({
   );
 }
 
+  const MemoFacilityRowItem = memo(FacilityRowItem)
+
 // -----------------------
 // MAIN COMPONENT
 // -----------------------
@@ -403,6 +405,7 @@ export default function FacilitySetup() {
   const [isDragging, setIsDragging] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const saveTimeoutRef = useRef<number | null>(null);
 
   // Configure sensors for drag and drop - require 8px movement before drag starts
   const sensors = useSensors(
@@ -528,14 +531,23 @@ export default function FacilitySetup() {
   // PERSIST TO LS + CONTEXT
   // -----------------------
 
+  // Persist to context + localStorage but debounce to avoid blocking main thread
   useEffect(() => {
     const normalized = normalizeSortOrder(rows);
-    updateData("facilitySetup", normalized);
-    try {
-      localStorage.setItem(STORAGE_KEY_FACILITY_SETUP, JSON.stringify(normalized));
-    } catch (err) {
-      console.error("Error saving facility setup", err);
-    }
+
+    if (saveTimeoutRef.current) window.clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = window.setTimeout(() => {
+      updateData("facilitySetup", normalized);
+      try {
+        localStorage.setItem(STORAGE_KEY_FACILITY_SETUP, JSON.stringify(normalized));
+      } catch (err) {
+        console.error("Error saving facility setup", err);
+      }
+    }, 300) as unknown as number;
+
+    return () => {
+      if (saveTimeoutRef.current) window.clearTimeout(saveTimeoutRef.current);
+    };
   }, [rows, updateData]);
 
   // -----------------------
@@ -560,7 +572,7 @@ export default function FacilitySetup() {
   // UPDATE HELPERS
   // -----------------------
 
-  const normalizeRow = (row: FacilityRow): FacilityRow => {
+  const normalizeRow = useCallback((row: FacilityRow): FacilityRow => {
     if (row.isFloatPool) {
       return {
         ...row,
@@ -572,44 +584,40 @@ export default function FacilitySetup() {
     if (row.capacity === "N/A") row.capacity = "";
     if (row.unitOfService === "N/A") row.unitOfService = "";
     return row;
-  };
+  }, []);
 
-  const updateRow = (id: number, patch: Partial<FacilityRow>) => {
-    setRows((prev) =>
-      prev.map((r) =>
-        r.id === id ? normalizeRow({ ...r, ...patch }) : r
-      )
-    );
-  };
+  const updateRow = useCallback((id: number, patch: Partial<FacilityRow>) => {
+    setRows((prev) => prev.map((r) => (r.id === id ? normalizeRow({ ...r, ...patch }) : r)));
+  }, [normalizeRow]);
 
-  const addRow = () => {
-    const nextId = rows.length ? Math.max(...rows.map((r) => r.id)) + 1 : 1;
+  const addRow = useCallback(() => {
+    setRows((prev) => {
+      const nextId = prev.length ? Math.max(...prev.map((r) => r.id)) + 1 : 1;
+      const row: FacilityRow = {
+        id: nextId,
+        costCenterKey: "",
+        costCenterName: "",
+        campus: "",
+        functionalArea: "",
+        unitGrouping: "",
+        capacity: "",
+        isFloatPool: false,
+        poolParticipation: [],
+        unitOfService: "",
+        sortOrder: prev.length + 1,
+      };
+      return [...prev, row];
+    });
+  }, []);
 
-    const row: FacilityRow = {
-      id: nextId,
-      costCenterKey: "",
-      costCenterName: "",
-      campus: "",
-      functionalArea: "",
-      unitGrouping: "",
-      capacity: "",
-      isFloatPool: false,
-      poolParticipation: [],
-      unitOfService: "",
-      sortOrder: rows.length + 1,
-    };
-
-    setRows((prev) => [...prev, row]);
-  };
-
-  const deleteRow = (id: number) => {
+  const deleteRow = useCallback((id: number) => {
     setRows((prev) => normalizeSortOrder(prev.filter((r) => r.id !== id)));
-  };
+  }, []);
 
-  const clearAll = () => {
+  const clearAll = useCallback(() => {
     if (!window.confirm("Clear all cost centers from Facility Set-up?")) return;
     setRows([]);
-  };
+  }, []);
 
   // -----------------------
   // EXCEL UPLOAD
@@ -677,48 +685,41 @@ export default function FacilitySetup() {
   // NEW FUNCTIONAL AREA
   // -----------------------
 
-  const handleFunctionalAreaChange = (row: FacilityRow, value: string) => {
+  const handleFunctionalAreaChange = useCallback((row: FacilityRow, value: string) => {
     if (value === "__add_new__") {
       const name = window.prompt("New functional area name?");
       if (name && name.trim()) {
         const trimmed = name.trim();
-        setFunctionalAreas((prev) =>
-          prev.includes(trimmed) ? prev : [...prev, trimmed]
-        );
+        setFunctionalAreas((prev) => (prev.includes(trimmed) ? prev : [...prev, trimmed]));
         updateRow(row.id, { functionalArea: trimmed });
       }
     } else {
       updateRow(row.id, { functionalArea: value });
     }
-  };
+  }, [updateRow]);
 
   // -----------------------
   // NEW UNIT GROUPING
   // -----------------------
 
-  const handleUnitGroupingChange = (row: FacilityRow, value: string) => {
+  const handleUnitGroupingChange = useCallback((row: FacilityRow, value: string) => {
     if (value === "__add_new__") {
       const name = window.prompt("New unit grouping name?");
       if (name && name.trim()) {
         const trimmed = name.trim();
-        setUnitGroupings((prev) =>
-          prev.includes(trimmed) ? prev : [...prev, trimmed]
-        );
+        setUnitGroupings((prev) => (prev.includes(trimmed) ? prev : [...prev, trimmed]));
         updateRow(row.id, { unitGrouping: trimmed });
       }
     } else {
       updateRow(row.id, { unitGrouping: value });
     }
-  };
+  }, [updateRow]);
 
   // -----------------------
   // POOL PARTICIPATION
   // -----------------------
 
-  const handlePoolParticipationChange = (
-    row: FacilityRow,
-    e: React.ChangeEvent<HTMLSelectElement>
-  ) => {
+  const handlePoolParticipationChange = useCallback((row: FacilityRow, e: React.ChangeEvent<HTMLSelectElement>) => {
     const selected: string[] = [];
     const options = e.target.options;
     for (let i = 0; i < options.length; i++) {
@@ -726,7 +727,7 @@ export default function FacilitySetup() {
       if (opt.selected && opt.value) selected.push(opt.value);
     }
     updateRow(row.id, { poolParticipation: selected });
-  };
+  }, [updateRow]);
 
   // -----------------------
   // RENDER
@@ -806,7 +807,7 @@ export default function FacilitySetup() {
             items={sortedRows.map((r) => r.id)}
             strategy={verticalListSortingStrategy}
           >
-            <table className="min-w-full text-sm">
+            <table className="min-w-full text-sm table-fixed">
               <thead>
                 <tr className="bg-gray-50 text-xs font-semibold text-gray-600">
                   <th className="w-8 px-2 py-2" />
@@ -825,7 +826,7 @@ export default function FacilitySetup() {
 
               <tbody>
                 {sortedRows.map((row) => (
-                  <FacilityRowItem
+                  <MemoFacilityRowItem
                     key={row.id}
                     row={row}
                     campusOptions={campusOptions}
