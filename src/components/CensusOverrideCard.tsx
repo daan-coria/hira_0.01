@@ -202,7 +202,15 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
     if (!startDate || !endDate) return rows;
 
     return rows.filter((r) => {
-      const d = new Date(r.date);
+      if (!r.date) return false;
+
+      // Convert MM/DD/YYYY → YYYY-MM-DD for reliable comparison
+      const normalized = r.date.replace(
+        /(\d{2})\/(\d{2})\/(\d{4})/,
+        "$3-$1-$2"
+      );
+
+      const d = new Date(normalized);
       return d >= startDate && d <= endDate;
     });
   }, [rows, startDate, endDate]);
@@ -230,8 +238,16 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
   // ================================
   const chartData = useMemo(() => {
     if (!startDate || !endDate) return rows;
+
     return rows.filter((r) => {
-      const d = new Date(r.date);
+      if (!r.date) return false;
+
+      const normalized = r.date.replace(
+        /(\d{2})\/(\d{2})\/(\d{4})/,
+        "$3-$1-$2"
+      );
+
+      const d = new Date(normalized);
       return d >= startDate && d <= endDate;
     });
   }, [rows, startDate, endDate]);
@@ -240,54 +256,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
 
   return (
     <Card className="p-4 space-y-4">
-
-      {/* =======================
-          CHART MOVED TO TOP
-      ======================== */}
-      <div className="mt-2 h-80">
-        {rows.length === 0 ? (
-          <p className="text-center text-gray-500 italic mt-10">
-            ⚠️ No demand data available. Upload a file to visualize.
-          </p>
-        ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="date"
-                tickFormatter={(v) => {
-                  if (!v) return "";
-                  const parts = v.split("/");
-                  return `${parts[0]}/${parts[1]}`;
-                }}
-                label={{
-                  value: "Date",
-                  position: "insideBottom",
-                  offset: -5,
-                }}
-              />
-              <YAxis
-                label={{
-                  value: "Demand",
-                  angle: -90,
-                  position: "insideLeft",
-                }}
-              />
-              <Tooltip />
-              <Legend />
-
-              <Line
-                type="monotone"
-                dataKey="demand_value"
-                name="Demand"
-                stroke="#4f46e5"
-                dot={false}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        )}
-      </div>
-
+      
       {/* =======================
           DATE RANGE + SERIES
       ======================== */}
@@ -380,6 +349,53 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
           className="text-sm"
           aria-label="Upload demand Excel file"
         />
+      </div>
+
+      {/* =======================
+          CHART
+      ======================== */}
+      <div className="mt-2 h-80">
+        {rows.length === 0 ? (
+          <p className="text-center text-gray-500 italic mt-10">
+            ⚠️ No demand data available. Upload a file to visualize.
+          </p>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis
+                dataKey="date"
+                tickFormatter={(v) => {
+                  if (!v) return "";
+                  const parts = v.split("/");
+                  return `${parts[0]}/${parts[1]}`;
+                }}
+                label={{
+                  value: "Date",
+                  position: "insideBottom",
+                  offset: -5,
+                }}
+              />
+              <YAxis
+                label={{
+                  value: "Demand",
+                  angle: -90,
+                  position: "insideLeft",
+                }}
+              />
+              <Tooltip />
+              <Legend />
+
+              <Line
+                type="monotone"
+                dataKey="demand_value"
+                name="Demand"
+                stroke="#4f46e5"
+                dot={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        )}
       </div>
 
       {/* TABLE */}
