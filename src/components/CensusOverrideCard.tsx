@@ -92,7 +92,7 @@ type DemandRow = {
   date: string;
   hour: string;
   demand_value: number;
-  year?: number;
+  year?: number | null;
 };
 
 type Props = { onNext?: () => void; onPrev?: () => void };
@@ -147,6 +147,8 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
         if (!isNaN(parsedVal)) demandValue = parsedVal;
       }
 
+      const year = dateUS ? new Date(dateUS).getFullYear() : null;
+
       return {
         id: i,
         facility,
@@ -155,8 +157,10 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
         date: dateUS,
         hour: hour24,
         demand_value: demandValue,
+        year,   
       };
     });
+
 
     setRows(parsed);
     updateData("demand", parsed);
