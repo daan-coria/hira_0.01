@@ -82,7 +82,7 @@ router.post("/ask", async (req: Request, res: Response) => {
       }
     );
     // ----------------------------------------
-
+    
     clearTimeout(timeout);
 
     const answer = completion.choices?.[0]?.message?.content?.trim();
