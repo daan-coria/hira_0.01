@@ -19,7 +19,7 @@ export type CostCenterRow = {
   costCenter: string
   capacity: number | "N/A"
   costCenterName: string
-  unitGrouping: string
+  unitGrouping: string[]
   floatPool: boolean
   poolParticipation: string[]
   unitOfService: string
