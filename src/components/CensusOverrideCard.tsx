@@ -183,6 +183,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
     });
   }, [rows, startStr, endStr]);
 
+
   // Pagination
   const [page, setPage] = useState(1);
   const rowsPerPage = 24;
@@ -190,6 +191,39 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
   const startIdx = (page - 1) * rowsPerPage;
   const visibleRows = filteredRows.slice(startIdx, startIdx + rowsPerPage);
   const chartData = filteredRows;
+
+  // Group data by year
+  const groupedByYear = useMemo(() => {
+    const groups: Record<string, any[]> = {};
+
+    chartData.forEach((row) => {
+      if (!row.date || !row.year) return;
+
+      const year = row.year.toString();
+
+      if (!groups[year]) groups[year] = [];
+
+      // Normalize MM-DD for year-over-year comparison
+      const [m, d] = row.date.split("/");
+      const normalizedKey = `${m}-${d}`;
+
+      groups[year].push({
+        ...row,
+        dayKey: normalizedKey,
+      });
+    });
+
+    return groups;
+  }, [chartData]);
+
+  const colors = [
+  "#4f46e5",
+  "#22c55e",
+  "#eab308",
+  "#ef4444",
+  "#06b6d4",
+  "#a855f7",
+];
 
   return (
     <Card className="p-4 space-y-4">
@@ -244,13 +278,33 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
       {/* CHART */}
       <div className="mt-2 h-80">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData}>
+          <LineChart>
+
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="date" />
+
+            {/* Shared X-axis based on MM-DD */}
+            <XAxis
+              dataKey="dayKey"
+              label={{ value: "Month / Day", position: "insideBottom", offset: -5 }}
+            />
+
             <YAxis />
             <Tooltip />
             <Legend />
-            <Line type="monotone" dataKey="demand_value" stroke="#4f46e5" dot={false} />
+
+            {/* Multi-year lines */}
+            {Object.keys(groupedByYear).map((year, i) => (
+              <Line
+                key={year}
+                type="monotone"
+                data={groupedByYear[year]}
+                dataKey="demand_value"
+                name={`Year ${year}`}
+                stroke={colors[i % colors.length]}
+                dot={false}
+              />
+            ))}
+
           </LineChart>
         </ResponsiveContainer>
       </div>
