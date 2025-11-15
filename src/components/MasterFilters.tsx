@@ -187,6 +187,7 @@ export default function MasterFilters() {
             <DateRangeHeader date={currentDate} setDate={setCurrentDate} />
 
             <DateRange
+              key={currentDate.toISOString()}
               ranges={[{
                 startDate: master.startDate ? new Date(master.startDate) : new Date(),
                 endDate: master.endDate ? new Date(master.endDate) : new Date(),

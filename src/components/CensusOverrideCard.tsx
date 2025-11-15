@@ -311,6 +311,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
             <DateRangeHeader date={currentDate} setDate={setCurrentDate} />
 
             <DateRange
+              key={currentDate.toISOString()}
               ranges={[
                 {
                   startDate: startDate || new Date(),
