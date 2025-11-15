@@ -49,7 +49,7 @@ useEffect(() => {
 
   window.addEventListener("beforeunload", handleBeforeUnload)
   return () => {
-    // Also clear on component unmount (e.g. route change)
+    // Also clear on component unmount (route change)
     setAIState({
       isOpen: false,
       history: [],
@@ -58,10 +58,7 @@ useEffect(() => {
   }
 }, [setAIState])
 
-const jsonPayload = useMemo(
-  () => JSON.stringify({ question, frontendData }),
-  [question, frontendData]
-)
+const jsonPayload = JSON.stringify({ question })
 
 const handleAsk = async () => {
   if (!question.trim()) return
@@ -75,16 +72,19 @@ const handleAsk = async () => {
     })
 
     if (!res.ok) {
-      let errText = `API error ${res.status}`
+      let message = `API error ${res.status}`
+
       try {
-        const maybeJson = await res.json()
-        errText = maybeJson?.error
-          ? `${maybeJson.error}${maybeJson.details ? `: ${maybeJson.details}` : ""}`
-          : JSON.stringify(maybeJson)
-      } catch {
-        errText = await res.text()
-      }
-      throw new Error(errText || `API error ${res.status}`)
+        const errJson = await res.clone().json()
+        if (errJson?.error) message = errJson.error
+      } catch {}
+
+      try {
+        const errText = await res.clone().text()
+        if (errText) message = errText
+      } catch {}
+
+      throw new Error(message)
     }
 
     const json = await res.json()
@@ -114,6 +114,7 @@ const handleAsk = async () => {
 
 return (
   <div className="fixed bottom-4 right-4 z-50">
+
     {/* Floating chat bubble */}
     {!aiState.isOpen && (
       <button
