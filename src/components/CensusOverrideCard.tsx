@@ -215,8 +215,15 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
     });
   }, [rows, startDate, endDate]);
 
+  // Sync calendar month with selected start date
+  useEffect(() => {
+    if (startDate) {
+      setCurrentDate(startDate);
+    }
+  }, [startDate]);
+
   // ================================
-  // Pagination (unchanged)
+  // Pagination 
   // ================================
   const [page, setPage] = useState(1);
   const rowsPerPage = 24;
@@ -314,7 +321,6 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
               onChange={handleDateChange}
               moveRangeOnFirstSelection={false}
               months={2}
-              month={currentDate}
               direction="horizontal"
               showMonthAndYearPickers={false}
               showMonthArrow={false}
