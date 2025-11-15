@@ -1,12 +1,3 @@
-// ==========================
-// CENSUS OVERRIDE CARD
-// Updated per requirements:
-// - Chart moved to top
-// - Year & Day removed
-// - Series kept
-// - Added StartDate → EndDate (same logic as MasterFilters)
-// ==========================
-
 import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/store/AppContext";
 import Card from "@/components/ui/Card";
@@ -311,7 +302,6 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
             <DateRangeHeader date={currentDate} setDate={setCurrentDate} />
 
             <DateRange
-              key={currentDate.toISOString()}
               ranges={[
                 {
                   startDate: startDate || new Date(),
@@ -322,7 +312,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
               onChange={handleDateChange}
               moveRangeOnFirstSelection={false}
               months={2}
-              month={currentDate}
+              shownDate={currentDate}
               direction="horizontal"
               showMonthAndYearPickers={false}
               showMonthArrow={false}
