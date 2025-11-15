@@ -327,6 +327,8 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
               showMonthAndYearPickers={false}
               showMonthArrow={false}
               showDateDisplay={false}
+              staticRanges={[]}
+              inputRanges={[]}
             />
 
             <div className="flex justify-end mt-4 gap-3">

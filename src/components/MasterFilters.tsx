@@ -201,6 +201,8 @@ export default function MasterFilters() {
               showMonthAndYearPickers={false}
               showMonthArrow={false}
               showDateDisplay={false}
+              staticRanges={[]}
+              inputRanges={[]}
               className="!shadow-none !border-none rounded-lg"
             />
 
