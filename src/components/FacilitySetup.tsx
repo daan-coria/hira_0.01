@@ -5,6 +5,10 @@ import { GripVertical, Plus, Trash2, Upload } from "lucide-react";
 import {
   DndContext,
   type DragEndEvent,
+  type DragStartEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
 } from "@dnd-kit/core";
 
 import {
@@ -143,251 +147,245 @@ function FacilityRowItem({
     listeners,
     transform,
     transition,
-  } = useSortable({ id: row.id });
+    isDragging,
+  } = useSortable({ 
+    id: row.id,
+  });
 
   const style: React.CSSProperties = {
     transform: transform ? CSS.Transform.toString(transform) : undefined,
     transition: transition || undefined,
+    // Performance optimizations
+    willChange: transform ? 'transform' : undefined,
+    opacity: isDragging ? 0.5 : 1,
   };
 
   return (
     <tr
       ref={setNodeRef}
-      style={style}   // use the computed style ONLY
+      style={style}
       className="border-t last:border-b-0 hover:bg-gray-50"
     >
+      {/* drag handle - ONLY place with drag listeners */}
+      <td
+        ref={setActivatorNodeRef}
+        {...attributes}
+        {...listeners}
+        className="border px-2 py-1 text-center select-none cursor-grab active:cursor-grabbing text-gray-500 hover:bg-gray-100"
+      >
+        ☰
+      </td>
 
-        {/* drag handle */}
-                  <td
-                    ref={setActivatorNodeRef}
-                    {...attributes}
-                    {...listeners}
-                    className="border px-2 py-1 text-center select-none cursor-grab text-gray-500"
-                  >
-                    ☰
-                  </td>
+      {/* Cost Center Key */}
+      <td className="px-3 py-2 align-middle">
+        <Input
+          id={`costCenterKey-${row.id}`}
+          aria-label="Cost Center Key"
+          value={row.costCenterKey}
+          onChange={(e) =>
+            onUpdateRow(row.id, { costCenterKey: e.target.value })
+          }
+          placeholder="e.g., 5W"
+        />
+      </td>
 
-        {/* Cost Center Key */}
-        <td className="px-3 py-2 align-middle">
-          <Input
-            onPointerDown={(e) => e.stopPropagation()}
-            id={`costCenterKey-${row.id}`}
-            aria-label="Cost Center Key"
-            value={row.costCenterKey}
+      {/* Cost Center Name */}
+      <td className="px-3 py-2 align-middle">
+        <Input
+          id={`costCenterName-${row.id}`}
+          aria-label="Cost Center Name"
+          value={row.costCenterName}
+          onChange={(e) =>
+            onUpdateRow(row.id, { costCenterName: e.target.value })
+          }
+          placeholder="e.g., Med/Surg"
+        />
+      </td>
+
+      {/* Campus */}
+      <td className="px-3 py-2 align-middle">
+        {campusOptions.length ? (
+          <Select
+            aria-label="Campus"
+            value={row.campus}
             onChange={(e) =>
-              onUpdateRow(row.id, { costCenterKey: e.target.value })
+              onUpdateRow(row.id, { campus: e.target.value })
             }
-            placeholder="e.g., 5W"
-          />
-        </td>
-
-        {/* Cost Center Name */}
-        <td className="px-3 py-2 align-middle">
+          >
+            <option value="">Select campus</option>
+            {campusOptions.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </Select>
+        ) : (
           <Input
-            onPointerDown={(e) => e.stopPropagation()}
-            id={`costCenterName-${row.id}`}
-            aria-label="Cost Center Name"
-            value={row.costCenterName}
+            id={`campus-${row.id}`}
+            aria-label="Campus"
+            value={row.campus}
             onChange={(e) =>
-              onUpdateRow(row.id, { costCenterName: e.target.value })
+              onUpdateRow(row.id, { campus: e.target.value })
             }
-            placeholder="e.g., Med/Surg"
+            placeholder="Campus"
           />
-        </td>
+        )}
+      </td>
 
-        {/* Campus */}
-        <td className="px-3 py-2 align-middle">
-          {campusOptions.length ? (
-            <Select
-              onPointerDown={(e) => e.stopPropagation()}
-              aria-label="Campus"
-              value={row.campus}
-              onChange={(e) =>
-                onUpdateRow(row.id, { campus: e.target.value })
-              }
-            >
-              <option value="">Select campus</option>
-              {campusOptions.map((c) => (
-                <option key={c} value={c}>
-                  {c}
+      {/* Functional Area */}
+      <td className="px-3 py-2 align-middle">
+        <Select
+          aria-label="Functional Area"
+          value={row.functionalArea}
+          onChange={(e) =>
+            onFunctionalAreaChange(row, e.target.value)
+          }
+        >
+          <option value="">Select functional area</option>
+          {functionalAreas.map((fa) => (
+            <option key={fa} value={fa}>
+              {fa}
+            </option>
+          ))}
+          <option value="__add_new__">+ Add new functional area</option>
+        </Select>
+      </td>
+
+      {/* Unit Grouping */}
+      <td className="px-3 py-2 align-middle">
+        <Select
+          aria-label="Unit Grouping"
+          value={row.unitGrouping}
+          onChange={(e) =>
+            onUnitGroupingChange(row, e.target.value)
+          }
+        >
+          <option value="">No unit grouping</option>
+          {unitGroupings.map((ug) => (
+            <option key={ug} value={ug}>
+              {ug}
+            </option>
+          ))}
+          <option value="__add_new__">+ Add new unit grouping</option>
+        </Select>
+      </td>
+
+      {/* Capacity */}
+      <td className="px-3 py-2 align-middle">
+        {row.isFloatPool ? (
+          <div className="px-3 py-2 text-center text-xs text-gray-500 bg-gray-100 rounded-xl">
+            N/A
+          </div>
+        ) : (
+          <Input
+            id={`capacity-${row.id}`}
+            aria-label="Capacity"
+            type="number"
+            min={0}
+            value={row.capacity === "" ? "" : String(row.capacity)}
+            onChange={(e) =>
+              onUpdateRow(row.id, {
+                capacity:
+                  e.target.value === "" ? "" : Number(e.target.value),
+              })
+            }
+            placeholder="Capacity"
+          />
+        )}
+      </td>
+
+      {/* Float Pool Toggle */}
+      <td className="px-3 py-2 align-middle">
+        <label
+          htmlFor={`isFloatPool-${row.id}`}
+          className="inline-flex items-center cursor-pointer"
+        >
+          <input
+            id={`isFloatPool-${row.id}`}
+            aria-label="Float Pool"
+            type="checkbox"
+            className="sr-only peer"
+            checked={row.isFloatPool}
+            onChange={(e) =>
+              onUpdateRow(row.id, { isFloatPool: e.target.checked })
+            }
+          />
+          <div className="relative h-5 w-10 rounded-full bg-gray-200 peer-checked:bg-emerald-500 transition-colors">
+            <div className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5" />
+          </div>
+        </label>
+      </td>
+
+      {/* Pool Participation */}
+      <td className="px-3 py-2 align-middle">
+        {row.isFloatPool ? (
+          <div className="px-3 py-2 text-center text-xs text-gray-500 bg-gray-100 rounded-xl">
+            N/A
+          </div>
+        ) : floatPoolOptions.length === 0 ? (
+          <div className="text-xs text-gray-400">
+            No float pools defined
+          </div>
+        ) : (
+          <select
+            id={`poolParticipation-${row.id}`}
+            aria-label="Pool Participation"
+            multiple
+            className="w-full rounded-xl border border-gray-300 bg-white px-2 py-1 text-xs shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            value={row.poolParticipation}
+            onChange={(e) => onPoolParticipationChange(row, e)}
+          >
+            {floatPoolOptions
+              .filter(
+                (name) =>
+                  name !== (row.costCenterName || row.costCenterKey)
+              )
+              .map((name) => (
+                <option key={name} value={name}>
+                  {name}
                 </option>
               ))}
-            </Select>
-          ) : (
-            <Input
-              onPointerDown={(e) => e.stopPropagation()}
-              id={`campus-${row.id}`}
-              aria-label="Campus"
-              value={row.campus}
-              onChange={(e) =>
-                onUpdateRow(row.id, { campus: e.target.value })
-              }
-              placeholder="Campus"
-            />
-          )}
-        </td>
+          </select>
+        )}
+      </td>
 
-        {/* Functional Area */}
-        <td className="px-3 py-2 align-middle">
+      {/* Unit of Service */}
+      <td className="px-3 py-2 align-middle">
+        {row.isFloatPool ? (
+          <div className="px-3 py-2 text-center text-xs text-gray-500 bg-gray-100 rounded-xl">
+            N/A
+          </div>
+        ) : (
           <Select
-            onPointerDown={(e) => e.stopPropagation()}
-            aria-label="Functional Area"
-            value={row.functionalArea}
+            aria-label="Unit of Service"
+            id={`unitOfService-${row.id}`}
+            value={row.unitOfService}
             onChange={(e) =>
-              onFunctionalAreaChange(row, e.target.value)
+              onUpdateRow(row.id, { unitOfService: e.target.value })
             }
           >
-            <option value="">Select functional area</option>
-            {functionalAreas.map((fa) => (
-              <option key={fa} value={fa}>
-                {fa}
-              </option>
-            ))}
-            <option value="__add_new__">+ Add new functional area</option>
+            <option value="">Select UOS</option>
+            <option value="Patient Days">Patient Days</option>
+            <option value="Visits">Visits</option>
+            <option value="Procedures">Procedures</option>
+            <option value="Other">Other</option>
           </Select>
-        </td>
+        )}
+      </td>
 
-        {/* Unit Grouping */}
-        <td className="px-3 py-2 align-middle">
-          <Select
-            onPointerDown={(e) => e.stopPropagation()}
-            aria-label="Unit Grouping"
-            value={row.unitGrouping}
-            onChange={(e) =>
-              onUnitGroupingChange(row, e.target.value)
-            }
-          >
-            <option value="">No unit grouping</option>
-            {unitGroupings.map((ug) => (
-              <option key={ug} value={ug}>
-                {ug}
-              </option>
-            ))}
-            <option value="__add_new__">+ Add new unit grouping</option>
-          </Select>
-        </td>
-
-        {/* Capacity */}
-        <td className="px-3 py-2 align-middle">
-          {row.isFloatPool ? (
-            <div className="px-3 py-2 text-center text-xs text-gray-500 bg-gray-100 rounded-xl">
-              N/A
-            </div>
-          ) : (
-            <Input
-              onPointerDown={(e) => e.stopPropagation()}
-              id={`capacity-${row.id}`}
-              aria-label="Capacity"
-              type="number"
-              min={0}
-              value={row.capacity === "" ? "" : String(row.capacity)}
-              onChange={(e) =>
-                onUpdateRow(row.id, {
-                  capacity:
-                    e.target.value === "" ? "" : Number(e.target.value),
-                })
-              }
-              placeholder="Capacity"
-            />
-          )}
-        </td>
-              {/* Float Pool Toggle */}
-        <td className="px-3 py-2 align-middle">
-          <label
-            htmlFor={`isFloatPool-${row.id}`}
-            className="inline-flex items-center cursor-pointer"
-          >
-            <input
-              onPointerDown={(e) => e.stopPropagation()}
-              id={`isFloatPool-${row.id}`}
-              aria-label="Float Pool"
-              type="checkbox"
-              className="sr-only peer"
-              checked={row.isFloatPool}
-              onChange={(e) =>
-                onUpdateRow(row.id, { isFloatPool: e.target.checked })
-              }
-            />
-            <div className="relative h-5 w-10 rounded-full bg-gray-200 peer-checked:bg-emerald-500 transition-colors">
-              <div className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5" />
-            </div>
-          </label>
-        </td>
-
-        {/* Pool Participation */}
-        <td className="px-3 py-2 align-middle">
-          {row.isFloatPool ? (
-            <div className="px-3 py-2 text-center text-xs text-gray-500 bg-gray-100 rounded-xl">
-              N/A
-            </div>
-          ) : floatPoolOptions.length === 0 ? (
-            <div className="text-xs text-gray-400">
-              No float pools defined
-            </div>
-          ) : (
-            <select
-              onPointerDown={(e) => e.stopPropagation()}
-              id={`poolParticipation-${row.id}`}
-              aria-label="Pool Participation"
-              multiple
-              className="w-full rounded-xl border border-gray-300 bg-white px-2 py-1 text-xs shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              value={row.poolParticipation}
-              onChange={(e) => onPoolParticipationChange(row, e)}
-            >
-              {floatPoolOptions
-                .filter(
-                  (name) =>
-                    name !== (row.costCenterName || row.costCenterKey)
-                )
-                .map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-            </select>
-          )}
-        </td>
-
-        {/* Unit of Service */}
-        <td className="px-3 py-2 align-middle">
-          {row.isFloatPool ? (
-            <div className="px-3 py-2 text-center text-xs text-gray-500 bg-gray-100 rounded-xl">
-              N/A
-            </div>
-          ) : (
-            <Select
-              onPointerDown={(e) => e.stopPropagation()}
-              aria-label="Unit of Service"
-              id={`unitOfService-${row.id}`}
-              value={row.unitOfService}
-              onChange={(e) =>
-                onUpdateRow(row.id, { unitOfService: e.target.value })
-              }
-            >
-              <option value="">Select UOS</option>
-              <option value="Patient Days">Patient Days</option>
-              <option value="Visits">Visits</option>
-              <option value="Procedures">Procedures</option>
-              <option value="Other">Other</option>
-            </Select>
-          )}
-        </td>
-
-        {/* Delete */}
-        <td className="px-3 py-2 align-middle text-right">
-          <button
-            type="button"
-            onClick={() => onDeleteRow(row.id)}
-            className="inline-flex items-center justify-center rounded-full p-1 text-gray-400 hover:bg-red-50 hover:text-red-500"
-            aria-label="Delete row"
-            onPointerDown={(e) => e.stopPropagation()}
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        </td>
-
-        </tr>
-    );
+      {/* Delete */}
+      <td className="px-3 py-2 align-middle text-right">
+        <button
+          type="button"
+          onClick={() => onDeleteRow(row.id)}
+          className="inline-flex items-center justify-center rounded-full p-1 text-gray-400 hover:bg-red-50 hover:text-red-500"
+          aria-label="Delete row"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </td>
+    </tr>
+  );
 }
 
 // -----------------------
@@ -402,8 +400,18 @@ export default function FacilitySetup() {
   const [unitGroupings, setUnitGroupings] = useState<string[]>([]);
   const [campusOptions, setCampusOptions] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Configure sensors for drag and drop - require 8px movement before drag starts
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
 
   // -----------------------
   // EXPORT CSV
@@ -635,24 +643,33 @@ export default function FacilitySetup() {
     }
   };
 
-
-    // -----------------------
-  // DND-KIT — DRAG END (REORDER)
   // -----------------------
+  // DND-KIT – DRAG HANDLERS
+  // -----------------------
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setIsDragging(true);
+  };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
+    
+    setIsDragging(false);
+    
     if (!over || active.id === over.id) return;
 
-    setRows((prev) => {
-      const oldIndex = prev.findIndex((r) => r.id === active.id);
-      const newIndex = prev.findIndex((r) => r.id === over.id);
-      const newRows = arrayMove(prev, oldIndex, newIndex);
+    // Use requestAnimationFrame to defer the update and reduce reflow violations
+    requestAnimationFrame(() => {
+      setRows((prev) => {
+        const oldIndex = prev.findIndex((r) => r.id === active.id);
+        const newIndex = prev.findIndex((r) => r.id === over.id);
+        const newRows = arrayMove(prev, oldIndex, newIndex);
 
-      return newRows.map((r, i) => ({
-        ...r,
-        sortOrder: i + 1,
-      }));
+        return newRows.map((r, i) => ({
+          ...r,
+          sortOrder: i + 1,
+        }));
+      });
     });
   };
 
@@ -780,7 +797,11 @@ export default function FacilitySetup() {
 
       {/* TABLE */}
       <Card className="overflow-x-auto">
-        <DndContext onDragEnd={handleDragEnd}>
+        <DndContext 
+          sensors={sensors}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
           <SortableContext
             items={sortedRows.map((r) => r.id)}
             strategy={verticalListSortingStrategy}
@@ -818,7 +839,7 @@ export default function FacilitySetup() {
                     onPoolParticipationChange={handlePoolParticipationChange}
                   />
                 ))}
-\\
+
                 {sortedRows.length === 0 && (
                   <tr>
                     <td
