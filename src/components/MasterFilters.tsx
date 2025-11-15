@@ -196,7 +196,6 @@ export default function MasterFilters() {
               onChange={handleDateChange}
               moveRangeOnFirstSelection={false}
               months={2}
-              month={currentDate}
               direction="horizontal"
               showMonthAndYearPickers={false}
               showMonthArrow={false}
