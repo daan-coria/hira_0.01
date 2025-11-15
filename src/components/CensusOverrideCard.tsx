@@ -194,27 +194,45 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
 
   // Group data by year
   const groupedByYear = useMemo(() => {
-    const groups: Record<string, any[]> = {};
+  const groups: Record<string, any[]> = {};
 
-    chartData.forEach((row) => {
-      if (!row.date || !row.year) return;
+  chartData.forEach((row) => {
+    if (!row.date || !row.year) return;
 
-      const year = row.year.toString();
+    const year = row.year.toString();
+    if (!groups[year]) groups[year] = [];
 
-      if (!groups[year]) groups[year] = [];
+    const [m, d] = row.date.split("/");
+    const dayKey = `${m}-${d}`;
 
-      // Normalize MM-DD for year-over-year comparison
-      const [m, d] = row.date.split("/");
-      const normalizedKey = `${m}-${d}`;
-
-      groups[year].push({
-        ...row,
-        dayKey: normalizedKey,
-      });
+    groups[year].push({
+      ...row,
+      dayKey,
     });
+  });
 
-    return groups;
-  }, [chartData]);
+  return groups;
+}, [chartData]);
+
+  const mergedData = useMemo(() => {
+  const map: Record<string, any> = {};
+
+  chartData.forEach((row) => {
+    if (!row.date || !row.year) return;
+
+    const [m, d] = row.date.split("/");
+    const dayKey = `${m}-${d}`;
+    const year = row.year.toString();
+
+    if (!map[dayKey]) {
+      map[dayKey] = { dayKey };
+    }
+
+    map[dayKey][year] = row.demand_value;
+  });
+
+  return Object.values(map);
+}, [chartData]);
 
   const colors = [
   "#4f46e5",
@@ -278,11 +296,9 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
       {/* CHART */}
       <div className="mt-2 h-80">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart>
-
+          <LineChart data={mergedData}>
             <CartesianGrid strokeDasharray="3 3" />
 
-            {/* Shared X-axis based on MM-DD */}
             <XAxis
               dataKey="dayKey"
               label={{ value: "Month / Day", position: "insideBottom", offset: -5 }}
@@ -292,19 +308,16 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
             <Tooltip />
             <Legend />
 
-            {/* Multi-year lines */}
             {Object.keys(groupedByYear).map((year, i) => (
               <Line
                 key={year}
                 type="monotone"
-                data={groupedByYear[year]}
-                dataKey="demand_value"
+                dataKey={year}
                 name={`Year ${year}`}
                 stroke={colors[i % colors.length]}
                 dot={false}
               />
             ))}
-
           </LineChart>
         </ResponsiveContainer>
       </div>
