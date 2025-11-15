@@ -403,6 +403,15 @@ export default function FacilitySetup() {
   const [campusOptions, setCampusOptions] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+ // -----------------------
+  // TABLE FILTERS
+  // -----------------------
+  const [filterCampus, setFilterCampus] = useState("");
+  const [filterFunctional, setFilterFunctional] = useState("");
+  const [filterUnitGroup, setFilterUnitGroup] = useState("");
+  const [filterFloatPool, setFilterFloatPool] = useState("");
+  const [searchText, setSearchText] = useState("");
+ 
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const saveTimeoutRef = useRef<number | null>(null);
@@ -558,6 +567,35 @@ export default function FacilitySetup() {
     () => [...rows].sort((a, b) => a.sortOrder - b.sortOrder),
     [rows]
   );
+
+  const filteredRows = useMemo(() => {
+    return sortedRows.filter((r) => {
+      if (filterCampus && r.campus !== filterCampus) return false;
+      if (filterFunctional && r.functionalArea !== filterFunctional) return false;
+      if (filterUnitGroup && r.unitGrouping !== filterUnitGroup) return false;
+      if (filterFloatPool === "yes" && !r.isFloatPool) return false;
+      if (filterFloatPool === "no" && r.isFloatPool) return false;
+
+      if (searchText) {
+        const text = searchText.toLowerCase();
+        const match =
+          r.costCenterKey.toLowerCase().includes(text) ||
+          r.costCenterName.toLowerCase().includes(text) ||
+          r.functionalArea.toLowerCase().includes(text) ||
+          r.campus.toLowerCase().includes(text);
+        if (!match) return false;
+      }
+
+      return true;
+    });
+  }, [
+    sortedRows,
+    filterCampus,
+    filterFunctional,
+    filterUnitGroup,
+    filterFloatPool,
+    searchText,
+  ]);
 
   const floatPoolOptions = useMemo(
     () =>
@@ -796,6 +834,68 @@ export default function FacilitySetup() {
         </div>
       </div>
 
+      {/* FILTER BAR */}
+      <Card className="p-4 space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+
+          {/* Campus Filter */}
+          <Select
+            aria-label="Filter by Campus"
+            value={filterCampus}
+            onChange={(e) => setFilterCampus(e.target.value)}
+          >
+            <option value="">All Campuses</option>
+            {campusOptions.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </Select>
+
+          {/* Functional Area Filter */}
+          <Select
+            aria-label="Filter by Functional Area"
+            value={filterFunctional}
+            onChange={(e) => setFilterFunctional(e.target.value)}
+          >
+            <option value="">All Functional Areas</option>
+            {functionalAreas.map((fa) => (
+              <option key={fa} value={fa}>{fa}</option>
+            ))}
+          </Select>
+
+          {/* Unit Group Filter */}
+          <Select
+            aria-label="Filter by Unit Grouping"
+            value={filterUnitGroup}
+            onChange={(e) => setFilterUnitGroup(e.target.value)}
+          >
+            <option value="">All Unit Groups</option>
+            {unitGroupings.map((ug) => (
+              <option key={ug} value={ug}>{ug}</option>
+            ))}
+          </Select>
+
+          {/* Float Pool Filter */}
+          <Select
+            aria-label="Filter by Float Pool"
+            value={filterFloatPool}
+            onChange={(e) => setFilterFloatPool(e.target.value)}
+          >
+            <option value="">Float Pool: All</option>
+            <option value="yes">Float Pools Only</option>
+            <option value="no">Non-Float Units Only</option>
+          </Select>
+
+          {/* Search Box */}
+          <Input
+            id="search"
+            aria-label="Search"
+            placeholder="Search cost centers..."
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+          />
+        </div>
+      </Card>
+
       {/* TABLE */}
       <Card className="overflow-x-auto">
         <DndContext 
@@ -825,7 +925,7 @@ export default function FacilitySetup() {
               </thead>
 
               <tbody>
-                {sortedRows.map((row) => (
+                {filteredRows.map((row) => (
                   <MemoFacilityRowItem
                     key={row.id}
                     row={row}
