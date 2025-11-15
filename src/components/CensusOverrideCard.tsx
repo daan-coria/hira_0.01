@@ -321,6 +321,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
               onChange={handleDateChange}
               moveRangeOnFirstSelection={false}
               months={2}
+              month={currentDate}
               direction="horizontal"
               showMonthAndYearPickers={false}
               showMonthArrow={false}
