@@ -160,19 +160,15 @@ function FacilityRowItem({
         className="border-t last:border-b-0 hover:bg-gray-50"
         >
 
-        {/* HANDLE ONLY DRAG */}
-        <td className="px-2 py-2 align-middle text-gray-400">
-          <button
-            type="button"
-            ref={setActivatorNodeRef}
-            {...attributes}
-            {...listeners}
-            className="inline-flex items-center justify-center rounded-full p-1 text-gray-400 hover:bg-gray-100 cursor-grab active:cursor-grabbing"
-            aria-label="Reorder row"
-          >
-            <GripVertical className="w-4 h-4" />
-          </button>
-        </td>
+        {/* drag handle */}
+                  <td
+                    ref={setActivatorNodeRef}
+                    {...attributes}
+                    {...listeners}
+                    className="border px-2 py-1 text-center select-none cursor-grab text-gray-500"
+                  >
+                    ☰
+                  </td>
 
         {/* Cost Center Key */}
         <td className="px-3 py-2 align-middle">
