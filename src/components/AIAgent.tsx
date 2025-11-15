@@ -61,15 +61,19 @@ useEffect(() => {
 const jsonPayload = JSON.stringify({ question })
 
 const handleAsk = async () => {
-  if (!question.trim()) return
-  setLoading(true)
+  if (!question.trim()) return;
+  setLoading(true);
 
   try {
     const res = await fetch(`${API_BASE}/api/v1/ai/ask`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: jsonPayload,
-    })
+      body: JSON.stringify({
+        question,
+        frontendData,   
+      }),
+    });
+
 
     if (!res.ok) {
       let message = `API error ${res.status}`
