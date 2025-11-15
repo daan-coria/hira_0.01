@@ -609,7 +609,7 @@ export default function FacilitySetup() {
     sortedRows,
     filterCampuses,
     filterFunctional,
-  filterUnitGroup,
+    filterUnitGroup,
     filterFloatPool,
     searchText,
   ]);
@@ -913,26 +913,6 @@ export default function FacilitySetup() {
           />
         </div>
         
-          {/* MULTI-SELECT CAMPUS */}
-          <select
-            multiple
-            aria-label="Filter Campus (multi-select)"
-            className="w-full rounded-xl border border-gray-300 bg-white px-2 py-1 text-sm shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            value={filterCampuses}
-            onChange={(e) => {
-              const selected = [];
-              const opts = e.target.options;
-              for (let i = 0; i < opts.length; i++) {
-                if (opts[i].selected) selected.push(opts[i].value);
-              }
-              setFilterCampuses(selected);
-            }}
-          >
-            {campusOptions.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-
           {/* SHOW ONLY ROWS WITH MISSING VALUES */}
           <label className="inline-flex items-center gap-2 text-sm">
             <input
