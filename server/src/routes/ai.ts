@@ -36,55 +36,62 @@ router.post("/ask", async (req: Request, res: Response) => {
       return res.status(503).json({
         error: "Service not configured",
         details: "Missing OPENAI_API_KEY on the server.",
-      })
+      });
     }
 
-    const { question, frontendData } = req.body || {}
+    const { question, frontendData } = req.body || {};
     if (!question || typeof question !== "string") {
-      return res.status(400).json({ error: "Missing or invalid 'question' (string required)." })
+      return res.status(400).json({
+        error: "Missing or invalid 'question' (string required).",
+      });
     }
 
-    // Summarize the snapshot safely
-    const json = JSON.stringify(frontendData ?? {})
-    const snapshot = json.length > SNAPSHOT_CHAR_LIMIT
-      ? json.slice(0, SNAPSHOT_CHAR_LIMIT) + "… [truncated]"
-      : json
+    // Snapshot limiter
+    const json = JSON.stringify(frontendData ?? {});
+    const snapshot =
+      json.length > SNAPSHOT_CHAR_LIMIT
+        ? json.slice(0, SNAPSHOT_CHAR_LIMIT) + "… [truncated]"
+        : json;
 
-    // Optional: timeout to avoid hanging Render instances
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 25_000)
+    // Timeout + AbortController
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 25_000);
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      temperature: 0.6,
-      max_tokens: 500,
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are the AI assistant of the HIRA Staffing Tool. You analyze healthcare staffing inputs (positions, shifts, FTE, availability, census overrides) and answer concise, helpful questions.",
-        },
-        {
-          role: "user",
-          content:
-            `Question: ${question}\n\n` +
-            `Frontend snapshot (JSON, possibly truncated):\n${snapshot}`,
-        },
-      ],
-      // @ts-ignore: openai sdk uses fetch under the hood; pass through signal
-      signal: controller.signal,
-    })
+    // ---------- FIXED OPENAI CALL ----------
+    const completion = await openai.chat.completions.create(
+      {
+        model: "gpt-4o-mini",
+        temperature: 0.6,
+        max_tokens: 500,
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are the AI assistant of the HIRA Staffing Tool. You analyze healthcare staffing inputs and answer concise, helpful questions.",
+          },
+          {
+            role: "user",
+            content:
+              `Question: ${question}\n\n` +
+              `Frontend snapshot (JSON, possibly truncated):\n${snapshot}`,
+          },
+        ],
+      },
+      {
+        signal: controller.signal, 
+      }
+    );
+    // ----------------------------------------
 
-    clearTimeout(timeout)
+    clearTimeout(timeout);
 
-    const answer = completion.choices?.[0]?.message?.content?.trim()
+    const answer = completion.choices?.[0]?.message?.content?.trim();
     if (!answer) {
-      return res.status(502).json({ error: "No content returned by model." })
+      return res.status(502).json({ error: "No content returned by model." });
     }
 
-    res.json({ answer })
+    return res.json({ answer });
   } catch (err: any) {
-    // Log everything helpful to Render logs
     console.error("AI /ask error →", {
       message: err?.message,
       name: err?.name,
@@ -92,16 +99,22 @@ router.post("/ask", async (req: Request, res: Response) => {
       status: err?.status,
       stack: err?.stack,
       data: err?.response?.data,
-    })
+    });
 
-    // Return the best error shape we can for the client
-    const status = err?.status && Number.isInteger(err.status) ? err.status : 500
+    const status =
+      err?.status && Number.isInteger(err.status) ? err.status : 500;
+
     const details =
       err?.response?.data?.error ||
       err?.message ||
-      "Unknown error calling OpenAI."
-    res.status(status).json({ error: "AI request failed", details })
+      "Unknown error calling OpenAI.";
+
+    return res.status(status).json({
+      error: "AI request failed",
+      details,
+    });
   }
-})
+});
+
 
 export default router
