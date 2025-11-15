@@ -151,14 +151,14 @@ function FacilityRowItem({
   };
 
   return (
-    <div
+    <tr
         ref={setNodeRef}
-        data-transform={CSS.Transform.toString(transform)}
-        data-transition={transition}
-        className="dnd-row"
-    >
-
-        <tr className="border-t last:border-b-0 hover:bg-gray-50">
+        style={{
+            transform: CSS.Transform.toString(transform),
+            transition,
+        }}
+        className="border-t last:border-b-0 hover:bg-gray-50"
+        >
 
         {/* HANDLE ONLY DRAG */}
         <td className="px-2 py-2 align-middle text-gray-400">
@@ -384,9 +384,8 @@ function FacilityRowItem({
           </button>
         </td>
 
-      </tr>
-    </div>
-  );
+        </tr>
+    );
 }
 
 // -----------------------
