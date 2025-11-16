@@ -16,7 +16,11 @@ export default function AIAgent() {
       ? "http://localhost:3001"
       : "https://hira-0-01.onrender.com"
 
-  // Auto-scroll to bottom when history grows
+  //
+  // -------------------------------------------------------
+  // Safe auto-scroll
+  // -------------------------------------------------------
+  //
   useEffect(() => {
     if (!aiState.isOpen || !bottomRef.current) return
 
@@ -32,31 +36,34 @@ export default function AIAgent() {
     prevHistoryLenRef.current = currLen
   }, [aiState.history?.length, aiState.isOpen])
 
-  // Clear on unload
+  //
+  // -------------------------------------------------------
+  // Clear AI state on unload
+  // -------------------------------------------------------
+  //
   useEffect(() => {
     const handleBeforeUnload = () => {
-      setAIState({
-        isOpen: false,
-        history: [],
-      })
+      setAIState({ isOpen: false, history: [] })
     }
 
     window.addEventListener("beforeunload", handleBeforeUnload)
     return () => {
-      setAIState({
-        isOpen: false,
-        history: [],
-      })
       window.removeEventListener("beforeunload", handleBeforeUnload)
     }
   }, [setAIState])
 
+  //
+  // -------------------------------------------------------
+  // Reduce snapshot payload safely
+  // -------------------------------------------------------
+  //
   const handleAsk = async () => {
     if (!question.trim()) return
     setLoading(true)
 
-    // Lightweight snapshot at question time
+    // Trim the snapshot down before sending
     const snapshot = getFrontendSnapshot()
+    const safeSnapshot = shrinkSnapshot(snapshot)
 
     try {
       const res = await fetch(`${API_BASE}/api/v1/ai/ask`, {
@@ -64,8 +71,7 @@ export default function AIAgent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           question,
-          snapshot,       
-          frontendData: snapshot, 
+          snapshot: safeSnapshot,
         }),
       })
 
@@ -101,7 +107,9 @@ export default function AIAgent() {
           ...prev.history,
           {
             question,
-            answer: `❌ ${error?.message || "Could not connect to AI service."}`,
+            answer:
+              "❌ Unable to contact AI service.\n" +
+              (error?.message || "Unknown error"),
           },
         ],
       }))
@@ -110,13 +118,20 @@ export default function AIAgent() {
     }
   }
 
+  //
+  // -------------------------------------------------------
+  // UI
+  // -------------------------------------------------------
+  //
   return (
     <div className="fixed bottom-4 right-4 z-50">
 
       {/* Floating chat bubble */}
       {!aiState.isOpen && (
         <button
-          onClick={() => setAIState((prev) => ({ ...prev, isOpen: true }))}
+          onClick={() =>
+            setAIState((prev) => ({ ...prev, isOpen: true }))
+          }
           className="bg-green-600 hover:bg-green-700 text-white rounded-full p-4 shadow-lg transition-transform transform hover:scale-105 focus:outline-none"
           aria-label="Open AI Assistant"
         >
@@ -142,21 +157,17 @@ export default function AIAgent() {
             </h3>
 
             <button
-              onClick={() => setAIState(prev => ({ ...prev, isOpen: false }))}
+              onClick={() =>
+                setAIState((prev) => ({ ...prev, isOpen: false }))
+              }
               className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
             >
               <X size={20} />
             </button>
           </div>
 
-
           {/* MESSAGES */}
-          <div
-            className="
-              flex-1 overflow-y-auto px-4 py-3 
-              space-y-4 text-sm
-            "
-          >
+          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4 text-sm">
             {aiState.history.length === 0 ? (
               <p className="text-gray-500 dark:text-gray-400">
                 Ask me anything about your facility setup, shifts or health system.
@@ -173,7 +184,7 @@ export default function AIAgent() {
                 </div>
               ))
             )}
-            
+
             <div ref={bottomRef} />
           </div>
 
@@ -183,8 +194,8 @@ export default function AIAgent() {
               placeholder="Ask a question..."
               id=""
               value={question}
-              onChange={e => setQuestion(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && handleAsk()}
+              onChange={(e) => setQuestion(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAsk()}
               className="flex-1"
             />
             <Button onClick={handleAsk} disabled={loading}>
@@ -195,4 +206,32 @@ export default function AIAgent() {
       )}
     </div>
   )
+}
+
+//
+// -------------------------------------------------------
+// Reduce snapshot payload safely
+// -------------------------------------------------------
+//
+function shrinkSnapshot(snapshot: any) {
+  if (!snapshot) return {}
+
+  const {
+    facilitySetup,
+    campuses,
+    regions,
+    shiftConfig,
+    resourceInput,
+    demandSetup,
+    // ignore EVERYTHING ELSE (filters, UI state, internal junk)
+  } = snapshot
+
+  return {
+    facilitySetup: facilitySetup?.slice(0, 200) ?? [],
+    campuses: campuses ?? [],
+    regions: regions ?? [],
+    shiftConfig: shiftConfig ?? [],
+    resourceInput: resourceInput?.slice(0, 200) ?? [],
+    demandSetup: demandSetup?.slice(0, 200) ?? [],
+  }
 }
