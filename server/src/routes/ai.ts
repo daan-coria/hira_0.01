@@ -1,63 +1,63 @@
-import { Router, Request, Response } from "express"
-import OpenAI from "openai"
+import { Router, Request, Response } from "express";
+import OpenAI from "openai";
 
-const router = Router()
+const router = Router();
 
-// Safety: snapshot limiter so we don't send megabytes
-const SNAPSHOT_CHAR_LIMIT = 8000 // ~8 KB
+// Only allow ~8 KB of frontend snapshot
+const SNAPSHOT_CHAR_LIMIT = 8000;
 
-// Optional: early warning if key missing (won't crash)
+// Warn if missing key (no crash)
 if (!process.env.OPENAI_API_KEY) {
-  console.warn("⚠️ OPENAI_API_KEY is not set. /api/v1/ai/ask will return a 503.")
+  console.warn("⚠️ OPENAI_API_KEY missing — /api/v1/ai/ask will return 503.");
 }
 
 const openai = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-  : null
+  : null;
 
-// GET /api/v1/ai – quick ping
+// Simple ping
 router.get("/", (_req, res) => {
-  res.send("✅ AI route active. Use POST /api/v1/ai/ask")
-})
+  res.send("✅ AI route active. POST /api/v1/ai/ask");
+});
 
-// GET /api/v1/ai/status – optional status check
+// Optional status endpoint
 router.get("/status", (_req, res) => {
   res.json({
     ok: Boolean(process.env.OPENAI_API_KEY),
-    hasKey: Boolean(process.env.OPENAI_API_KEY),
     model: "gpt-4o-mini",
-  })
-})
+  });
+});
 
-// POST /api/v1/ai/ask – main endpoint
+// Main route
 router.post("/ask", async (req: Request, res: Response) => {
   try {
     if (!openai) {
       return res.status(503).json({
         error: "Service not configured",
-        details: "Missing OPENAI_API_KEY on the server.",
+        details: "Missing OPENAI_API_KEY",
       });
     }
 
     const { question, frontendData } = req.body || {};
     if (!question || typeof question !== "string") {
       return res.status(400).json({
-        error: "Missing or invalid 'question' (string required).",
+        error: "Invalid request",
+        details: "Missing 'question' (string required)",
       });
     }
 
-    // Snapshot limiter
+    // Apply snapshot limiter
     const json = JSON.stringify(frontendData ?? {});
     const snapshot =
       json.length > SNAPSHOT_CHAR_LIMIT
         ? json.slice(0, SNAPSHOT_CHAR_LIMIT) + "… [truncated]"
         : json;
 
-    // Timeout + AbortController
+    // Timeout protection
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 25_000);
+    const timeout = setTimeout(() => controller.abort(), 25000);
 
-    // ---------- FIXED OPENAI CALL ----------
+    // ---- OpenAI Call (CORRECT 2025 FORMAT) ----
     const completion = await openai.chat.completions.create(
       {
         model: "gpt-4o-mini",
@@ -67,27 +67,27 @@ router.post("/ask", async (req: Request, res: Response) => {
           {
             role: "system",
             content:
-              "You are the AI assistant of the HIRA Staffing Tool. You analyze healthcare staffing inputs and answer concise, helpful questions.",
+              "You are the AI assistant of the HIRA Staffing Tool. You analyze healthcare staffing inputs and provide concise answers.",
           },
           {
             role: "user",
             content:
               `Question: ${question}\n\n` +
-              `Frontend snapshot (JSON, possibly truncated):\n${snapshot}`,
+              `Frontend snapshot (JSON):\n${snapshot}`,
           },
         ],
       },
       {
-        signal: controller.signal, 
+        signal: controller.signal, // <-- CORRECT: second argument
       }
     );
-    // ----------------------------------------
-    
+    // -------------------------------------------
+
     clearTimeout(timeout);
 
     const answer = completion.choices?.[0]?.message?.content?.trim();
     if (!answer) {
-      return res.status(502).json({ error: "No content returned by model." });
+      return res.status(502).json({ error: "No content returned by OpenAI" });
     }
 
     return res.json({ answer });
@@ -101,20 +101,11 @@ router.post("/ask", async (req: Request, res: Response) => {
       data: err?.response?.data,
     });
 
-    const status =
-      err?.status && Number.isInteger(err.status) ? err.status : 500;
-
-    const details =
-      err?.response?.data?.error ||
-      err?.message ||
-      "Unknown error calling OpenAI.";
-
-    return res.status(status).json({
+    return res.status(err?.status ?? 500).json({
       error: "AI request failed",
-      details,
+      details: err?.message ?? "Unknown error",
     });
   }
 });
 
-
-export default router
+export default router;
