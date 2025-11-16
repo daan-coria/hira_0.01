@@ -54,14 +54,13 @@ export default function AIAgent() {
 
   //
   // -------------------------------------------------------
-  // Reduce snapshot payload safely
+  // Ask AI — with trimmed snapshot
   // -------------------------------------------------------
   //
   const handleAsk = async () => {
     if (!question.trim()) return
     setLoading(true)
 
-    // Trim the snapshot down before sending
     const snapshot = getFrontendSnapshot()
     const safeSnapshot = shrinkSnapshot(snapshot)
 
@@ -210,28 +209,29 @@ export default function AIAgent() {
 
 //
 // -------------------------------------------------------
-// Reduce snapshot payload safely
+// NEW shrinkSnapshot() — compatible with AppContext
 // -------------------------------------------------------
 //
 function shrinkSnapshot(snapshot: any) {
   if (!snapshot) return {}
 
-  const {
-    facilitySetup,
-    campuses,
-    regions,
-    shiftConfig,
-    resourceInput,
-    demandSetup,
-    // ignore EVERYTHING ELSE (filters, UI state, internal junk)
-  } = snapshot
-
   return {
-    facilitySetup: facilitySetup?.slice(0, 200) ?? [],
-    campuses: campuses ?? [],
-    regions: regions ?? [],
-    shiftConfig: shiftConfig ?? [],
-    resourceInput: resourceInput?.slice(0, 200) ?? [],
-    demandSetup: demandSetup?.slice(0, 200) ?? [],
+    toolType: snapshot.toolType ?? null,
+    currentStep: snapshot.currentStep ?? null,
+
+    // KEEP HEALTH SYSTEM EXACTLY AS STORED
+    healthSystem: snapshot.healthSystem ?? {
+      campuses: [],
+      regions: [],
+      campusSortMode: null
+    },
+
+    // FACILITY SUMMARY (already optimized)
+    facilitySummary: snapshot.facilitySummary ?? {},
+
+    // SHIFTS (cap to 50)
+    shifts: Array.isArray(snapshot.shifts)
+      ? snapshot.shifts.slice(0, 50)
+      : [],
   }
 }
