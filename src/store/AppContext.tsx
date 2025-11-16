@@ -305,11 +305,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // AI Snapshot
   // -----------------------
   const getFrontendSnapshot = () => ({
-    facilitySetup: state.facilitySetup,
-    toolType: state.toolType,
-    currentStep,
-    ...data,
-  })
+  toolType: state.toolType,
+  currentStep,
+  });
+
 
   // -----------------------
   // Context Value

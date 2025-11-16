@@ -1,8 +1,7 @@
 import { useNavigate, useLocation } from "react-router-dom"
 import { useAuth } from "@/store/AuthContext"
 import { LogOut } from "lucide-react"
-import MenuIcon from "@/components/MenuIcon"   // ✅ use our stateful icon
-
+import MenuIcon from "@/components/MenuIcon"   
 export default function ToolNavigator() {
   const navigate = useNavigate()
   const location = useLocation()
