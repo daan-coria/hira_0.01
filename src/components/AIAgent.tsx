@@ -32,7 +32,7 @@ export default function AIAgent() {
     prevHistoryLenRef.current = currLen
   }, [aiState.history?.length, aiState.isOpen])
 
-  // Clear chat history when the page/tab is closed or refreshed
+  // Clear on unload
   useEffect(() => {
     const handleBeforeUnload = () => {
       setAIState({
@@ -55,7 +55,7 @@ export default function AIAgent() {
     if (!question.trim()) return
     setLoading(true)
 
-    // 🔍 Build lightweight snapshot at question time
+    // Lightweight snapshot at question time
     const snapshot = getFrontendSnapshot()
 
     try {
@@ -64,8 +64,8 @@ export default function AIAgent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           question,
-          snapshot,       // 👈 main field
-          frontendData: snapshot, // 👈 backward-compatible (if BE expects old name)
+          snapshot,       
+          frontendData: snapshot, 
         }),
       })
 
@@ -112,6 +112,7 @@ export default function AIAgent() {
 
   return (
     <div className="fixed bottom-4 right-4 z-50">
+
       {/* Floating chat bubble */}
       {!aiState.isOpen && (
         <button
@@ -125,59 +126,69 @@ export default function AIAgent() {
 
       {/* Chat panel */}
       {aiState.isOpen && (
-        <div className="bg-white dark:bg-gray-800 shadow-2xl rounded-2xl p-4 w-80 border border-gray-300 dark:border-gray-700 animate-fade-in flex flex-col">
-          {/* Header */}
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="font-bold text-gray-800 dark:text-gray-100">
+        <div
+          className="
+            bg-white dark:bg-gray-800 shadow-2xl rounded-xl border border-gray-300 
+            dark:border-gray-700 flex flex-col 
+            w-[90vw] max-w-[380px] 
+            max-h-[80vh] md:max-h-[70vh]
+            overflow-hidden animate-fade-in
+          "
+        >
+          {/* HEADER */}
+          <div className="flex justify-between items-center px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+            <h3 className="font-bold text-gray-900 dark:text-gray-200">
               AI Assistant
             </h3>
+
             <button
-              onClick={() =>
-                setAIState((prev) => ({ ...prev, isOpen: false }))
-              }
+              onClick={() => setAIState(prev => ({ ...prev, isOpen: false }))}
               className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              aria-label="Close"
             >
-              <X size={18} />
+              <X size={20} />
             </button>
           </div>
 
-          {/* History */}
-          <div className="flex-1 overflow-y-auto border-t border-gray-200 dark:border-gray-700 pt-2 mb-2 pr-1">
-            {aiState.history.length === 0 && (
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Ask me anything about your current setup.
-              </p>
-            )}
 
-            {aiState.history.map((msg, i) => (
-              <div key={i} className="mb-3">
-                <p className="text-sm font-semibold text-green-700 dark:text-green-400">
-                  You: {msg.question}
-                </p>
-                <p className="text-sm text-gray-800 dark:text-gray-100 whitespace-pre-wrap">
-                  {msg.answer}
-                </p>
-              </div>
-            ))}
+          {/* MESSAGES (SCROLLABLE) */}
+          <div
+            className="
+              flex-1 overflow-y-auto px-4 py-3 
+              space-y-4 text-sm
+            "
+          >
+            {aiState.history.length === 0 ? (
+              <p className="text-gray-500 dark:text-gray-400">
+                Ask me anything about your facility setup, shifts or health system.
+              </p>
+            ) : (
+              aiState.history.map((msg, i) => (
+                <div key={i} className="space-y-1">
+                  <p className="font-semibold text-green-700 dark:text-green-400">
+                    You: {msg.question}
+                  </p>
+                  <p className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
+                    {msg.answer}
+                  </p>
+                </div>
+              ))
+            )}
+            
             <div ref={bottomRef} />
           </div>
 
-          {/* Input */}
-          <div>
+          {/* INPUT BAR */}
+          <div className="border-t border-gray-200 dark:border-gray-700 p-3 flex gap-2">
             <Input
-              id="ai-question"
               placeholder="Ask a question..."
+              id=""
               value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAsk()}
+              onChange={e => setQuestion(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleAsk()}
+              className="flex-1"
             />
-            <Button
-              className="mt-2 w-full"
-              onClick={handleAsk}
-              disabled={loading}
-            >
-              {loading ? "Thinking..." : "Ask"}
+            <Button onClick={handleAsk} disabled={loading}>
+              {loading ? "…" : "Ask"}
             </Button>
           </div>
         </div>
