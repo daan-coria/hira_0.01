@@ -11,6 +11,7 @@ const [loading, setLoading] = useState(false)
 const [frontendData, setFrontendData] = useState<Record<string, any>>({})
 const bottomRef = useRef<HTMLDivElement | null>(null)
   const prevHistoryLenRef = useRef<number>(0)
+const { data } = useApp();
 
 const API_BASE =
   import.meta.env.MODE === "development"
@@ -19,8 +20,12 @@ const API_BASE =
 
 // Sync snapshot from AppContext
 useEffect(() => {
-  setFrontendData(getFrontendSnapshot())
-}, [getFrontendSnapshot])
+  setFrontendData({
+    facility: data.facility,
+    resources: data.resources,
+    positions: data.positions
+  });
+}, [data.facility, data.resources, data.positions]);
 
   // Auto-scroll to bottom when history grows
   useEffect(() => {
