@@ -5,7 +5,7 @@ import Input from "@/components/ui/Input"
 import { MessageCircle, X } from "lucide-react"
 
 export default function AIAgent() {
-  const { aiState, setAIState } = useApp()
+  const { aiState, setAIState, getFrontendSnapshot } = useApp()
   const [question, setQuestion] = useState("")
   const [loading, setLoading] = useState(false)
   const bottomRef = useRef<HTMLDivElement | null>(null)
@@ -43,7 +43,6 @@ export default function AIAgent() {
 
     window.addEventListener("beforeunload", handleBeforeUnload)
     return () => {
-      // Also clear on component unmount (route change)
       setAIState({
         isOpen: false,
         history: [],
@@ -56,12 +55,17 @@ export default function AIAgent() {
     if (!question.trim()) return
     setLoading(true)
 
+    // 🔍 Build lightweight snapshot at question time
+    const snapshot = getFrontendSnapshot()
+
     try {
       const res = await fetch(`${API_BASE}/api/v1/ai/ask`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          question, // 👈 only the question, no giant payloads
+          question,
+          snapshot,       // 👈 main field
+          frontendData: snapshot, // 👈 backward-compatible (if BE expects old name)
         }),
       })
 

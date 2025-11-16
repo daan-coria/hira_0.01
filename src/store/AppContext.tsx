@@ -304,12 +304,126 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // -----------------------
   // AI Snapshot
   // -----------------------
-  const getFrontendSnapshot = () => ({
-    facilitySetup: state.facilitySetup,
-    toolType: state.toolType,
-    currentStep,
-  })
-  
+  const getFrontendSnapshot = () => {
+    // 1) Health System Setup: read from localStorage (used by HealthSystemSetupPage)
+    let campusesFromLS: any[] = []
+    let regionsFromLS: string[] = []
+    let campusSortMode: string | null = null
+
+    if (typeof window !== "undefined") {
+      try {
+        const campusesRaw = window.localStorage.getItem("hira_campuses")
+        if (campusesRaw) campusesFromLS = JSON.parse(campusesRaw)
+      } catch (e) {
+        console.warn("Failed to parse hira_campuses from localStorage", e)
+      }
+
+      try {
+        const regionsRaw = window.localStorage.getItem("hira_regions")
+        if (regionsRaw) regionsFromLS = JSON.parse(regionsRaw)
+      } catch (e) {
+        console.warn("Failed to parse hira_regions from localStorage", e)
+      }
+
+      try {
+        const sortRaw = window.localStorage.getItem("hira_campuses_sortMode")
+        if (sortRaw) campusSortMode = sortRaw
+      } catch (e) {
+        console.warn("Failed to read hira_campuses_sortMode", e)
+      }
+    }
+
+    const healthSystem = {
+      campuses: campusesFromLS, // [{ key, name, region }]
+      regions: regionsFromLS,   // ["North", "South", ...]
+      campusSortMode,           // "alphabetical" | "region" | "custom" | null
+    }
+
+    // 2) Facility Setup summary (from XLSX grid in state.facilitySetup)
+    const rows: CostCenterRow[] = Array.isArray(state.facilitySetup)
+      ? (state.facilitySetup as CostCenterRow[])
+      : []
+
+    const facilitySet = new Set<string>()
+    const campusSet = new Set<string>()
+    const unitSet = new Set<string>()
+    const functionalAreaSet = new Set<string>()
+    const bedCounts: Record<string, number> = {}
+    const facilityFunctionalAreaCounts: Record<string, Record<string, number>> =
+      {}
+
+    for (const r of rows) {
+      if (!r) continue
+
+      if (r.facility) facilitySet.add(r.facility)
+      if (r.campus) campusSet.add(r.campus)
+
+      if (Array.isArray(r.unitGrouping)) {
+        for (const u of r.unitGrouping) {
+          if (u) unitSet.add(u)
+        }
+      }
+
+      if (r.functionalArea) functionalAreaSet.add(r.functionalArea)
+
+      if (r.facility && typeof r.capacity === "number") {
+        bedCounts[r.facility] = (bedCounts[r.facility] || 0) + r.capacity
+      }
+
+      if (r.facility && r.functionalArea) {
+        if (!facilityFunctionalAreaCounts[r.facility]) {
+          facilityFunctionalAreaCounts[r.facility] = {}
+        }
+        const faMap = facilityFunctionalAreaCounts[r.facility]
+        faMap[r.functionalArea] = (faMap[r.functionalArea] || 0) + 1
+      }
+    }
+
+    const facilitySummary = {
+      rowCount: rows.length,
+      facilityCount: facilitySet.size,
+      campusCount: campusSet.size,
+      unitCount: unitSet.size,
+      functionalAreaCount: functionalAreaSet.size,
+      facilities: Array.from(facilitySet),
+      campuses: Array.from(campusSet),
+      units: Array.from(unitSet),
+      functionalAreas: Array.from(functionalAreaSet),
+      bedCounts, // per facility
+      facilityFunctionalAreaCounts, // facility → functionalArea → #rows
+    }
+
+    // 3) Shift configuration (full, but trimmed to relevant fields)
+    const rawShifts: any[] = Array.isArray(data.shiftConfig)
+      ? (data.shiftConfig as any[])
+      : []
+
+    const shifts = rawShifts.map((s, idx) => ({
+      index: idx,
+      shift_group: s.shift_group ?? "",
+      shift_name: s.shift_name ?? s.shift_label ?? "",
+      start_time: s.start_time ?? "",
+      end_time: s.end_time ?? "",
+      break_minutes:
+        typeof s.break_minutes === "number" ? s.break_minutes : null,
+      total_hours:
+        typeof s.total_hours === "number" ? s.total_hours : null,
+      shift_type: s.shift_type ?? "",
+      days: Array.isArray(s.days) ? s.days : [],
+      campuses: Array.isArray(s.campuses) ? s.campuses : [],
+      roles: Array.isArray(s.roles) ? s.roles : [],
+    }))
+
+    return {
+      toolType: state.toolType,
+      currentStep,
+      healthSystem,
+      facilitySummary,
+      shifts,
+    }
+  }
+
+
   // -----------------------
   // Context Value
   // -----------------------
