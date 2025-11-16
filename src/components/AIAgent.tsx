@@ -61,9 +61,7 @@ export default function AIAgent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          question,
-          // 
-          // If you want to send some context later, add only SMALL, targeted pieces.
+          question, // 👈 only the question, no giant payloads
         }),
       })
 
