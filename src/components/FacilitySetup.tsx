@@ -41,7 +41,7 @@ type FacilityRow = {
   isFloatPool: boolean;
   poolParticipation: string[];
   unitOfService: string;
-  sortOrder: number; // internal only for dnd
+  sortOrder: number; 
 };
 
 type Campus = {
@@ -62,6 +62,78 @@ function normalizeHeaders(row: any): Record<string, any> {
     acc[key.trim().toLowerCase()] = row[key];
     return acc;
   }, {});
+}
+
+// Map facility code from Excel to campus name from Health System Setup
+function excelCodeToCampusName(code: string): string {
+  try {
+    const stored = localStorage.getItem("hira_campuses");
+    if (!stored) return code;
+
+    const campuses: { key: string; name: string }[] = JSON.parse(stored);
+
+    const match = campuses.find(
+      (c) => c.key.toLowerCase() === code.toLowerCase()
+    );
+
+    return match ? match.name : code;
+  } catch {
+    return code;
+  }
+}
+
+// -----------------------
+// CAMPUS NORMALIZATION
+// -----------------------
+
+function normalizeCampusName(raw: string): string {
+  if (!raw) return "";
+
+  const input = String(raw).trim().toLowerCase();
+
+  let stored: { key: string; name: string; region?: string }[] = [];
+
+  try {
+    const ls = localStorage.getItem("hira_campuses");
+    if (ls) stored = JSON.parse(ls);
+  } catch {
+    return raw; // fallback
+  }
+
+  if (!stored.length) return raw;
+
+  // 1) Exact name match
+  const exactName = stored.find(
+    (c) => c.name.trim().toLowerCase() === input
+  );
+  if (exactName) return exactName.name;
+
+  // 2) Key match (“LANS”, “MAC”, etc.)
+  const exactKey = stored.find(
+    (c) => c.key.trim().toLowerCase() === input
+  );
+  if (exactKey) return exactKey.name;
+
+  // 3) Fuzzy: input contains part of name (“lansing” → “Lansing Campus”)
+  const fuzzyName = stored.find((c) =>
+    input.includes(c.name.trim().toLowerCase())
+  );
+  if (fuzzyName) return fuzzyName.name;
+
+  // 4) Fuzzy: input contains part of key (“lans” → “Lansing Campus”)
+  const fuzzyKey = stored.find((c) =>
+    input.includes(c.key.trim().toLowerCase())
+  );
+  if (fuzzyKey) return fuzzyKey.name;
+
+  // 5) If no match found → notify user once
+  console.warn("⚠ Unknown campus in Excel:", raw);
+  window.alert(
+    `WARNING: Campus "${raw}" does not match any campus in Health System Setup.\n\n` +
+      `It will be imported as-is.`
+  );
+
+  return raw; // fallback
 }
 
 function parseExcelToRows(rawRows: any[]): FacilityRow[] {
@@ -91,7 +163,7 @@ function parseExcelToRows(rawRows: any[]): FacilityRow[] {
       id: sortOrder,
       costCenterKey: String(costCenter ?? ""),
       costCenterName: String(unit ?? ""),
-      campus: String(facility ?? ""),
+      campus: normalizeCampusName(String(facility ?? "")),
       functionalArea: String(functionalArea ?? ""),
       unitGrouping: "",
       capacity,
@@ -580,6 +652,9 @@ export default function FacilitySetup() {
       if (filterCampuses.length > 0 && !filterCampuses.includes(r.campus)) {
         return false;
       }
+
+      // Single-select campus
+      if (filterCampus && r.campus !== filterCampus) return false;
 
       // Functional Area
       if (filterFunctional && r.functionalArea !== filterFunctional) return false;

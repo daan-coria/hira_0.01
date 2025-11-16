@@ -150,7 +150,7 @@ export default function AIAgent() {
           </div>
 
 
-          {/* MESSAGES (SCROLLABLE) */}
+          {/* MESSAGES */}
           <div
             className="
               flex-1 overflow-y-auto px-4 py-3 
