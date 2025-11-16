@@ -1,110 +1,83 @@
-import { Router, Request, Response } from "express";
+import { Router } from "express";
 import OpenAI from "openai";
 
 const router = Router();
 
-// Only allow ~8 KB of frontend snapshot
-const SNAPSHOT_CHAR_LIMIT = 8000;
-
-// Warn if missing key (no crash)
-if (!process.env.OPENAI_API_KEY) {
-  console.warn("⚠️ OPENAI_API_KEY missing — /api/v1/ai/ask will return 503.");
-}
-
-const openai = process.env.OPENAI_API_KEY
-  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-  : null;
-
-// Simple ping
-router.get("/", (_req, res) => {
-  res.send("✅ AI route active. POST /api/v1/ai/ask");
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Optional status endpoint
-router.get("/status", (_req, res) => {
-  res.json({
-    ok: Boolean(process.env.OPENAI_API_KEY),
-    model: "gpt-4o-mini",
-  });
-});
-
-// Main route
-router.post("/ask", async (req: Request, res: Response) => {
+router.post("/ask", async (req, res) => {
   try {
-    if (!openai) {
-      return res.status(503).json({
-        error: "Service not configured",
-        details: "Missing OPENAI_API_KEY",
-      });
+    const { question, snapshot } = req.body;
+
+    if (!question) {
+      return res.status(400).json({ error: "Missing question." });
     }
 
-    const { question, frontendData } = req.body || {};
-    if (!question || typeof question !== "string") {
-      return res.status(400).json({
-        error: "Invalid request",
-        details: "Missing 'question' (string required)",
-      });
-    }
+    // --------------------------------------
+    // 🔥 FIX: Extract snapshot using your REAL structure
+    // --------------------------------------
+    const healthSystem = snapshot?.healthSystem ?? {};
+    const facilitySummary = snapshot?.facilitySummary ?? {};
+    const shifts = Array.isArray(snapshot?.shifts) ? snapshot.shifts : [];
 
-    // Apply snapshot limiter
-    const json = JSON.stringify(frontendData ?? {});
-    const snapshot =
-      json.length > SNAPSHOT_CHAR_LIMIT
-        ? json.slice(0, SNAPSHOT_CHAR_LIMIT) + "… [truncated]"
-        : json;
+    const regions = Array.isArray(healthSystem.regions)
+      ? healthSystem.regions
+      : [];
 
-    // Timeout protection
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 25000);
+    const campuses = Array.isArray(healthSystem.campuses)
+      ? healthSystem.campuses
+      : [];
 
-    // ---- OpenAI Call (CORRECT 2025 FORMAT) ----
-    const completion = await openai.chat.completions.create(
-      {
-        model: "gpt-4o-mini",
-        temperature: 0.6,
-        max_tokens: 500,
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are the AI assistant of the HIRA Staffing Tool. You analyze healthcare staffing inputs and provide concise answers.",
-          },
-          {
-            role: "user",
-            content:
-              `Question: ${question}\n\n` +
-              `Frontend snapshot (JSON):\n${snapshot}`,
-          },
-        ],
-      },
-      {
-        signal: controller.signal, // <-- CORRECT: second argument
-      }
-    );
-    // -------------------------------------------
+    const toolType = snapshot?.toolType ?? "IP";
+    const currentStep = snapshot?.currentStep ?? null;
 
-    clearTimeout(timeout);
+    // --------------------------------------
+    // Build the prompt for OpenAI
+    // --------------------------------------
+    const systemPrompt = `
+You are the HIRA AI Assistant. 
+You help the user understand their hospital configuration.
 
-    const answer = completion.choices?.[0]?.message?.content?.trim();
-    if (!answer) {
-      return res.status(502).json({ error: "No content returned by OpenAI" });
-    }
+Here is the structured data from the frontend:
+
+REGIONS:
+${JSON.stringify(regions, null, 2)}
+
+CAMPUSES:
+${JSON.stringify(campuses, null, 2)}
+
+FACILITY SUMMARY:
+${JSON.stringify(facilitySummary, null, 2)}
+
+SHIFTS:
+${JSON.stringify(shifts, null, 2)}
+
+TOOL TYPE: ${toolType}
+CURRENT STEP: ${currentStep}
+
+Answer the user's question using ONLY this data.
+If something is missing, say so politely.
+    `;
+
+    // --------------------------------------
+    // Call OpenAI
+    // --------------------------------------
+    const completion = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: question },
+      ],
+    });
+
+    const answer = completion.choices?.[0]?.message?.content ?? "";
 
     return res.json({ answer });
-  } catch (err: any) {
-    console.error("AI /ask error →", {
-      message: err?.message,
-      name: err?.name,
-      type: err?.type,
-      status: err?.status,
-      stack: err?.stack,
-      data: err?.response?.data,
-    });
-
-    return res.status(err?.status ?? 500).json({
-      error: "AI request failed",
-      details: err?.message ?? "Unknown error",
-    });
+  } catch (err) {
+    console.error("AI ERROR:", err);
+    return res.status(500).json({ error: "AI processing failed." });
   }
 });
 
