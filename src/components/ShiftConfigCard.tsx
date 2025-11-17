@@ -368,7 +368,6 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                 <th className="px-3 py-2 border text-right">Total Hours</th>
                 <th className="px-3 py-2 border text-center">Days</th>
                 <th className="px-3 py-2 border text-center">Campus</th>
-                <th className="px-3 py-2 border text-center">Roles</th>
                 <th className="px-3 py-2 border text-center">Actions</th>
               </tr>
             </thead>
