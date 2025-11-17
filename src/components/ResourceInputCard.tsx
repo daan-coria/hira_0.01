@@ -829,7 +829,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
             className="fixed inset-0 z-40 bg-black bg-opacity-40"
             onClick={closeDrawer}
           />
-          <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white shadow-2xl flex flex-col">
+          <div className="fixed inset-y-0 left-0 z-50 w-full max-w-md bg-white shadow-2xl flex flex-col">
             <div className="px-5 py-4 border-b flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-800">
                 Employee Information
@@ -839,7 +839,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                 className="text-gray-600"
                 onClick={closeDrawer}
               >
-                ✕
+                🗑
               </Button>
             </div>
 
