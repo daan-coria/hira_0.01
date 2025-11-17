@@ -49,11 +49,6 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
 
   const shiftGroupSuggestions = ["Day", "Evening", "Night", "Weekend", "Weekday"]
 
-  const availableRoles =
-    Array.isArray(data?.positionStaffing) && data.positionStaffing.length > 0
-      ? data.positionStaffing.map((r: any) => r.role)
-      : ["RN", "LPN", "CNA", "Clerk"]
-
   // Debounced autosave to context
   const debouncedSave = useCallback(
     debounce((updated: ShiftRow[]) => {
@@ -554,39 +549,6 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                         )
                       })}
                     </div>
-                  </td>
-
-                  {/* Roles checkboxes */}
-                  <td className="border px-2 py-1 text-left align-top">
-                    <div className="flex flex-col gap-1 min-h-[120px] overflow-y-auto">
-                      {availableRoles.map((role) => {
-                        const checked = row.roles.includes(role)
-                        return (
-                          <label
-                            key={role}
-                            className="flex items-center gap-1 text-xs"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={(e) => {
-                                const selected = e.target.checked
-                                  ? [...row.roles, role]
-                                  : row.roles.filter((r) => r !== role)
-                                updateRowField(row.id, "roles", selected, false)
-                              }}
-                              className="rounded text-green-600 focus:ring-green-500"
-                            />
-                            {role}
-                          </label>
-                        )
-                      })}
-                    </div>
-                    {row.roles.length === 0 && (
-                      <div className="text-gray-400 text-xs italic mt-1">
-                        Select…
-                      </div>
-                    )}
                   </td>
 
                   {/* Actions */}
