@@ -57,12 +57,13 @@ function reorderByKey(
   return list
 }
 
-
 export default function HealthSystemSetupPage() {
   const [campuses, setCampuses] = useState<Campus[]>([])
   const [regions, setRegions] = useState<string[]>([])
   const [sortMode, setSortMode] = useState<SortMode>("alphabetical")
   const [draggingKey, setDraggingKey] = useState<string | null>(null)
+
+  const [initialized, setInitialized] = useState(false)
 
   // Campus drawer
   const [campusDrawerOpen, setCampusDrawerOpen] = useState(false)
@@ -83,41 +84,59 @@ export default function HealthSystemSetupPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        // 1. Load campuses from mockdata
-        const campusRes = await fetch("/mockdata/campuses.json")
-        let baseCampuses: Campus[] = campusRes.ok ? await campusRes.json() : []
+        const [campusRes, regionRes] = await Promise.all([
+          fetch("/mockdata/campuses.json"),
+          fetch("/mockdata/regions.json"),
+        ])
 
-        // 2. Load REGIONS ONLY from localStorage
-        const storedRegions = window.localStorage.getItem(STORAGE_KEY_REGIONS)
+        // Base from JSON
+        const baseCampuses: Campus[] = campusRes.ok
+          ? await campusRes.json()
+          : []
 
-        let finalRegions: string[] = []
-        if (storedRegions) {
-          finalRegions = JSON.parse(storedRegions)
+        const baseRegions: string[] = regionRes.ok
+          ? await regionRes.json()
+          : []
+
+        // Saved in localStorage
+        const storedCampusesRaw =
+          window.localStorage.getItem(STORAGE_KEY_CAMPUSES)
+        const storedModeRaw = window.localStorage.getItem(
+          STORAGE_KEY_SORTMODE
+        ) as SortMode | null
+        const storedRegionsRaw =
+          window.localStorage.getItem(STORAGE_KEY_REGIONS)
+
+        // ----- Campuses initial value -----
+        let initialCampuses: Campus[]
+        if (storedCampusesRaw) {
+          initialCampuses = JSON.parse(storedCampusesRaw) as Campus[]
+        } else {
+          initialCampuses = sortAlphabetical(baseCampuses)
         }
 
-        // 3. If FIRST LOAD EVER → derive from campuses
-        if (!storedRegions) {
-          const derived = baseCampuses
+        // ----- Regions initial value -----
+        let initialRegions: string[]
+        if (storedRegionsRaw) {
+          // Use exactly what user had last time
+          initialRegions = JSON.parse(storedRegionsRaw) as string[]
+        } else {
+          // First ever load → merge regions.json + campus regions
+          const derivedFromCampuses = baseCampuses
             .map((c) => c.region)
             .filter((r) => r && r.trim() !== "")
 
-          finalRegions = Array.from(new Set(derived)).sort()
+          initialRegions = Array.from(
+            new Set([...baseRegions, ...derivedFromCampuses])
+          ).sort((a, b) => a.localeCompare(b))
         }
 
-        // 4. Save regions into state
-        setRegions(finalRegions)
-
-        // 5. Load campuses (localStorage first)
-        const storedCampuses = window.localStorage.getItem(STORAGE_KEY_CAMPUSES)
-        const storedMode = window.localStorage.getItem(STORAGE_KEY_SORTMODE) as SortMode | null
-
-        if (storedCampuses) {
-          setCampuses(JSON.parse(storedCampuses))
-          setSortMode(storedMode || "custom")
-        } else {
-          setCampuses(sortAlphabetical(baseCampuses))
-        }
-
+        setCampuses(initialCampuses)
+        setRegions(initialRegions)
+        setSortMode(
+          storedModeRaw || (storedCampusesRaw ? "custom" : "alphabetical")
+        )
+        setInitialized(true)
       } catch (err) {
         console.error("Failed to load mockdata:", err)
       }
@@ -126,16 +145,17 @@ export default function HealthSystemSetupPage() {
     loadData()
   }, [])
 
-  // PERSIST
+  // ---------- PERSIST (only after initialized) ----------
   useEffect(() => {
-    if (!campuses.length) return
+    if (!initialized) return
     window.localStorage.setItem(STORAGE_KEY_CAMPUSES, JSON.stringify(campuses))
     window.localStorage.setItem(STORAGE_KEY_SORTMODE, sortMode)
-  }, [campuses, sortMode])
+  }, [campuses, sortMode, initialized])
 
   useEffect(() => {
+    if (!initialized) return
     window.localStorage.setItem(STORAGE_KEY_REGIONS, JSON.stringify(regions))
-  }, [regions])
+  }, [regions, initialized])
 
   // SORT HANDLERS
   const handleSortAlphabetical = () => {
@@ -211,6 +231,7 @@ export default function HealthSystemSetupPage() {
       return
     }
 
+    // ensure region exists in master list
     if (!regions.includes(region)) {
       setRegions((prev) =>
         [...prev, region].sort((a, b) => a.localeCompare(b))
@@ -284,9 +305,8 @@ export default function HealthSystemSetupPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-6 md:px-8">
-
       <div className="mx-auto max-w-5xl rounded-2xl bg-white p-6 shadow-sm border border-gray-200">
-
+        {/* Header */}
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-lg font-semibold text-gray-900">
@@ -367,7 +387,6 @@ export default function HealthSystemSetupPage() {
 
                   <td className="px-3 py-2 pr-3 text-right">
                     <div className="flex justify-end gap-1.5 group">
-
                       <button
                         aria-label="Edit campus"
                         onClick={() => openEditCampusDrawer(c)}
@@ -398,18 +417,14 @@ export default function HealthSystemSetupPage() {
                       >
                         <GripVertical className="h-4 w-4" />
                       </button>
-
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
-
           </table>
         </div>
-
       </div>
-
 
       {/* CAMPUS DRAWER */}
       {campusDrawerOpen && (
@@ -420,7 +435,6 @@ export default function HealthSystemSetupPage() {
           />
 
           <div className="fixed inset-y-0 right-0 w-full max-w-md bg-white z-50 shadow-xl">
-
             <div className="flex justify-between items-center border-b px-4 py-3">
               <div>
                 <h2 className="text-sm font-semibold">
@@ -441,15 +455,17 @@ export default function HealthSystemSetupPage() {
             </div>
 
             <div className="flex flex-col h-full justify-between">
-
               <div className="px-4 py-4 space-y-4">
                 {/* Campus Key */}
                 <div>
                   <label
                     htmlFor="campus-key"
-                    className="text-xs font-semibold">Campus Key</label>
+                    className="text-xs font-semibold"
+                  >
+                    Campus Key
+                  </label>
                   <input
-                    id="campus-key"   
+                    id="campus-key"
                     value={campusForm.key}
                     onChange={(e) =>
                       handleCampusFormChange("key", e.target.value)
@@ -460,9 +476,12 @@ export default function HealthSystemSetupPage() {
 
                 {/* Campus Name */}
                 <div>
-                  <label 
+                  <label
                     htmlFor="campus-name"
-                    className="text-xs font-semibold">Campus Name</label>
+                    className="text-xs font-semibold"
+                  >
+                    Campus Name
+                  </label>
                   <input
                     id="campus-name"
                     value={campusForm.name}
@@ -475,9 +494,12 @@ export default function HealthSystemSetupPage() {
 
                 {/* Region */}
                 <div>
-                  <label htmlFor="campus-region" className="text-xs font-semibold">
+                  <label
+                    htmlFor="campus-region"
+                    className="text-xs font-semibold"
+                  >
                     Region
-                  </label>        
+                  </label>
 
                   <select
                     aria-label="Select region"
@@ -573,7 +595,6 @@ export default function HealthSystemSetupPage() {
           />
 
           <div className="fixed inset-y-0 right-0 w-full max-w-sm bg-white z-50 shadow-xl">
-
             <div className="flex justify-between items-center border-b px-4 py-3">
               <h2 className="text-sm font-semibold">Manage Regions</h2>
               <button
@@ -586,9 +607,7 @@ export default function HealthSystemSetupPage() {
             </div>
 
             <div className="flex flex-col h-full justify-between">
-
               <div className="px-4 py-4 space-y-3">
-
                 {/* Add Region */}
                 <div>
                   <label className="text-xs font-semibold">New Region</label>
@@ -610,7 +629,9 @@ export default function HealthSystemSetupPage() {
 
                 {/* Existing */}
                 <div>
-                  <label className="text-xs font-semibold">Existing Regions</label>
+                  <label className="text-xs font-semibold">
+                    Existing Regions
+                  </label>
                   <div className="space-y-1.5 mt-1">
                     {regions.map((r) => (
                       <div
@@ -639,12 +660,10 @@ export default function HealthSystemSetupPage() {
                   Close
                 </button>
               </div>
-
             </div>
           </div>
         </>
       )}
-
     </div>
   )
 }
