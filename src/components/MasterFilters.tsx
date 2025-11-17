@@ -1,23 +1,26 @@
 import { useState } from "react";
 import * as XLSX from "xlsx";
 import { useApp } from "@/store/AppContext";
-import { DateRange } from "react-date-range";
-import DateRangeHeader from "./DateRangeHeader";
+
+// Mantine date picker
+import { DatePickerInput } from "@mantine/dates";
+import "@mantine/dates/styles.css";
+
+import dayjs from "dayjs";
+import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
+import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
+
+dayjs.extend(isSameOrAfter);
+dayjs.extend(isSameOrBefore);
 
 export default function MasterFilters() {
   const { master, setMaster } = useApp();
 
   const [loading, setLoading] = useState(false);
-  const [showCalendar, setShowCalendar] = useState(false);
 
-  // Calendar state (controls both months)
-  const [currentDate, setCurrentDate] = useState(
-    master.startDate ? new Date(master.startDate) : new Date()
-  );
-
-  // --------------------------------------
-  // FILE UPLOAD
-  // --------------------------------------
+  // -----------------------------------------------------
+  // FILE UPLOAD HANDLER
+  // -----------------------------------------------------
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -31,23 +34,21 @@ export default function MasterFilters() {
 
     const facilities = Array.from(new Set(rows.map((r) => r.Facility))).filter(Boolean);
     const units = Array.from(new Set(rows.map((r) => r.Unit))).filter(Boolean);
-    const functionalAreas = Array.from(new Set(rows.map((r) => r["Functional Area"]))).filter(Boolean);
+    const functionalAreas = Array.from(
+      new Set(rows.map((r) => r["Functional Area"]))
+    ).filter(Boolean);
 
     setMaster((prev) => ({
       ...prev,
-      options: {
-        facilities,
-        units,
-        functionalAreas,
-      },
+      options: { facilities, units, functionalAreas },
     }));
 
     setLoading(false);
   };
 
-  // --------------------------------------
+  // -----------------------------------------------------
   // UPDATE FILTERS
-  // --------------------------------------
+  // -----------------------------------------------------
   const updateFilter = (key: string, value: any) => {
     setMaster((prev) => ({
       ...prev,
@@ -55,33 +56,21 @@ export default function MasterFilters() {
     }));
   };
 
-  // --------------------------------------
-  // UPDATE DATE RANGE
-  // --------------------------------------
-  const handleDateChange = (ranges: any) => {
-    const sel = ranges.selection;
-    setMaster((prev) => ({
-      ...prev,
-      startDate: sel.startDate,
-      endDate: sel.endDate,
-    }));
-  };
-
-  // --------------------------------------
+  // -----------------------------------------------------
   // FORMAT DATE
-  // --------------------------------------
+  // -----------------------------------------------------
   const formatDate = (d: any) => {
     if (!d) return "";
     return new Date(d).toLocaleDateString("en-US");
   };
 
-  // --------------------------------------
+  // -----------------------------------------------------
   // RENDER
-  // --------------------------------------
+  // -----------------------------------------------------
   return (
     <div className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-md border-b border-gray-300 px-6 py-4 shadow-sm">
 
-      {/* TOP BAR --------------------------------------------------- */}
+      {/* TOP BAR */}
       <div className="flex justify-between items-center mb-4">
         <div className="text-lg font-semibold text-gray-800">Master Filters</div>
 
@@ -115,7 +104,7 @@ export default function MasterFilters() {
         </div>
       </div>
 
-      {/* FILTER ROW ------------------------------------------------ */}
+      {/* FILTER ROW */}
       <div className="flex flex-wrap gap-4">
 
         {/* Facility */}
@@ -163,68 +152,38 @@ export default function MasterFilters() {
           ))}
         </select>
 
-        {/* Date Button */}
-        <button
-          aria-label="Select Date Range"
-          className="px-4 py-2 bg-white border rounded-lg shadow-sm min-w-[220px] text-left"
-          onClick={() => setShowCalendar(true)}
-        >
-          {master.startDate && master.endDate
-            ? `${formatDate(master.startDate)} → ${formatDate(master.endDate)}`
-            : "Select Date Range"}
-        </button>
-      </div>
-
-      {/* DATE RANGE MODAL ------------------------------------------------ */}
-      {showCalendar && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm 
-                        flex items-start justify-center 
-                        z-50 pt-32 animate-fadeIn">
-
-          <div className="bg-white rounded-xl shadow-xl border border-gray-200 
-                          p-6 w-[780px] animate-slideUp">
-
-            <DateRangeHeader date={currentDate} setDate={setCurrentDate} />
-
-            <DateRange
-              key={currentDate.toISOString()}
-              ranges={[{
-                startDate: master.startDate ? new Date(master.startDate) : new Date(),
-                endDate: master.endDate ? new Date(master.endDate) : new Date(),
-                key: "selection",
-              }]}
-              onChange={handleDateChange}
-              moveRangeOnFirstSelection={false}
-              months={2}
-              direction="horizontal"
-              showMonthAndYearPickers={false}
-              showMonthArrow={false}
-              showDateDisplay={false}
-              staticRanges={[]}
-              inputRanges={[]}
-              className="!shadow-none !border-none rounded-lg"
-            />
-
-            <div className="flex justify-end mt-4 gap-3">
-              <button
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-100"
-                onClick={() => setShowCalendar(false)}
-              >
-                Cancel
-              </button>
-
-              <button
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 shadow-sm transition"
-                onClick={() => setShowCalendar(false)}
-              >
-                Apply
-              </button>
-            </div>
-
-          </div>
+        {/* Mantine Date Range */}
+        <div className="min-w-[260px]">
+          <DatePickerInput
+            type="range"
+            value={[
+              master.startDate ? new Date(master.startDate) : null,
+              master.endDate ? new Date(master.endDate) : null,
+            ]}
+            onChange={(value) => {
+              const [start, end] = value ?? [];
+              setMaster((prev) => ({
+                ...prev,
+                startDate: start || "",
+                endDate: end || "",
+              }));
+            }}
+            placeholder="Select Date Range"
+            numberOfColumns={2}
+            mx="auto"
+            size="md"
+            className="w-full"
+            styles={{
+              input: {
+                borderRadius: "8px",
+                padding: "10px 14px",
+                background: "white",
+                border: "1px solid #d1d5db",
+              },
+            }}
+          />
         </div>
-      )}
-
+      </div>
     </div>
   );
 }
