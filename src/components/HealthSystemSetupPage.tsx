@@ -1,3 +1,6 @@
+console.log("REGION STORAGE ON MOUNT:", localStorage.getItem("hira_regions"))
+
+
 import { useEffect, useState } from "react"
 import toast from "react-hot-toast"
 import {
