@@ -73,7 +73,6 @@ export default function HealthSystemSetupPage() {
     region: "",
   })
 
-  // Track if region was modified
   const [regionChanged, setRegionChanged] = useState(false)
 
   // Region drawer
@@ -89,40 +88,46 @@ export default function HealthSystemSetupPage() {
           fetch("/mockdata/regions.json"),
         ])
 
+        // 1. Load campuses
         let baseCampuses: Campus[] = []
         if (campusRes.ok) baseCampuses = await campusRes.json()
 
-        let baseRegions: string[] = []
-        if (regionRes.ok) baseRegions = await regionRes.json()
-
-        const derivedRegions = baseCampuses
-          .map((c) => c.region)
-          .filter(Boolean)
-
-        let mergedRegions = Array.from(
-          new Set([...baseRegions, ...derivedRegions])
-        ).sort((a, b) => a.localeCompare(b))
-
+        // 2. Load regions from localStorage FIRST
         const storedRegions = window.localStorage.getItem(STORAGE_KEY_REGIONS)
-        if (storedRegions) {
-          mergedRegions = JSON.parse(storedRegions)
+        let finalRegions: string[] = storedRegions
+          ? JSON.parse(storedRegions)
+          : []
+
+        // 3. If no stored regions, fallback to mockdata
+        if (finalRegions.length === 0) {
+          let mockRegions: string[] = []
+          if (regionRes.ok) mockRegions = await regionRes.json()
+
+          // derive regions from campuses + mockdata
+          const derived = baseCampuses
+            .map((c) => c.region)
+            .filter(Boolean)
+
+          finalRegions = Array.from(new Set([...mockRegions, ...derived]))
+            .sort((a, b) => a.localeCompare(b))
         }
 
-        setRegions(mergedRegions)
+        // Save regions state
+        setRegions(finalRegions)
 
+        // 4. Load campuses (from localStorage if exists)
         const storedCampuses = window.localStorage.getItem(STORAGE_KEY_CAMPUSES)
         const storedMode = window.localStorage.getItem(
           STORAGE_KEY_SORTMODE
         ) as SortMode | null
 
         if (storedCampuses) {
-          const parsed = JSON.parse(storedCampuses) as Campus[]
-          setCampuses(parsed)
+          setCampuses(JSON.parse(storedCampuses))
           setSortMode(storedMode || "custom")
         } else {
-          const alpha = sortAlphabetical(baseCampuses)
-          setCampuses(alpha)
+          setCampuses(sortAlphabetical(baseCampuses))
         }
+
       } catch (err) {
         console.error("Failed to load mockdata:", err)
       }
@@ -131,7 +136,8 @@ export default function HealthSystemSetupPage() {
     loadData()
   }, [])
 
-  // ---------- PERSIST ----------
+
+  // PERSIST
   useEffect(() => {
     if (!campuses.length) return
     window.localStorage.setItem(STORAGE_KEY_CAMPUSES, JSON.stringify(campuses))
@@ -142,7 +148,7 @@ export default function HealthSystemSetupPage() {
     window.localStorage.setItem(STORAGE_KEY_REGIONS, JSON.stringify(regions))
   }, [regions])
 
-  // ---------- SORT ----------
+  // SORT HANDLERS
   const handleSortAlphabetical = () => {
     setCampuses(sortAlphabetical(campuses))
     setSortMode("alphabetical")
@@ -153,7 +159,7 @@ export default function HealthSystemSetupPage() {
     setSortMode("region")
   }
 
-  // ---------- DRAG ----------
+  // DRAG
   const handleDragStart = (e: React.DragEvent, key: string) => {
     e.dataTransfer.effectAllowed = "move"
     e.dataTransfer.setData("text/plain", key)
@@ -172,7 +178,7 @@ export default function HealthSystemSetupPage() {
     setDraggingKey(null)
   }
 
-  // ---------- OPEN DRAWERS ----------
+  // DRAWERS
   const openNewCampusDrawer = () => {
     setEditingCampusKey(null)
     setRegionChanged(false)
@@ -196,13 +202,11 @@ export default function HealthSystemSetupPage() {
     setEditingCampusKey(null)
   }
 
-  // ---------- FORM CHANGE ----------
   const handleCampusFormChange = (field: keyof Campus, value: string) => {
     setCampusForm((prev) => ({ ...prev, [field]: value }))
     if (field === "region") setRegionChanged(true)
   }
 
-  // ---------- SAVE CAMPUS ----------
   const handleSaveCampus = () => {
     const key = campusForm.key.trim()
     const name = campusForm.name.trim()
@@ -247,7 +251,6 @@ export default function HealthSystemSetupPage() {
     closeCampusDrawer()
   }
 
-  // ---------- INLINE ADD REGION ----------
   const handleAddInlineRegion = () => {
     const region = campusForm.region.trim()
     if (!region) return
@@ -259,7 +262,6 @@ export default function HealthSystemSetupPage() {
     }
   }
 
-  // ---------- REGION DRAWER ----------
   const handleAddRegion = () => {
     const trimmed = newRegionName.trim()
     if (!trimmed) return
@@ -287,17 +289,15 @@ export default function HealthSystemSetupPage() {
     setNewRegionName("")
   }
 
-  // ====================================================
-  //                      RENDER UI
-  // ====================================================
+  // ===========================
+  // UI
+  // ===========================
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-6 md:px-8">
 
-      {/* MAIN CARD */}
       <div className="mx-auto max-w-5xl rounded-2xl bg-white p-6 shadow-sm border border-gray-200">
 
-        {/* Header */}
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-lg font-semibold text-gray-900">
@@ -370,14 +370,14 @@ export default function HealthSystemSetupPage() {
                   key={c.key}
                   onDragOver={(e) => handleDragOverRow(e, c.key)}
                   onDragEnd={handleDragEnd}
-                  className="border-t text-sm hover:bg-gray-50"
+                  className="border-t text-sm hover:bg-gray-50 group"
                 >
                   <td className="px-4 py-2">{c.key}</td>
                   <td className="px-4 py-2">{c.name}</td>
                   <td className="px-4 py-2">{c.region}</td>
 
                   <td className="px-3 py-2 pr-3 text-right">
-                    <div className="flex justify-end gap-1.5">
+                    <div className="flex justify-end gap-1.5 group">
 
                       <button
                         aria-label="Edit campus"
@@ -395,11 +395,17 @@ export default function HealthSystemSetupPage() {
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
 
+                      {/* HIDDEN drag handle */}
                       <button
                         aria-label="Reorder campus"
                         draggable
                         onDragStart={(e) => handleDragStart(e, c.key)}
-                        className="cursor-move rounded-full p-1.5 border bg-gray-50 text-gray-500 hover:bg-gray-100"
+                        className="
+                          opacity-0 group-hover:opacity-100
+                          transition-opacity duration-200
+                          cursor-move rounded-full p-1.5 border
+                          bg-gray-50 text-gray-500 hover:bg-gray-100
+                        "
                       >
                         <GripVertical className="h-4 w-4" />
                       </button>
@@ -415,7 +421,8 @@ export default function HealthSystemSetupPage() {
 
       </div>
 
-      {/* ====================== CAMPUS DRAWER ====================== */}
+
+      {/* CAMPUS DRAWER */}
       {campusDrawerOpen && (
         <>
           <div
@@ -521,7 +528,7 @@ export default function HealthSystemSetupPage() {
                     Pick or create a region.
                   </p>
 
-                  {/* Save Region Button (Appears ONLY when region changed) */}
+                  {/* Save Region Button */}
                   {regionChanged && (
                     <div className="mt-3 text-right">
                       <button
@@ -568,7 +575,7 @@ export default function HealthSystemSetupPage() {
         </>
       )}
 
-      {/* ====================== REGION DRAWER ====================== */}
+      {/* REGION DRAWER */}
       {regionDrawerOpen && (
         <>
           <div
