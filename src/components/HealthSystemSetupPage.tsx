@@ -122,20 +122,26 @@ export default function HealthSystemSetupPage() {
         }
 
         // ----- Regions initial value -----
-        let initialRegions: string[]
-        if (storedRegionsRaw) {
-          // Use exactly what user had last time
-          initialRegions = JSON.parse(storedRegionsRaw) as string[]
-        } else {
-          // First ever load → merge regions.json + campus regions
-          const derivedFromCampuses = baseCampuses
-            .map((c) => c.region)
-            .filter((r) => r && r.trim() !== "")
+        let initialRegions: string[] = []
 
-          initialRegions = Array.from(
-            new Set([...baseRegions, ...derivedFromCampuses])
-          ).sort((a, b) => a.localeCompare(b))
-        }
+        // Always load preset regions first
+        const presetRegions = baseRegions
+
+        // Load saved regions from LS if present
+        const savedRegions = storedRegionsRaw ? JSON.parse(storedRegionsRaw) : []
+
+        // Merge both + derive from campuses
+        const derivedFromCampuses = baseCampuses
+          .map((c) => c.region)
+          .filter((r) => r && r.trim() !== "")
+
+        initialRegions = Array.from(
+          new Set([
+            ...presetRegions,
+            ...derivedFromCampuses,
+            ...savedRegions
+          ])
+        ).sort((a, b) => a.localeCompare(b))
 
         setCampuses(initialCampuses)
         setRegions(initialRegions)
