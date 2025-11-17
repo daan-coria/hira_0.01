@@ -108,10 +108,11 @@ export default function HealthSystemSetupPage() {
             .map((c) => c.region)
             .filter(Boolean)
 
-          finalRegions = Array.from(new Set([...mockRegions, ...derived]))
-            .sort((a, b) => a.localeCompare(b))
+          if (mockRegions.length > 0 || derived.length > 0) {
+            finalRegions = Array.from(new Set([...mockRegions, ...derived]))
+              .sort((a, b) => a.localeCompare(b))
         }
-
+      }
         // Save regions state
         setRegions(finalRegions)
 
