@@ -20,7 +20,6 @@ type ShiftRow = {
   shift_type: ShiftType
   days: string[]
   campuses: string[]
-  roles: string[]
 }
 
 type SortMode = "none" | "start" | "end" | "hours" | "group"
@@ -78,7 +77,6 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
         typeof r.total_hours === "number" ? r.total_hours : 0
       const shift_type: ShiftType = r.shift_type ?? ""
       const days = Array.isArray(r.days) ? r.days : []
-      const roles = Array.isArray(r.roles) ? r.roles : []
       const campuses = Array.isArray(r.campuses) ? r.campuses : []
 
       return {
@@ -91,7 +89,6 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
         total_hours,
         shift_type,
         days,
-        roles,
         campuses,
       }
     })
@@ -189,7 +186,6 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
       total_hours: 0,
       shift_type: "",
       days: [],
-      roles: [],
       campuses: [],
     }
     const updated = [...rows, newRow]
