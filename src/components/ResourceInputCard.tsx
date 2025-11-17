@@ -302,12 +302,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     openDrawerForRow(newIndex, "edit", true)
   }
 
-  const removeRow = (id?: number, employee_id?: string) => {
-    const updated = rows.filter((r) => r.id !== id && r.employee_id !== employee_id)
-    setRows(updated)
-    updateData("resourceInput", updated)
-  }
-
   // --- CSV Upload / Export ---------------------------------------------------
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -626,7 +620,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                 <th className="px-3 py-2 border">Weekend Group</th>
                 <th className="px-3 py-2 border">Start Date</th>
                 <th className="px-3 py-2 border">End Date</th>
-                <th className="px-3 py-2 border text-center">Actions</th>
               </tr>
             </thead>
 
@@ -820,17 +813,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                         }
                         className="!m-0 !p-1"
                       />
-                    </td>
-
-                    {/* Actions */}
-                    <td className="border px-2 py-1 text-center">
-                      <Button
-                        onClick={() => removeRow(row.id, row.employee_id)}
-                        variant="ghost"
-                        className="!px-2 !py-1 text-xs text-red-600"
-                      >
-                        Remove
-                      </Button>
                     </td>
                   </tr>
                 )
@@ -1181,16 +1163,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
           </div>
         </>
       )}
-
-      {/* Navigation */}
-      <div className="flex justify-between mt-6">
-        <Button variant="ghost" onClick={onPrev}>
-          ← Previous
-        </Button>
-        <Button variant="primary" onClick={onNext}>
-          Next →
-        </Button>
-      </div>
     </Card>
   )
 }
