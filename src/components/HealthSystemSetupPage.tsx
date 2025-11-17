@@ -83,44 +83,33 @@ export default function HealthSystemSetupPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [campusRes, regionRes] = await Promise.all([
-          fetch("/mockdata/campuses.json"),
-          fetch("/mockdata/regions.json"),
-        ])
+        // 1. Load campuses from mockdata
+        const campusRes = await fetch("/mockdata/campuses.json")
+        let baseCampuses: Campus[] = campusRes.ok ? await campusRes.json() : []
 
-        // 1. Load campuses
-        let baseCampuses: Campus[] = []
-        if (campusRes.ok) baseCampuses = await campusRes.json()
-
-        // 2. Load regions from localStorage FIRST
+        // 2. Load REGIONS ONLY from localStorage
         const storedRegions = window.localStorage.getItem(STORAGE_KEY_REGIONS)
-        let finalRegions: string[] = storedRegions
-          ? JSON.parse(storedRegions)
-          : []
 
-        // 3. If no stored regions, fallback to mockdata
-        if (finalRegions.length === 0) {
-          let mockRegions: string[] = []
-          if (regionRes.ok) mockRegions = await regionRes.json()
+        let finalRegions: string[] = []
+        if (storedRegions) {
+          finalRegions = JSON.parse(storedRegions)
+        }
 
-          // derive regions from campuses + mockdata
+        // 3. If FIRST LOAD EVER → derive from campuses
+        if (!storedRegions) {
           const derived = baseCampuses
             .map((c) => c.region)
-            .filter(Boolean)
+            .filter((r) => r && r.trim() !== "")
 
-          if (mockRegions.length > 0 || derived.length > 0) {
-            finalRegions = Array.from(new Set([...mockRegions, ...derived]))
-              .sort((a, b) => a.localeCompare(b))
+          finalRegions = Array.from(new Set(derived)).sort()
         }
-      }
-        // Save regions state
+
+        // 4. Save regions into state
         setRegions(finalRegions)
 
-        // 4. Load campuses (from localStorage if exists)
+        // 5. Load campuses (localStorage first)
         const storedCampuses = window.localStorage.getItem(STORAGE_KEY_CAMPUSES)
-        const storedMode = window.localStorage.getItem(
-          STORAGE_KEY_SORTMODE
-        ) as SortMode | null
+        const storedMode = window.localStorage.getItem(STORAGE_KEY_SORTMODE) as SortMode | null
 
         if (storedCampuses) {
           setCampuses(JSON.parse(storedCampuses))
@@ -136,7 +125,6 @@ export default function HealthSystemSetupPage() {
 
     loadData()
   }, [])
-
 
   // PERSIST
   useEffect(() => {
