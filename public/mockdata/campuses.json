@@ -9,5 +9,5 @@
   { "key": "MAC",  "name": "Macomb",             "region": "Southeast MI" },
 
   { "key": "LAP",  "name": "Lapeer",             "region": "Thumb Region" },
-  { "key": "CEN",  "name": "Center",             "region": "Central MI" }
+  { "key": "CEN",  "name": "Central",             "region": "Central MI" }
 ]
