@@ -18,7 +18,7 @@ if (!rootElement) {
 }
 
 ReactDOM.createRoot(rootElement).render(
-  <React.StrictMode>
+  
     <BrowserRouter>
       <AuthProvider>
         <TooltipProvider>
@@ -32,5 +32,5 @@ ReactDOM.createRoot(rootElement).render(
         </TooltipProvider>
       </AuthProvider>
     </BrowserRouter>
-  </React.StrictMode>
+
 );

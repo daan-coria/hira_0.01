@@ -62,7 +62,10 @@ function reorderByKey(
 
 export default function HealthSystemSetupPage() {
   const [campuses, setCampuses] = useState<Campus[]>([])
-  const [regions, setRegions] = useState<string[]>([])
+  const [regions, setRegions] = useState<string[]>(() => {
+    const stored = localStorage.getItem("hira_regions")
+    return stored ? JSON.parse(stored) : []
+  })
   const [sortMode, setSortMode] = useState<SortMode>("alphabetical")
   const [draggingKey, setDraggingKey] = useState<string | null>(null)
 
