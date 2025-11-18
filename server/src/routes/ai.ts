@@ -16,12 +16,18 @@ router.post("/ask", async (req, res) => {
     }
 
     // --------------------------------------
-    // 🔥 FIX: Extract snapshot using your REAL structure
+    // Extract snapshot using REAL structure
     // --------------------------------------
     const healthSystem = snapshot?.healthSystem ?? {};
+
     const facilitySummary = snapshot?.facilitySummary ?? {};
+
     const shifts = Array.isArray(snapshot?.shifts) ? snapshot.shifts : [];
 
+    const resourceInput = Array.isArray(snapshot?.resourceInput)
+      ? snapshot.resourceInput
+      : [];
+      
     const regions = Array.isArray(healthSystem.regions)
       ? healthSystem.regions
       : [];
@@ -37,28 +43,56 @@ router.post("/ask", async (req, res) => {
     // Build the prompt for OpenAI
     // --------------------------------------
     const systemPrompt = `
-You are the HIRA AI Assistant. 
-You help the user understand their hospital configuration.
+You are the HIRA AI Assistant.
+You help the user understand their hospital configuration and provide insights on:
 
-Here is the structured data from the frontend:
+- Health System Setup (regions, campuses)
+- Facility Summary
+- Shift Configuration
+- Resource Input (employees roster)
 
-REGIONS:
+Below is the full data the user currently has loaded in the tool.
+
+-------------------------------------------------------
+📌 REGIONS
+-------------------------------------------------------
 ${JSON.stringify(regions, null, 2)}
 
-CAMPUSES:
+-------------------------------------------------------
+📌 CAMPUSES
+-------------------------------------------------------
 ${JSON.stringify(campuses, null, 2)}
 
-FACILITY SUMMARY:
+-------------------------------------------------------
+📌 FACILITY SUMMARY
+-------------------------------------------------------
 ${JSON.stringify(facilitySummary, null, 2)}
 
-SHIFTS:
+-------------------------------------------------------
+📌 SHIFTS
+-------------------------------------------------------
 ${JSON.stringify(shifts, null, 2)}
 
-TOOL TYPE: ${toolType}
-CURRENT STEP: ${currentStep}
+-------------------------------------------------------
+📌 RESOURCE INPUT
+Only includes trimmed fields: names, job, FTE, shift group, weekend group, start/end, cost center.
+-------------------------------------------------------
+${JSON.stringify(resourceInput, null, 2)}
 
-Answer the user's question using ONLY this data.
-If something is missing, say so politely.
+-------------------------------------------------------
+📌 TOOL TYPE:
+${toolType}
+
+📌 CURRENT STEP:
+${currentStep}
+-------------------------------------------------------
+
+🎯 **INSTRUCTIONS FOR THE AI**
+- Answer the user's question using ONLY the data above.
+- If the answer cannot be found with the available data, say so politely.
+- If the user asks for counts (e.g., “How many RNs on night shift?”), calculate them.
+- If the user asks for lists (e.g., “Show me all employees in weekend group B”), return them in a clear table-like format.
+- Do NOT invent hospitals, staffing, shifts, or employees not found in the snapshot.
     `;
 
     // --------------------------------------

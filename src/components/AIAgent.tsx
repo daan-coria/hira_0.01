@@ -219,11 +219,11 @@ function shrinkSnapshot(snapshot: any) {
     toolType: snapshot.toolType ?? null,
     currentStep: snapshot.currentStep ?? null,
 
-    // KEEP HEALTH SYSTEM EXACTLY AS STORED
+    // Health System 
     healthSystem: snapshot.healthSystem ?? {
       campuses: [],
       regions: [],
-      campusSortMode: null
+      campusSortMode: null,
     },
 
     // FACILITY SUMMARY (already optimized)
@@ -232,6 +232,26 @@ function shrinkSnapshot(snapshot: any) {
     // SHIFTS (cap to 50)
     shifts: Array.isArray(snapshot.shifts)
       ? snapshot.shifts.slice(0, 50)
+      : [],
+
+    // Resource Input page
+    // Send max 100 rows so the AI can answer questions
+    resourceInput: Array.isArray(snapshot.resourceInput)
+      ? snapshot.resourceInput.slice(0, 100).map((row: any) => ({
+          employee_id: row.employee_id ?? "",
+          first_name: row.first_name ?? "",
+          last_name: row.last_name ?? "",
+          job_name: row.job_name ?? row.position ?? "",
+          unit_fte: row.unit_fte ?? 0,
+          shift: row.shift ?? "",
+          shift_group: row.shift_group ?? row.shift ?? "",
+          weekend_group: row.weekend_group ?? "",
+          start_date: row.start_date ?? "",
+          end_date: row.end_date ?? "",
+          vacancy_status: row.vacancy_status ?? "",
+          campus: row.campus ?? "",
+          cost_center_name: row.cost_center_name ?? "",
+        }))
       : [],
   }
 }
