@@ -829,17 +829,54 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
             className="fixed inset-0 z-40 bg-black bg-opacity-40"
             onClick={closeDrawer}
           />
+
+          {/* LEFT SIDE DRAWER */}
           <div className="fixed inset-y-0 left-0 z-50 w-full max-w-md bg-white shadow-2xl flex flex-col">
+
+            {/* HEADER */}
             <div className="px-5 py-4 border-b flex items-center justify-between">
+              {/* LEFT = trash delete button */}
+              <Button
+                variant="ghost"
+                className="text-red-600 text-xl"
+                onClick={() => {
+                  Swal.fire({
+                    title: "Delete Employee?",
+                    text: "This will permanently remove this employee.",
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonColor: "#d33",
+                    cancelButtonColor: "#3085d6",
+                    confirmButtonText: "Delete",
+                  }).then((result) => {
+                    if (result.isConfirmed) {
+                      const updated = rows.filter(
+                        (r) =>
+                          r.id !== drawerRow.id &&
+                          r.employee_id !== drawerRow.employee_id
+                      )
+                      setRows(updated)
+                      updateData("resourceInput", updated)
+                      closeDrawer()
+                      Swal.fire("Deleted!", "Employee removed.", "success")
+                    }
+                  })
+                }}
+              >
+                🗑
+              </Button>
+
               <h3 className="text-lg font-semibold text-gray-800">
                 Employee Information
               </h3>
+
+              {/* RIGHT = close button */}
               <Button
                 variant="ghost"
-                className="text-gray-600"
+                className="text-gray-600 text-xl"
                 onClick={closeDrawer}
               >
-                🗑
+                ✕
               </Button>
             </div>
 
@@ -1163,6 +1200,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
           </div>
         </>
       )}
+      
     </Card>
   )
 }
