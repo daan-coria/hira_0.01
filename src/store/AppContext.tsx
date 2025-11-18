@@ -296,7 +296,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, facilitySetup: payload }))
   }
 
-
   const setToolType = (type: "IP" | "ED") => {
     setState((prev) => ({ ...prev, toolType: type }))
   }
@@ -305,121 +304,122 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // AI Snapshot
   // -----------------------
   const getFrontendSnapshot = () => {
-    // 1) Health System Setup: read from localStorage (used by HealthSystemSetupPage)
-    let campusesFromLS: any[] = []
-    let regionsFromLS: string[] = []
-    let campusSortMode: string | null = null
+  // 1) Health System Setup from localStorage
+  let campusesFromLS: any[] = [];
+  let regionsFromLS: string[] = [];
+  let campusSortMode: string | null = null;
 
-    if (typeof window !== "undefined") {
-      try {
-        const campusesRaw = window.localStorage.getItem("hira_campuses")
-        if (campusesRaw) campusesFromLS = JSON.parse(campusesRaw)
-      } catch (e) {
-        console.warn("Failed to parse hira_campuses from localStorage", e)
-      }
+  if (typeof window !== "undefined") {
+    try {
+      const campusesRaw = window.localStorage.getItem("hira_campuses");
+      if (campusesRaw) campusesFromLS = JSON.parse(campusesRaw);
+    } catch {}
 
-      try {
-        const regionsRaw = window.localStorage.getItem("hira_regions")
-        if (regionsRaw) regionsFromLS = JSON.parse(regionsRaw)
-      } catch (e) {
-        console.warn("Failed to parse hira_regions from localStorage", e)
-      }
+    try {
+      const regionsRaw = window.localStorage.getItem("hira_regions");
+      if (regionsRaw) regionsFromLS = JSON.parse(regionsRaw);
+    } catch {}
 
-      try {
-        const sortRaw = window.localStorage.getItem("hira_campuses_sortMode")
-        if (sortRaw) campusSortMode = sortRaw
-      } catch (e) {
-        console.warn("Failed to read hira_campuses_sortMode", e)
-      }
+    try {
+      const sortRaw = window.localStorage.getItem("hira_campuses_sortMode");
+      if (sortRaw) campusSortMode = sortRaw;
+    } catch {}
+  }
+
+  const healthSystem = {
+    campuses: campusesFromLS,
+    regions: regionsFromLS,
+    campusSortMode,
+  };
+
+  // 2) Facility Summary
+  const rows: CostCenterRow[] = Array.isArray(state.facilitySetup)
+    ? (state.facilitySetup as CostCenterRow[])
+    : [];
+
+  const facilitySet = new Set<string>();
+  const campusSet = new Set<string>();
+  const unitSet = new Set<string>();
+  const functionalAreaSet = new Set<string>();
+  const bedCounts: Record<string, number> = {};
+  const facilityFunctionalAreaCounts: Record<string, Record<string, number>> = {};
+
+  for (const r of rows) {
+    if (r.facility) facilitySet.add(r.facility);
+    if (r.campus) campusSet.add(r.campus);
+
+    if (Array.isArray(r.unitGrouping)) {
+      r.unitGrouping.forEach((u) => u && unitSet.add(u));
     }
 
-    const healthSystem = {
-      campuses: campusesFromLS, // [{ key, name, region }]
-      regions: regionsFromLS,   // ["North", "South", ...]
-      campusSortMode,           // "alphabetical" | "region" | "custom" | null
+    if (r.functionalArea) functionalAreaSet.add(r.functionalArea);
+
+    if (r.facility && typeof r.capacity === "number") {
+      bedCounts[r.facility] = (bedCounts[r.facility] || 0) + r.capacity;
     }
 
-    // 2) Facility Setup summary (from XLSX grid in state.facilitySetup)
-    const rows: CostCenterRow[] = Array.isArray(state.facilitySetup)
-      ? (state.facilitySetup as CostCenterRow[])
-      : []
-
-    const facilitySet = new Set<string>()
-    const campusSet = new Set<string>()
-    const unitSet = new Set<string>()
-    const functionalAreaSet = new Set<string>()
-    const bedCounts: Record<string, number> = {}
-    const facilityFunctionalAreaCounts: Record<string, Record<string, number>> =
-      {}
-
-    for (const r of rows) {
-      if (!r) continue
-
-      if (r.facility) facilitySet.add(r.facility)
-      if (r.campus) campusSet.add(r.campus)
-
-      if (Array.isArray(r.unitGrouping)) {
-        for (const u of r.unitGrouping) {
-          if (u) unitSet.add(u)
-        }
+    if (r.facility && r.functionalArea) {
+      if (!facilityFunctionalAreaCounts[r.facility]) {
+        facilityFunctionalAreaCounts[r.facility] = {};
       }
-
-      if (r.functionalArea) functionalAreaSet.add(r.functionalArea)
-
-      if (r.facility && typeof r.capacity === "number") {
-        bedCounts[r.facility] = (bedCounts[r.facility] || 0) + r.capacity
-      }
-
-      if (r.facility && r.functionalArea) {
-        if (!facilityFunctionalAreaCounts[r.facility]) {
-          facilityFunctionalAreaCounts[r.facility] = {}
-        }
-        const faMap = facilityFunctionalAreaCounts[r.facility]
-        faMap[r.functionalArea] = (faMap[r.functionalArea] || 0) + 1
-      }
+      const faMap = facilityFunctionalAreaCounts[r.facility];
+      faMap[r.functionalArea] = (faMap[r.functionalArea] || 0) + 1;
     }
+  }
 
-    const facilitySummary = {
-      rowCount: rows.length,
-      facilityCount: facilitySet.size,
-      campusCount: campusSet.size,
-      unitCount: unitSet.size,
-      functionalAreaCount: functionalAreaSet.size,
-      facilities: Array.from(facilitySet),
-      campuses: Array.from(campusSet),
-      units: Array.from(unitSet),
-      functionalAreas: Array.from(functionalAreaSet),
-      bedCounts, // per facility
-      facilityFunctionalAreaCounts, // facility → functionalArea → #rows
-    }
+  const facilitySummary = {
+    rowCount: rows.length,
+    facilityCount: facilitySet.size,
+    campusCount: campusSet.size,
+    unitCount: unitSet.size,
+    functionalAreaCount: functionalAreaSet.size,
+    facilities: Array.from(facilitySet),
+    campuses: Array.from(campusSet),
+    units: Array.from(unitSet),
+    functionalAreas: Array.from(functionalAreaSet),
+    bedCounts,
+    facilityFunctionalAreaCounts,
+  };
 
-    // 3) Shift configuration (full, but trimmed to relevant fields)
-    const rawShifts: any[] = Array.isArray(data.shiftConfig)
-      ? (data.shiftConfig as any[])
-      : []
+  // 3) Shift Configuration (trimmed)
+  const rawShifts: any[] = Array.isArray(data.shiftConfig)
+    ? data.shiftConfig
+    : [];
 
-    const shifts = rawShifts.map((s, idx) => ({
-      index: idx,
-      shift_group: s.shift_group ?? "",
-      shift_name: s.shift_name ?? s.shift_label ?? "",
-      start_time: s.start_time ?? "",
-      end_time: s.end_time ?? "",
-      break_minutes:
-        typeof s.break_minutes === "number" ? s.break_minutes : null,
-      total_hours:
-        typeof s.total_hours === "number" ? s.total_hours : null,
-      shift_type: s.shift_type ?? "",
-      days: Array.isArray(s.days) ? s.days : [],
-      campuses: Array.isArray(s.campuses) ? s.campuses : [],
-      roles: Array.isArray(s.roles) ? s.roles : [],
-    }))
+  const shifts = rawShifts.map((s, idx) => ({
+    index: idx,
+    shift_group: s.shift_group ?? "",
+    shift_name: s.shift_name ?? s.shift_label ?? "",
+    start_time: s.start_time ?? "",
+    end_time: s.end_time ?? "",
+    break_minutes: typeof s.break_minutes === "number" ? s.break_minutes : null,
+    total_hours: typeof s.total_hours === "number" ? s.total_hours : null,
+    shift_type: s.shift_type ?? "",
+    days: Array.isArray(s.days) ? s.days : [],
+    campuses: Array.isArray(s.campuses) ? s.campuses : [],
+    roles: Array.isArray(s.roles) ? s.roles : [],
+  }));
 
-    return {
-      toolType: state.toolType,
-      currentStep,
-      healthSystem,
-      facilitySummary,
-      shifts,
+  // 4) Resource Input (NEW!)
+  const resourceInput = Array.isArray(data.resourceInput)
+    ? data.resourceInput.map((r) => ({
+        employee_id: r.employee_id ?? "",
+        first_name: r.first_name ?? "",
+        last_name: r.last_name ?? "",
+        position: r.position ?? "",
+        unit_fte: r.unit_fte ?? 0,
+        weekend_group: r.weekend_group ?? "",
+        vacancy_status: r.vacancy_status ?? "",
+      }))
+    : [];
+
+  return {
+    toolType: state.toolType,      // <-- FIXED
+    currentStep,
+    healthSystem,
+    facilitySummary,
+    shifts,
+    resourceInput, 
     }
   }
 
