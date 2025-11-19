@@ -45,47 +45,48 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
   ]
 
   const campusOptions = ["Lansing", "Bay", "Flint"]
-
   const shiftGroupSuggestions = ["Day", "Evening", "Night", "Weekend", "Weekday"]
 
-  // Debounced auto-save
+  // -------------------------
+  // DEBOUNCED SAVE
+  // -------------------------
   const debouncedSave = useCallback(
     debounce((updated: ShiftRow[]) => {
       updateData("shiftConfig", updated)
-    }, 1500),
+      setSaving(false)
+    }, 1200),
     []
   )
 
-  // Normalize existing rows
+  // -------------------------
+  // LOAD EXISTING (normalize)
+  // -------------------------
   useEffect(() => {
-    const arrRaw = Array.isArray(data?.shiftConfig) ? (data.shiftConfig as any[]) : []
-    if (arrRaw.length === 0) return
+    const raw = Array.isArray(data?.shiftConfig) ? data.shiftConfig : []
 
-    const normalized: ShiftRow[] = arrRaw.map((r, idx) => {
-      const id = typeof r.id === "number" ? r.id : Date.now() + idx
+    if (raw.length === 0) return
 
-      const shift_group = r.shift_group ?? ""
-
-      const blankOrNA = (v: any) => (v === "" || v == null ? "N/A" : v)
-
-      return {
-        id,
-        shift_group,
-        shift_name: blankOrNA(r.shift_name),
-        start_time: blankOrNA(r.start_time),
-        end_time: blankOrNA(r.end_time),
-        break_minutes: typeof r.break_minutes === "number" ? r.break_minutes : "N/A",
-        total_hours: typeof r.total_hours === "number" ? r.total_hours : "N/A",
-        shift_type: r.shift_type ?? "N/A",
-        days: Array.isArray(r.days) ? r.days : [],
-        campuses: Array.isArray(r.campuses) ? r.campuses : [],
-      }
-    })
+    const normalized = raw.map((r: any) => ({
+      id: typeof r.id === "number" ? r.id : Date.now(),
+      shift_group: r.shift_group ?? "",
+      shift_name: r.shift_name || "N/A",
+      start_time: r.start_time || "N/A",
+      end_time: r.end_time || "N/A",
+      break_minutes:
+        typeof r.break_minutes === "number" ? r.break_minutes : "N/A",
+      total_hours:
+        typeof r.total_hours === "number" ? r.total_hours : "N/A",
+      shift_type: r.shift_type || "N/A",
+      days: Array.isArray(r.days) ? r.days : [],
+      campuses: Array.isArray(r.campuses) ? r.campuses : [],
+    }))
 
     setRows(normalized)
   }, [data?.shiftConfig])
 
-  // Validate time format
+  // -------------------------
+  // TIME HELPERS
+  // -------------------------
   const isValidTime = (value: string) =>
     /^([01]\d|2[0-3]):([0-5]\d)$/.test(value)
 
@@ -95,20 +96,19 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
     const [sH, sM] = start.split(":").map(Number)
     const [eH, eM] = end.split(":").map(Number)
 
-    const startDate = new Date(0, 0, 0, sH, sM)
-    const endDate = new Date(0, 0, 0, eH, eM)
+    const s = new Date(0, 0, 0, sH, sM)
+    const e = new Date(0, 0, 0, eH, eM)
 
-    let diff = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60)
+    let diff = (e.getTime() - s.getTime()) / (1000 * 60 * 60)
     if (diff < 0) diff += 24
 
     diff -= breakMinutes / 60
     if (diff < 0) diff = 0
 
-    return parseFloat(diff.toFixed(2))
+    return Number(diff.toFixed(2))
   }
 
-  // Auto recalc
-  const recalcRowHours = (row: ShiftRow): ShiftRow => {
+  const recalcRow = (row: ShiftRow): ShiftRow => {
     if (
       row.start_time === "N/A" ||
       row.end_time === "N/A" ||
@@ -117,28 +117,39 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
       return { ...row, total_hours: "N/A" }
     }
 
-    const hours = calculateHours(row.start_time, row.end_time, Number(row.break_minutes))
-    return { ...row, total_hours: hours }
+    return {
+      ...row,
+      total_hours: calculateHours(
+        row.start_time,
+        row.end_time,
+        Number(row.break_minutes)
+      ),
+    }
   }
 
-  // UPDATE FIELD (with "N/A" gating logic)
+  // -------------------------
+  // UPDATE FIELD (TS SAFE)
+  // -------------------------
   const updateRowField = (
     id: number,
     field: keyof ShiftRow,
     value: any,
-    recalcHours: boolean = false
+    recalc: boolean = false
   ) => {
-    setRows((prev) => {
-      const updated = prev.map((row) => {
+    setSaving(true)
+
+    setRows(prev => {
+      const updated = prev.map(row => {
         if (row.id !== id) return row
 
         let newRow = { ...row }
 
+        // Shift group logic gates the entire row
         if (field === "shift_group") {
           newRow.shift_group = value
 
-          // When cleared → lock everything to N/A
           if (!value) {
+            // lock everything
             newRow.shift_name = "N/A"
             newRow.start_time = "N/A"
             newRow.end_time = "N/A"
@@ -150,24 +161,44 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
             return newRow
           }
 
-          // When set → unlock fields by clearing N/A to ""
+          // unlock fields when group defined
           if (newRow.shift_name === "N/A") newRow.shift_name = ""
           if (newRow.start_time === "N/A") newRow.start_time = ""
           if (newRow.end_time === "N/A") newRow.end_time = ""
           if (newRow.break_minutes === "N/A") newRow.break_minutes = 0
           if (newRow.shift_type === "N/A") newRow.shift_type = ""
-        } else {
-          // Normal field update
-          (newRow as any)[field] =
-            field === "break_minutes" ? (value === "" ? 0 : Number(value)) : value
         }
 
-        return recalcHours ||
-          field === "start_time" ||
-          field === "end_time" ||
-          field === "break_minutes"
-          ? recalcRowHours(newRow)
-          : newRow
+        // TS SAFE field updates
+        switch (field) {
+          case "shift_name":
+          case "start_time":
+          case "end_time":
+          case "shift_type":
+            newRow[field] = value
+            break
+
+          case "break_minutes":
+            newRow.break_minutes = value === "" ? 0 : Number(value)
+            break
+
+          case "days":
+            newRow.days = value
+            break
+
+          case "campuses":
+            newRow.campuses = value
+            break
+
+          case "total_hours":
+            newRow.total_hours = value
+            break
+
+          default:
+            break
+        }
+
+        return recalc ? recalcRow(newRow) : newRow
       })
 
       debouncedSave(updated)
@@ -175,22 +206,17 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
     })
   }
 
-  const updateRowDays = (id: number, selected: string[]) => {
-    const updated = rows.map((row) =>
-      row.id === id ? { ...row, days: selected } : row
-    )
-    setRows(updated)
-    debouncedSave(updated)
+  const updateRowDays = (id: number, days: string[]) => {
+    updateRowField(id, "days", days)
   }
 
-  const updateRowCampuses = (id: number, selected: string[]) => {
-    const updated = rows.map((row) =>
-      row.id === id ? { ...row, campuses: selected } : row
-    )
-    setRows(updated)
-    debouncedSave(updated)
+  const updateRowCampuses = (id: number, c: string[]) => {
+    updateRowField(id, "campuses", c)
   }
 
+  // -------------------------
+  // ADD / REMOVE
+  // -------------------------
   const addRow = () => {
     const newRow: ShiftRow = {
       id: Date.now(),
@@ -210,22 +236,19 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
   }
 
   const removeRow = (id: number) => {
-    const updated = rows.filter((r) => r.id !== id)
+    const updated = rows.filter(r => r.id !== id)
     setRows(updated)
     updateData("shiftConfig", updated)
   }
 
   const clearAll = () => {
-    if (rows.length === 0) return
     Swal.fire({
-      title: "Clear All Shifts?",
-      text: "This will remove all shift entries.",
+      title: "Clear all shifts?",
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
-      cancelButtonColor: "#3085d6",
       confirmButtonText: "Yes, clear all",
-    }).then((res) => {
+    }).then(res => {
       if (res.isConfirmed) {
         setRows([])
         updateData("shiftConfig", [])
@@ -233,14 +256,41 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
     })
   }
 
-  // UI LIST of groups
-  const shiftGroups = Array.from(
-    new Set(rows.map((r) => r.shift_group).filter(Boolean))
-  )
+  // -------------------------
+  // DRAG & DROP (FULLY FIXED)
+  // -------------------------
+  const handleDragStart = (id: number) => {
+    setDragId(id)
+  }
 
-  // Display filtering and sorting
+  const handleDrop = (targetId: number) => {
+    if (dragId === null || dragId === targetId) return
+
+    setRows(prev => {
+      const currentIndex = prev.findIndex(r => r.id === dragId)
+      const targetIndex = prev.findIndex(r => r.id === targetId)
+
+      if (currentIndex === -1 || targetIndex === -1) return prev
+
+      const updated = [...prev]
+      const [moved] = updated.splice(currentIndex, 1)
+      updated.splice(targetIndex, 0, moved)
+
+      debouncedSave(updated)
+      return updated
+    })
+
+    setDragId(null)
+  }
+
+  // -------------------------
+  // FILTER + SORT
+  // -------------------------
   let displayRows = rows
-  if (filterGroup) displayRows = displayRows.filter((r) => r.shift_group === filterGroup)
+
+  if (filterGroup) {
+    displayRows = displayRows.filter(r => r.shift_group === filterGroup)
+  }
 
   if (sortMode !== "none") {
     displayRows = [...displayRows].sort((a, b) => {
@@ -250,6 +300,8 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
         case "end":
           return a.end_time.localeCompare(b.end_time)
         case "hours":
+          if (a.total_hours === "N/A") return 1
+          if (b.total_hours === "N/A") return -1
           return (a.total_hours as number) - (b.total_hours as number)
         case "group":
           return a.shift_group.localeCompare(b.shift_group)
@@ -259,54 +311,57 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
     })
   }
 
-  const isDisabled = (row: ShiftRow) => !row.shift_group
+  const isLocked = (row: ShiftRow) => !row.shift_group
 
+  // -------------------------
+  // RENDER
+  // -------------------------
   return (
     <Card className="p-4 space-y-4">
-      <div className="flex justify-between items-center mb-2">
-        <h3 className="text-lg font-semibold text-gray-800">Shift Configuration</h3>
-        <div className="flex flex-col items-end gap-1 text-xs text-gray-500">
-          {saving && <span>Saving…</span>}
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              onClick={clearAll}
-              className="border border-red-400 text-red-600 hover:bg-red-50"
-            >
-              🗑 Clear All
-            </Button>
-            <Button className="bg-green-600 hover:bg-green-700" onClick={addRow}>
-              + Add Shift
-            </Button>
-          </div>
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-semibold">Shift Configuration</h3>
+        <div className="flex items-center gap-3 text-sm">
+          {saving && <span className="text-gray-500">Saving...</span>}
+          <Button
+            variant="ghost"
+            className="border border-red-500 text-red-600"
+            onClick={clearAll}
+          >
+            Clear All
+          </Button>
+          <Button className="bg-green-600 hover:bg-green-700" onClick={addRow}>
+            + Add Shift
+          </Button>
         </div>
       </div>
 
-      {/* FILTER + SORT BAR */}
-      <div className="flex flex-wrap md:flex-nowrap items-center gap-3 text-sm mb-2">
-        <div className="flex items-center gap-2">
-          <span className="text-gray-600">Filter by Shift Group:</span>
+      {/* FILTER BAR */}
+      <div className="flex gap-4 text-sm">
+        <div>
+          <span className="mr-2">Filter Group:</span>
           <select
-            className="border rounded-lg px-2 py-1 text-sm"
             value={filterGroup}
-            onChange={(e) => setFilterGroup(e.target.value)}
+            onChange={e => setFilterGroup(e.target.value)}
+            className="border rounded px-2 py-1"
           >
             <option value="">All</option>
-            {shiftGroups.map((g) => (
-              <option key={g} value={g}>{g}</option>
-            ))}
+            {Array.from(new Set(rows.map(r => r.shift_group).filter(Boolean))).map(
+              g => (
+                <option key={g}>{g}</option>
+              )
+            )}
           </select>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-gray-600">Sort:</span>
+        <div>
+          <span className="mr-2">Sort:</span>
           <select
-            className="border rounded-lg px-2 py-1 text-sm"
             value={sortMode}
-            onChange={(e) => setSortMode(e.target.value as SortMode)}
+            onChange={e => setSortMode(e.target.value as SortMode)}
+            className="border rounded px-2 py-1"
           >
-            <option value="none">None (drag to reorder)</option>
-            <option value="group">Shift Group A–Z</option>
+            <option value="none">None (drag reorder)</option>
+            <option value="group">Group A–Z</option>
             <option value="start">Start Time</option>
             <option value="end">End Time</option>
             <option value="hours">Total Hours</option>
@@ -314,215 +369,218 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
         </div>
       </div>
 
-      {/* SHIFT GROUP SUGGESTIONS */}
+      {/* SHIFT GROUP AUTOCOMPLETE */}
       <datalist id="shift-group-suggestions">
-        {shiftGroupSuggestions.map((g) => (
+        {shiftGroupSuggestions.map(g => (
           <option key={g} value={g} />
         ))}
       </datalist>
 
-      {displayRows.length === 0 ? (
-        <p className="text-gray-500">No shift data yet.</p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full border border-gray-200 text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-3 py-2 border w-6 text-center">⇕</th>
-                <th className="px-3 py-2 border">Shift Group</th>
-                <th className="px-3 py-2 border">Shift Name</th>
-                <th className="px-3 py-2 border">Start</th>
-                <th className="px-3 py-2 border">End</th>
-                <th className="px-3 py-2 border text-right">Break (min)</th>
-                <th className="px-3 py-2 border text-right">Total Hours</th>
-                <th className="px-3 py-2 border text-center">Days</th>
-                <th className="px-3 py-2 border text-center">Campuses</th>
-                <th className="px-3 py-2 border text-center">Actions</th>
-              </tr>
-            </thead>
+      {/* TABLE */}
+      <div className="overflow-x-auto">
+        <table className="min-w-full border border-gray-300 text-sm">
+          <thead className="bg-gray-100">
+            <tr>
+              <th className="border px-2 py-1 w-6">⇕</th>
+              <th className="border px-2 py-1">Group</th>
+              <th className="border px-2 py-1">Name</th>
+              <th className="border px-2 py-1">Start</th>
+              <th className="border px-2 py-1">End</th>
+              <th className="border px-2 py-1 text-right">Break</th>
+              <th className="border px-2 py-1 text-right">Hours</th>
+              <th className="border px-2 py-1">Days</th>
+              <th className="border px-2 py-1">Campuses</th>
+              <th className="border px-2 py-1">Actions</th>
+            </tr>
+          </thead>
 
-            <tbody>
-              {displayRows.map((row) => (
-                <tr
-                  key={row.id}
-                  className="odd:bg-white even:bg-gray-50 hover:bg-gray-100"
-                >
+          <tbody>
+            {displayRows.map(row => (
+              <tr
+                key={row.id}
+                draggable={sortMode === "none"}
+                onDragStart={() => handleDragStart(row.id)}
+                onDragOver={e => sortMode === "none" && e.preventDefault()}
+                onDrop={() => sortMode === "none" && handleDrop(row.id)}
+                className="odd:bg-white even:bg-gray-50 hover:bg-gray-100"
+                style={{
+                  cursor: sortMode === "none" ? "grab" : "default",
+                }}
+              >
+                <td className="border px-2 text-center">☰</td>
 
-                  {/* drag handle */}
-                  <td className="border px-2 py-1 text-center cursor-grab">☰</td>
+                {/* GROUP */}
+                <td className="border px-2">
+                  <Input
+                    id=""
+                    value={row.shift_group}
+                    list="shift-group-suggestions"
+                    onChange={e =>
+                      updateRowField(row.id, "shift_group", e.target.value)
+                    }
+                    className="!m-0 !p-1"
+                  />
+                </td>
 
-                  {/* Shift group */}
-                  <td className="border px-2 py-1">
+                {/* NAME */}
+                <td className="border px-2">
+                  {isLocked(row) ? (
+                    "N/A"
+                  ) : (
                     <Input
-                      value={row.shift_group}
-                      id={`shift-group-${row.id}`}    
-                      onChange={(e) =>
-                        updateRowField(row.id, "shift_group", e.target.value)
+                      id=""
+                      value={row.shift_name}
+                      onChange={e =>
+                        updateRowField(row.id, "shift_name", e.target.value)
                       }
-                      placeholder="Day / Night / Weekend"
-                      list="shift-group-suggestions"
                       className="!m-0 !p-1"
                     />
-                  </td>
+                  )}
+                </td>
 
-                  {/* Shift name */}
-                  <td className="border px-2 py-1">
-                    {isDisabled(row) ? (
-                      "N/A"
-                    ) : (
-                      <Input
-                        id={`shift-name-${row.id}`}
-                        value={row.shift_name}
-                        onChange={(e) =>
-                          updateRowField(row.id, "shift_name", e.target.value)
-                        }
-                        className="!m-0 !p-1"
-                      />
-                    )}
-                  </td>
+                {/* START */}
+                <td className="border px-2">
+                  {isLocked(row) ? (
+                    "N/A"
+                  ) : (
+                    <Input
+                      id=""
+                      value={row.start_time}
+                      placeholder="07:00"
+                      onChange={e =>
+                        updateRowField(
+                          row.id,
+                          "start_time",
+                          e.target.value,
+                          true
+                        )
+                      }
+                      className="!m-0 !p-1 w-20"
+                    />
+                  )}
+                </td>
 
-                  {/* Start time */}
-                  <td className="border px-2 py-1">
-                    {isDisabled(row) ? (
-                      "N/A"
-                    ) : (
-                      <Input
-                        id={`start-time-${row.id}`}
-                        value={row.start_time}
-                        onChange={(e) =>
-                          updateRowField(row.id, "start_time", e.target.value, true)
-                        }
-                        placeholder="07:00"
-                        className="!m-0 !p-1 w-20"
-                      />
-                    )}
-                  </td>
+                {/* END */}
+                <td className="border px-2">
+                  {isLocked(row) ? (
+                    "N/A"
+                  ) : (
+                    <Input
+                      id=""
+                      value={row.end_time}
+                      placeholder="19:00"
+                      onChange={e =>
+                        updateRowField(
+                          row.id,
+                          "end_time",
+                          e.target.value,
+                          true
+                        )
+                      }
+                      className="!m-0 !p-1 w-20"
+                    />
+                  )}
+                </td>
 
-                  {/* End time */}
-                  <td className="border px-2 py-1">
-                    {isDisabled(row) ? (
-                      "N/A"
-                    ) : (
-                      <Input
-                        id={`end-time-${row.id}`}
-                        value={row.end_time}
-                        onChange={(e) =>
-                          updateRowField(row.id, "end_time", e.target.value, true)
-                        }
-                        placeholder="19:00"
-                        className="!m-0 !p-1 w-20"
-                      />
-                    )}
-                  </td>
+                {/* BREAK */}
+                <td className="border px-2 text-right">
+                  {isLocked(row) ? (
+                    "N/A"
+                  ) : (
+                    <Input
+                      id=""
+                      type="number"
+                      value={row.break_minutes}
+                      onChange={e =>
+                        updateRowField(
+                          row.id,
+                          "break_minutes",
+                          e.target.value,
+                          true
+                        )
+                      }
+                      className="!m-0 !p-1 w-20 text-right"
+                    />
+                  )}
+                </td>
 
-                  {/* Break */}
-                  <td className="border px-2 py-1 text-right">
-                    {isDisabled(row) ? (
-                      "N/A"
-                    ) : (
-                      <Input
-                        type="number"
-                        value={row.break_minutes}
-                        id={`break-minutes-${row.id}`}
-                        onChange={(e) =>
-                          updateRowField(row.id, "break_minutes", e.target.value, true)
-                        }
-                        className="!m-0 !p-1 w-20 text-right"
-                      />
-                    )}
-                  </td>
+                {/* HOURS */}
+                <td className="border px-2 text-right">
+                  {row.total_hours === "N/A"
+                    ? "N/A"
+                    : Number(row.total_hours).toFixed(2)}
+                </td>
 
-                  {/* Total hours */}
-                  <td className="border px-2 py-1 text-right">
-                    {row.total_hours === "N/A"
-                      ? "N/A"
-                      : Number(row.total_hours).toFixed(2)}
-                  </td>
+                {/* DAYS */}
+                <td className="border px-2">
+                  {isLocked(row) ? (
+                    "N/A"
+                  ) : (
+                    <div className="flex flex-col gap-1 text-xs max-h-28 overflow-auto">
+                      {daysOfWeek.map(day => {
+                        const checked = row.days.includes(day)
+                        return (
+                          <label key={day} className="flex items-center gap-1">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={e => {
+                                const updated = e.target.checked
+                                  ? [...row.days, day]
+                                  : row.days.filter(d => d !== day)
+                                updateRowDays(row.id, updated)
+                              }}
+                            />
+                            {day}
+                          </label>
+                        )
+                      })}
+                    </div>
+                  )}
+                </td>
 
-                  {/* Days */}
-                  <td className="border px-2 py-1">
-                    {isDisabled(row) ? (
-                      "N/A"
-                    ) : (
-                      <div className="flex flex-col gap-1 h-[120px] overflow-y-auto text-xs">
-                        {daysOfWeek.map((day) => {
-                          const checked = row.days.includes(day)
-                          return (
-                            <label key={day} className="flex items-center gap-1">
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={(e) => {
-                                  const selected = e.target.checked
-                                    ? [...row.days, day]
-                                    : row.days.filter((d) => d !== day)
-                                  updateRowDays(row.id, selected)
-                                }}
-                              />
-                              {day}
-                            </label>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </td>
+                {/* CAMPUSES */}
+                <td className="border px-2">
+                  {isLocked(row) ? (
+                    "N/A"
+                  ) : (
+                    <div className="flex flex-col gap-1 text-xs max-h-28 overflow-auto">
+                      {campusOptions.map(campus => {
+                        const checked = row.campuses.includes(campus)
+                        return (
+                          <label key={campus} className="flex items-center gap-1">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={e => {
+                                const updated = e.target.checked
+                                  ? [...row.campuses, campus]
+                                  : row.campuses.filter(c => c !== campus)
+                                updateRowCampuses(row.id, updated)
+                              }}
+                            />
+                            {campus}
+                          </label>
+                        )
+                      })}
+                    </div>
+                  )}
+                </td>
 
-                  {/* campuses */}
-                  <td className="border px-2 py-1">
-                    {isDisabled(row) ? (
-                      "N/A"
-                    ) : (
-                      <div className="flex flex-col gap-1 h-[120px] overflow-y-auto text-xs">
-                        {campusOptions.map((campus) => {
-                          const checked = row.campuses.includes(campus)
-                          return (
-                            <label key={campus} className="flex items-center gap-1">
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={(e) => {
-                                  const selected = e.target.checked
-                                    ? [...row.campuses, campus]
-                                    : row.campuses.filter((c) => c !== campus)
-                                  updateRowCampuses(row.id, selected)
-                                }}
-                              />
-                              {campus}
-                            </label>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </td>
-
-                  {/* Actions */}
-                  <td className="border px-2 py-1 text-center">
-                    <Button
-                      variant="ghost"
-                      className="!px-2 !py-1 text-xs text-red-600"
-                      onClick={() => removeRow(row.id)}
-                    >
-                      Remove
-                    </Button>
-                  </td>
-
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* helper text */}
-      <ul className="mt-4 text-xs text-gray-600 list-disc pl-5 space-y-1">
-        <li>Shifts remain disabled (N/A) until a shift group is selected.</li>
-        <li>With Sort = None, you can drag rows to reorder them.</li>
-        <li>Use filter and sort controls above to narrow results.</li>
-      </ul>
-
-      <div className="flex justify-between mt-6">
-        <Button variant="ghost" onClick={onPrev}>← Previous</Button>
-        <Button variant="primary" onClick={onNext}>Next →</Button>
+                {/* ACTIONS */}
+                <td className="border px-2 text-center">
+                  <Button
+                    variant="ghost"
+                    className="text-red-600 !px-2 !py-1"
+                    onClick={() => removeRow(row.id)}
+                  >
+                    Remove
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </Card>
   )
