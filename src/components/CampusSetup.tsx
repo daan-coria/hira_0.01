@@ -71,16 +71,14 @@ function normalizeHeaders(row: any): Record<string, any> {
 
 function normalizeCampusName(raw: string): string {
   if (!raw) return "";
-
   const input = String(raw).trim().toLowerCase();
 
   let stored: { key: string; name: string; region?: string }[] = [];
-
   try {
     const ls = localStorage.getItem("hira_campuses");
     if (ls) stored = JSON.parse(ls);
   } catch {
-    return raw; // fallback
+    return raw; 
   }
 
   if (!stored.length) return raw;
@@ -92,10 +90,10 @@ function normalizeCampusName(raw: string): string {
   if (exactName) return exactName.name;
 
   // 2) Key match (“LANS”, “MAC”, etc.)
-  const exactKey = stored.find(
+  const keyMatch = stored.find(
     (c) => c.key.trim().toLowerCase() === input
   );
-  if (exactKey) return exactKey.name;
+  if (keyMatch) return keyMatch.name;
 
   // 3) Fuzzy: input contains part of name (“lansing” → “Lansing Campus”)
   const fuzzyName = stored.find((c) =>
@@ -116,7 +114,7 @@ function normalizeCampusName(raw: string): string {
       `It will be imported as-is.`
   );
 
-  return raw; // fallback
+  return raw; 
 }
 
 function parseExcelToRows(rawRows: any[]): FacilityRow[] {
@@ -500,7 +498,7 @@ function FacilityRowItem({
 
 export default function CampusSetup() {
   const { state, data, setFacilitySetup, updateFacilitySetup } = useApp();
-
+  const [initialized, setInitialized] = useState(false);
   const [rows, setRows] = useState<FacilityRow[]>([]);
   const [functionalAreas, setFunctionalAreas] = useState<string[]>([]);
   const [unitGroupings, setUnitGroupings] = useState<string[]>([]);
@@ -514,7 +512,7 @@ export default function CampusSetup() {
   const [uploading, setUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
- // -----------------------
+  // -----------------------
   // TABLE FILTERS
   // -----------------------
 
@@ -680,8 +678,18 @@ export default function CampusSetup() {
     }, 300);
 
     return () => {
-      if (saveTimeoutRef.current) 
+      // Clear any pending timeout
+      if (saveTimeoutRef.current) {
         window.clearTimeout(saveTimeoutRef.current);
+      }
+
+      // Flush the latest rows to context/LS immediately on cleanup
+      // (prevents losing quick changes when navigating away before debounce)
+      try {
+        setFacilitySetup(normalized);
+      } catch (e) {
+        // best-effort, ignore errors during cleanup
+      }
     };
   }, [rows, setFacilitySetup]);
 
