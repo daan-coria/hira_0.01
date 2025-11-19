@@ -478,15 +478,10 @@ export default function FacilitySetup() {
  // -----------------------
   // TABLE FILTERS
   // -----------------------
-  const [filterCampus, setFilterCampus] = useState("");
-  const [filterFunctional, setFilterFunctional] = useState("");
   const [filterUnitGroup, setFilterUnitGroup] = useState("");
   const [filterFloatPool, setFilterFloatPool] = useState("");
   const [searchText, setSearchText] = useState("");
  
-  // MULTI-SELECT campus (array)
-  const [filterCampuses, setFilterCampuses] = useState<string[]>([]);
-
   // Show only incomplete rows
   const [showMissing, setShowMissing] = useState(false);
 
@@ -648,17 +643,6 @@ export default function FacilitySetup() {
   const filteredRows = useMemo(() => {
     return sortedRows.filter((r) => {
 
-      // MULTI-SELECT CAMPUS
-      if (filterCampuses.length > 0 && !filterCampuses.includes(r.campus)) {
-        return false;
-      }
-
-      // Single-select campus
-      if (filterCampus && r.campus !== filterCampus) return false;
-
-      // Functional Area
-      if (filterFunctional && r.functionalArea !== filterFunctional) return false;
-
       // Unit Grouping
       if (filterUnitGroup && r.unitGrouping !== filterUnitGroup) return false;
 
@@ -682,8 +666,6 @@ export default function FacilitySetup() {
     });
   }, [
     sortedRows,
-    filterCampuses,
-    filterFunctional,
     filterUnitGroup,
     filterFloatPool,
     searchText,
@@ -931,29 +913,7 @@ export default function FacilitySetup() {
       <Card className="p-4 space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
 
-          {/* Campus Filter */}
-          <Select
-            aria-label="Filter by Campus"
-            value={filterCampus}
-            onChange={(e) => setFilterCampus(e.target.value)}
-          >
-            <option value="">All Campuses</option>
-            {campusOptions.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </Select>
-
-          {/* Functional Area Filter */}
-          <Select
-            aria-label="Filter by Functional Area"
-            value={filterFunctional}
-            onChange={(e) => setFilterFunctional(e.target.value)}
-          >
-            <option value="">All Functional Areas</option>
-            {functionalAreas.map((fa) => (
-              <option key={fa} value={fa}>{fa}</option>
-            ))}
-          </Select>
+          //*Campus Filter and Functional Area Filter will be modified by Master Filters *//
 
           {/* Unit Group Filter */}
           <Select
