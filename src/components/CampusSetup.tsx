@@ -492,7 +492,6 @@ function FacilityRowItem({
   );
 }
 
-
   const MemoFacilityRowItem = memo(FacilityRowItem)
 
 // -----------------------
@@ -500,7 +499,7 @@ function FacilityRowItem({
 // -----------------------
 
 export default function CampusSetup() {
-  const { data, updateData } = useApp();
+  const { state, data, setFacilitySetup, updateFacilitySetup } = useApp();
 
   const [rows, setRows] = useState<FacilityRow[]>([]);
   const [functionalAreas, setFunctionalAreas] = useState<string[]>([]);
@@ -621,8 +620,10 @@ export default function CampusSetup() {
 
     let initial: FacilityRow[] = [];
 
-    if ((data as any)?.facilitySetup && Array.isArray((data as any).facilitySetup)) {
-      initial = (data as any).facilitySetup as FacilityRow[];
+    if (state.facilitySetup && Array.isArray(state.facilitySetup)) {
+      initial = state.facilitySetup as FacilityRow[];
+    } else if (data.facilitySetup && Array.isArray(data.facilitySetup)) {
+      initial = data.facilitySetup as FacilityRow[];
     } else {
       try {
         const storedSetup = localStorage.getItem(STORAGE_KEY_FACILITY_SETUP);
@@ -630,7 +631,8 @@ export default function CampusSetup() {
       } catch (err) {
         console.error("Error loading campus setup", err);
       }
-    }
+}
+
 
     if (initial.length > 0) {
       initial = normalizeSortOrder(initial);
@@ -668,22 +670,16 @@ export default function CampusSetup() {
     const normalized = normalizeSortOrder(rows);
 
     if (saveTimeoutRef.current) window.clearTimeout(saveTimeoutRef.current);
+
     saveTimeoutRef.current = window.setTimeout(() => {
-      updateData("facilitySetup", normalized);
-      try {
-        localStorage.setItem(
-          STORAGE_KEY_FACILITY_SETUP,
-          JSON.stringify(normalized)
-        );
-      } catch (err) {
-        console.error("Error saving campus setup", err);
-      }
+      setFacilitySetup(normalized);
     }, 300) as unknown as number;
 
     return () => {
       if (saveTimeoutRef.current) window.clearTimeout(saveTimeoutRef.current);
     };
-  }, [rows, updateData]);
+  }, [rows, setFacilitySetup]);
+
 
   // -----------------------
   // DERIVED DATA
