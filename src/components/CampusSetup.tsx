@@ -600,98 +600,70 @@ export default function CampusSetup() {
     XLSX.writeFile(workbook, "campus_setup.xlsx");
   };
 
-  // -----------------------
-  // INITIAL LOAD (context + LS)
-  // -----------------------
 
+  // -------------------------
+  // ONE-TIME INITIAL LOAD
+  // -------------------------
   useEffect(() => {
-  // 1. Load campus list from LS
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY_CAMPUSES);
-    if (stored) {
-      const parsed = JSON.parse(stored) as Campus[];
-      const names = Array.from(new Set(parsed.map((c) => c.name))).sort();
-      setCampusOptions(names);
-    }
-  } catch (err) {
-    console.error("Error loading campuses", err);
-  }
+    if (initialized) return;
+    setInitialized(true);
 
-  // 2. Load Facility Setup (IMPORTANT: state → data → LS fallback)
-  let initial: FacilityRow[] = [];
-
-  // A) ALWAYS load from state first
-  if (state.facilitySetup && Array.isArray(state.facilitySetup)) {
-    initial = state.facilitySetup;
-  }
-  // B) If state empty, load from data
-  else if (data.facilitySetup && Array.isArray(data.facilitySetup)) {
-    initial = data.facilitySetup;
-  }
-  // C) If both empty, fallback to LS
-  else {
+    // 1) Load campuses from LS
     try {
-      const storedSetup = localStorage.getItem(STORAGE_KEY_FACILITY_SETUP);
-      if (storedSetup) {
-        initial = JSON.parse(storedSetup) as FacilityRow[];
+      const stored = localStorage.getItem("hira_campuses");
+      if (stored) {
+        const parsed = JSON.parse(stored) as Campus[];
+        setCampusOptions(Array.from(new Set(parsed.map(c => c.name))).sort());
       }
-    } catch (err) {
-      console.error("Error loading facility setup", err);
-    }
-  }
+    } catch {}
 
-  if (initial.length > 0) {
-    const normalized = normalizeSortOrder(initial);
+    // 2) Load rows from state first (authoritative)
+    let initial = Array.isArray(state.facilitySetup) ? state.facilitySetup : [];
 
-    setRows(normalized);
+    if (initial.length > 0) {
+      const sorted = normalizeSortOrder(initial);
+      setRows(sorted);
 
-    // Populate dropdown lists
-    setFunctionalAreas(
-      Array.from(new Set(initial.map((r) => r.functionalArea).filter(Boolean)))
-    );
-
-    setUnitGroupings(
-      Array.from(new Set(initial.map((r) => r.unitGrouping).filter(Boolean)))
-    );
-
-    setUnitOfServiceOptions((prev) => {
-      const fromRows = Array.from(
-        new Set(initial.map((r) => r.unitOfService).filter(Boolean))
+      // 3) Populate dropdown lists ONCE
+      setFunctionalAreas(
+        Array.from(new Set(sorted.map(r => r.functionalArea).filter(Boolean)))
       );
-      return Array.from(new Set([...prev, ...fromRows]));
-    });
-  }
-}, [state.facilitySetup, data.facilitySetup]);
+
+      setUnitGroupings(
+        Array.from(new Set(sorted.map(r => r.unitGrouping).filter(Boolean)))
+      );
+
+      setUnitOfServiceOptions(prev => {
+        const fromRows = Array.from(
+          new Set(sorted.map(r => r.unitOfService).filter(Boolean))
+        );
+        return Array.from(new Set([...prev, ...fromRows]));
+      });
+    }
+  }, []); // Empty dependency array
+
 
   // -----------------------
   // PERSIST TO LS + CONTEXT
   // -----------------------
 
   useEffect(() => {
+    if (!initialized) return;
+
     const normalized = normalizeSortOrder(rows);
 
-    if (saveTimeoutRef.current) 
-      window.clearTimeout(saveTimeoutRef.current);
+    if (saveTimeoutRef.current)
+      clearTimeout(saveTimeoutRef.current);
 
     saveTimeoutRef.current = window.setTimeout(() => {
-      setFacilitySetup(normalized);
+      setFacilitySetup(normalized); // single correct save
     }, 300);
 
     return () => {
-      // Clear any pending timeout
-      if (saveTimeoutRef.current) {
-        window.clearTimeout(saveTimeoutRef.current);
-      }
-
-      // Flush the latest rows to context/LS immediately on cleanup
-      // (prevents losing quick changes when navigating away before debounce)
-      try {
-        setFacilitySetup(normalized);
-      } catch (e) {
-        // best-effort, ignore errors during cleanup
-      }
+      if (saveTimeoutRef.current)
+        clearTimeout(saveTimeoutRef.current);
     };
-  }, [rows, setFacilitySetup]);
+  }, [rows, initialized, setFacilitySetup]);
 
 
   // -----------------------
@@ -740,30 +712,43 @@ export default function CampusSetup() {
   // UPDATE HELPERS
   // -----------------------
 
-  const normalizeRow = useCallback((row: FacilityRow): FacilityRow => {
+  const normalizeRow = useCallback((row: FacilityRow) => {
     if (row.isFloatPool) {
       return {
         ...row,
         capacity: "N/A",
-        poolParticipation: [],
         unitOfService: "N/A",
+        poolParticipation: [],
       };
     }
-    if (row.capacity === "N/A") row.capacity = "";
-    if (row.unitOfService === "N/A") row.unitOfService = "";
-    return row;
+
+    // non-float: clean "N/A" back to usable
+    return {
+      ...row,
+      capacity: row.capacity === "N/A" ? "" : row.capacity,
+      unitOfService:
+        row.unitOfService === "N/A" ? "" : row.unitOfService,
+    };
   }, []);
 
   const updateRow = useCallback(
     (id: number, patch: Partial<FacilityRow>) => {
       setRows((prev) =>
-        prev.map((r) =>
-          r.id === id ? normalizeRow({ ...r, ...patch }) : r
-        )
+        prev.map((r) => {
+          if (r.id !== id) return r;
+
+          const merged = {
+            ...(r as FacilityRow),
+            ...(patch as Partial<FacilityRow>),
+          };
+
+          return normalizeRow(merged) as FacilityRow;
+        })
       );
     },
     [normalizeRow]
   );
+
 
   const addRow = useCallback(() => {
     setRows((prev) => {
@@ -788,6 +773,7 @@ export default function CampusSetup() {
   const deleteRow = useCallback((id: number) => {
     setRows((prev) => normalizeSortOrder(prev.filter((r) => r.id !== id)));
   }, []);
+
 
   const clearAll = useCallback(() => {
     if (!window.confirm("Clear all cost centers from Facility Set-up?")) return;
