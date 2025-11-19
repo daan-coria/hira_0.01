@@ -22,7 +22,6 @@ export default function AppShell() {
     <div className="min-h-screen bg-gray-50 text-gray-900 flex flex-col relative">
       <ToolNavigator />
 
-      {/* Show only after login */}
       {isAuthenticated && location.pathname === "/tool" && (
         <div className="max-w-7xl mx-auto w-full px-6">
           <MasterFilters />

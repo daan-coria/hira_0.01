@@ -466,7 +466,7 @@ function FacilityRowItem({
 // MAIN COMPONENT
 // -----------------------
 
-export default function FacilitySetup() {
+export default function CampusSetup() {
   const { data, updateData } = useApp();
 
   const [rows, setRows] = useState<FacilityRow[]>([]);
@@ -560,9 +560,9 @@ export default function FacilitySetup() {
 
     const worksheet = XLSX.utils.json_to_sheet(exportRows);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Facility Setup");
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Campus Setup");
 
-    XLSX.writeFile(workbook, "facility_setup.xlsx");
+    XLSX.writeFile(workbook, "campus_setup.xlsx");
   };
 
   // -----------------------
@@ -590,7 +590,7 @@ export default function FacilitySetup() {
         const storedSetup = localStorage.getItem(STORAGE_KEY_FACILITY_SETUP);
         if (storedSetup) initial = JSON.parse(storedSetup) as FacilityRow[];
       } catch (err) {
-        console.error("Error loading facility setup", err);
+        console.error("Error loading campus setup", err);
       }
     }
 
@@ -622,7 +622,7 @@ export default function FacilitySetup() {
       try {
         localStorage.setItem(STORAGE_KEY_FACILITY_SETUP, JSON.stringify(normalized));
       } catch (err) {
-        console.error("Error saving facility setup", err);
+        console.error("Error saving campus setup", err);
       }
     }, 300) as unknown as number;
 
@@ -756,7 +756,7 @@ export default function FacilitySetup() {
         Array.from(new Set(normalized.map((r) => r.functionalArea).filter(Boolean)))
       );
     } catch (err) {
-      console.error("Error parsing facility setup Excel", err);
+      console.error("Error parsing campus setup Excel", err);
       window.alert("Error reading the Excel file. Please check the format.");
     } finally {
       setUploading(false);
@@ -849,7 +849,7 @@ export default function FacilitySetup() {
   return (
     <div className="p-4 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold">Facility Set-up</h2>
+        <h2 className="text-lg font-semibold">Campus Set-up</h2>
 
         <div className="flex flex-wrap items-center gap-2">
           {/* Upload Excel */}

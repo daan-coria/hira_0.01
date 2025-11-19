@@ -7,7 +7,7 @@ import ResourceInputCard from "@/components/ResourceInputCard"
 import GapSummaryCard from "@/components/GapSummaryCard"
 import CensusOverrideCard from "@/components/CensusOverrideCard"
 import AvailabilityConfigCard from "@/components/AvailabilityConfigCard"
-import FacilitySetup from "@/components/FacilitySetup"
+import CampusSetup from "@/components/CampusSetup"
 import HealthSystemSetupPage from "./HealthSystemSetupPage"
 
 export default function DropdownMenu() {
@@ -20,7 +20,7 @@ export default function DropdownMenu() {
 
   const steps = [
     "Health System Setup",
-    "Facility Setup",
+    "Campus Setup",
     "Weekend Rotation Definition",
     "Job Configuration",
     "Shift Configuration",
@@ -38,7 +38,7 @@ export default function DropdownMenu() {
   const renderStep = () => {
     switch (currentStep) {
       case 0: return <HealthSystemSetupPage />
-      case 1: return <FacilitySetup />
+      case 1: return <CampusSetup />
       case 2: return <div className="p-4">Weekend Rotation Placeholder</div>
       case 3: return <div className="p-4">Job Configuration Placeholder</div>
       case 4: return <ShiftConfigCard />

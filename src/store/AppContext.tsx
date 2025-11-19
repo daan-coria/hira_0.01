@@ -285,13 +285,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [])
 
   // -----------------------
-  // Facility Setup
+  // Campus Setup
   // -----------------------
   const setFacilitySetup = (payload: FacilitySetup) => {
     setState((prev) => ({ ...prev, facilitySetup: payload }))
   }
 
-  // For arrays, updateFacilitySetup should REPLACE — not merge — the array
   const updateFacilitySetup = (payload: FacilitySetup) => {
     setState((prev) => ({ ...prev, facilitySetup: payload }))
   }
@@ -438,16 +437,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     currentStep,
     setCurrentStep,
     getFrontendSnapshot,
-
-    // AI Agent
     aiState,
     setAIState,
-
-    // Global menu
     menuOpen,
     setMenuOpen,
-
-    // GLOBAL MASTER FILTERS 
     master,
     setMaster,
 }
