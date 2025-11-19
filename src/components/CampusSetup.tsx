@@ -607,60 +607,63 @@ export default function CampusSetup() {
   // -----------------------
 
   useEffect(() => {
+  // 1. Load campus list from LS
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY_CAMPUSES);
+    if (stored) {
+      const parsed = JSON.parse(stored) as Campus[];
+      const names = Array.from(new Set(parsed.map((c) => c.name))).sort();
+      setCampusOptions(names);
+    }
+  } catch (err) {
+    console.error("Error loading campuses", err);
+  }
+
+  // 2. Load Facility Setup (IMPORTANT: state → data → LS fallback)
+  let initial: FacilityRow[] = [];
+
+  // A) ALWAYS load from state first
+  if (state.facilitySetup && Array.isArray(state.facilitySetup)) {
+    initial = state.facilitySetup;
+  }
+  // B) If state empty, load from data
+  else if (data.facilitySetup && Array.isArray(data.facilitySetup)) {
+    initial = data.facilitySetup;
+  }
+  // C) If both empty, fallback to LS
+  else {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY_CAMPUSES);
-      if (stored) {
-        const parsed = JSON.parse(stored) as Campus[];
-        const names = Array.from(new Set(parsed.map((c) => c.name))).sort();
-        setCampusOptions(names);
+      const storedSetup = localStorage.getItem(STORAGE_KEY_FACILITY_SETUP);
+      if (storedSetup) {
+        initial = JSON.parse(storedSetup) as FacilityRow[];
       }
     } catch (err) {
-      console.error("Error loading campuses", err);
+      console.error("Error loading facility setup", err);
     }
+  }
 
-    let initial: FacilityRow[] = [];
+  if (initial.length > 0) {
+    const normalized = normalizeSortOrder(initial);
 
-    if (state.facilitySetup && Array.isArray(state.facilitySetup)) {
-      initial = state.facilitySetup as FacilityRow[];
-    } else if (data.facilitySetup && Array.isArray(data.facilitySetup)) {
-      initial = data.facilitySetup as FacilityRow[];
-    } else {
-      try {
-        const storedSetup = localStorage.getItem(STORAGE_KEY_FACILITY_SETUP);
-        if (storedSetup) initial = JSON.parse(storedSetup) as FacilityRow[];
-      } catch (err) {
-        console.error("Error loading campus setup", err);
-      }
-}
+    setRows(normalized);
 
+    // Populate dropdown lists
+    setFunctionalAreas(
+      Array.from(new Set(initial.map((r) => r.functionalArea).filter(Boolean)))
+    );
 
-    if (initial.length > 0) {
-      initial = normalizeSortOrder(initial);
-      setRows(initial);
+    setUnitGroupings(
+      Array.from(new Set(initial.map((r) => r.unitGrouping).filter(Boolean)))
+    );
 
-      setFunctionalAreas(
-        Array.from(
-          new Set(initial.map((r) => r.functionalArea).filter(Boolean))
-        )
+    setUnitOfServiceOptions((prev) => {
+      const fromRows = Array.from(
+        new Set(initial.map((r) => r.unitOfService).filter(Boolean))
       );
-
-      setUnitGroupings(
-        Array.from(
-          new Set(initial.map((r) => r.unitGrouping).filter(Boolean))
-        )
-      );
-
-      // Add any existing UOS values into the options list
-      setUnitOfServiceOptions((prev) => {
-        const fromRows = Array.from(
-          new Set(initial.map((r) => r.unitOfService).filter(Boolean))
-        ) as string[];
-        const merged = new Set(prev);
-        fromRows.forEach((v) => merged.add(v));
-        return Array.from(merged);
-      });
-    }
-  }, [data]);
+      return Array.from(new Set([...prev, ...fromRows]));
+    });
+  }
+}, [state.facilitySetup, data.facilitySetup]);
 
   // -----------------------
   // PERSIST TO LS + CONTEXT
@@ -669,14 +672,16 @@ export default function CampusSetup() {
   useEffect(() => {
     const normalized = normalizeSortOrder(rows);
 
-    if (saveTimeoutRef.current) window.clearTimeout(saveTimeoutRef.current);
+    if (saveTimeoutRef.current) 
+      window.clearTimeout(saveTimeoutRef.current);
 
     saveTimeoutRef.current = window.setTimeout(() => {
       setFacilitySetup(normalized);
-    }, 300) as unknown as number;
+    }, 300);
 
     return () => {
-      if (saveTimeoutRef.current) window.clearTimeout(saveTimeoutRef.current);
+      if (saveTimeoutRef.current) 
+        window.clearTimeout(saveTimeoutRef.current);
     };
   }, [rows, setFacilitySetup]);
 
