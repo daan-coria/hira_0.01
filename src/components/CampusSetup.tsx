@@ -64,23 +64,6 @@ function normalizeHeaders(row: any): Record<string, any> {
   }, {});
 }
 
-// Map facility code from Excel to campus name from Health System Setup
-function excelCodeToCampusName(code: string): string {
-  try {
-    const stored = localStorage.getItem("hira_campuses");
-    if (!stored) return code;
-
-    const campuses: { key: string; name: string }[] = JSON.parse(stored);
-
-    const match = campuses.find(
-      (c) => c.key.toLowerCase() === code.toLowerCase()
-    );
-
-    return match ? match.name : code;
-  } catch {
-    return code;
-  }
-}
 
 // -----------------------
 // CAMPUS NORMALIZATION
@@ -191,18 +174,21 @@ function FacilityRowItem({
   campusOptions,
   functionalAreas,
   unitGroupings,
-  floatPoolOptions,
+  floatPoolRows,
+  unitOfServiceOptions,
   onUpdateRow,
   onDeleteRow,
   onFunctionalAreaChange,
   onUnitGroupingChange,
   onPoolParticipationChange,
+  onUnitOfServiceChange,
 }: {
   row: FacilityRow;
   campusOptions: string[];
   functionalAreas: string[];
   unitGroupings: string[];
-  floatPoolOptions: string[];
+  floatPoolRows: FacilityRow[];
+  unitOfServiceOptions: string[];
   onUpdateRow: (id: number, patch: Partial<FacilityRow>) => void;
   onDeleteRow: (id: number) => void;
   onFunctionalAreaChange: (row: FacilityRow, value: string) => void;
@@ -211,6 +197,7 @@ function FacilityRowItem({
     row: FacilityRow,
     e: React.ChangeEvent<HTMLSelectElement>
   ) => void;
+  onUnitOfServiceChange: (row: FacilityRow, value: string) => void;
 }) {
   const {
     setNodeRef,
@@ -220,7 +207,7 @@ function FacilityRowItem({
     transform,
     transition,
     isDragging,
-  } = useSortable({ 
+  } = useSortable({
     id: row.id,
   });
 
@@ -228,9 +215,26 @@ function FacilityRowItem({
     transform: transform ? CSS.Transform.toString(transform) : undefined,
     transition: transition || undefined,
     // Performance optimizations
-    willChange: transform ? 'transform' : undefined,
+    willChange: transform ? "transform" : undefined,
     opacity: isDragging ? 0.5 : 1,
   };
+
+  // Helper: campus lists
+  const rowCampuses = row.campus ? row.campus.split("|").filter(Boolean) : [];
+
+  // Float pool options limited to same campus
+  const availableFloatPools = floatPoolRows.filter((pool) => {
+    if (!pool.isFloatPool) return false;
+    if (pool.id === row.id) return false;
+
+    const poolCampuses = pool.campus
+      ? pool.campus.split("|").filter(Boolean)
+      : [];
+
+    if (rowCampuses.length === 0 || poolCampuses.length === 0) return false;
+
+    return poolCampuses.some((c) => rowCampuses.includes(c));
+  });
 
   return (
     <tr
@@ -276,7 +280,37 @@ function FacilityRowItem({
 
       {/* Campus */}
       <td className="px-3 py-2 align-middle">
-        {campusOptions.length ? (
+        {row.isFloatPool ? (
+          // FLOAT POOL → multi-campus checkbox list
+          <div className="max-h-24 overflow-y-auto border rounded-xl p-2 space-y-1">
+            {campusOptions.map((camp) => {
+              const selected = rowCampuses.includes(camp);
+              return (
+                <label
+                  key={camp}
+                  className="flex items-center gap-2 text-xs"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selected}
+                    onChange={() => {
+                      const current = new Set(rowCampuses);
+                      if (current.has(camp)) {
+                        current.delete(camp);
+                      } else {
+                        current.add(camp);
+                      }
+                      const updated = Array.from(current).join("|");
+                      onUpdateRow(row.id, { campus: updated });
+                    }}
+                  />
+                  {camp}
+                </label>
+              );
+            })}
+          </div>
+        ) : campusOptions.length ? (
+          // NON FLOAT → single-select dropdown
           <Select
             aria-label="Campus"
             value={row.campus}
@@ -309,9 +343,7 @@ function FacilityRowItem({
         <Select
           aria-label="Functional Area"
           value={row.functionalArea}
-          onChange={(e) =>
-            onFunctionalAreaChange(row, e.target.value)
-          }
+          onChange={(e) => onFunctionalAreaChange(row, e.target.value)}
         >
           <option value="">Select functional area</option>
           {functionalAreas.map((fa) => (
@@ -328,9 +360,7 @@ function FacilityRowItem({
         <Select
           aria-label="Unit Grouping"
           value={row.unitGrouping}
-          onChange={(e) =>
-            onUnitGroupingChange(row, e.target.value)
-          }
+          onChange={(e) => onUnitGroupingChange(row, e.target.value)}
         >
           <option value="">No unit grouping</option>
           {unitGroupings.map((ug) => (
@@ -394,9 +424,9 @@ function FacilityRowItem({
           <div className="px-3 py-2 text-center text-xs text-gray-500 bg-gray-100 rounded-xl">
             N/A
           </div>
-        ) : floatPoolOptions.length === 0 ? (
+        ) : availableFloatPools.length === 0 ? (
           <div className="text-xs text-gray-400">
-            No float pools defined
+            No float pools for this campus
           </div>
         ) : (
           <select
@@ -407,7 +437,9 @@ function FacilityRowItem({
             value={row.poolParticipation}
             onChange={(e) => onPoolParticipationChange(row, e)}
           >
-            {floatPoolOptions
+            {availableFloatPools
+              .map((pool) => pool.costCenterName || pool.costCenterKey)
+              .filter(Boolean)
               .filter(
                 (name) =>
                   name !== (row.costCenterName || row.costCenterKey)
@@ -432,15 +464,15 @@ function FacilityRowItem({
             aria-label="Unit of Service"
             id={`unitOfService-${row.id}`}
             value={row.unitOfService}
-            onChange={(e) =>
-              onUpdateRow(row.id, { unitOfService: e.target.value })
-            }
+            onChange={(e) => onUnitOfServiceChange(row, e.target.value)}
           >
             <option value="">Select UOS</option>
-            <option value="Patient Days">Patient Days</option>
-            <option value="Visits">Visits</option>
-            <option value="Procedures">Procedures</option>
-            <option value="Other">Other</option>
+            {unitOfServiceOptions.map((u) => (
+              <option key={u} value={u}>
+                {u}
+              </option>
+            ))}
+            <option value="__add_new__">+ Add new UOS</option>
           </Select>
         )}
       </td>
@@ -460,6 +492,7 @@ function FacilityRowItem({
   );
 }
 
+
   const MemoFacilityRowItem = memo(FacilityRowItem)
 
 // -----------------------
@@ -473,16 +506,21 @@ export default function CampusSetup() {
   const [functionalAreas, setFunctionalAreas] = useState<string[]>([]);
   const [unitGroupings, setUnitGroupings] = useState<string[]>([]);
   const [campusOptions, setCampusOptions] = useState<string[]>([]);
+  const [unitOfServiceOptions, setUnitOfServiceOptions] = useState<string[]>([
+    "Patient Days",
+    "Visits",
+    "Procedures",
+    "Other",
+  ]);
   const [uploading, setUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+
  // -----------------------
   // TABLE FILTERS
   // -----------------------
+
   const [filterUnitGroup, setFilterUnitGroup] = useState("");
   const [filterFloatPool, setFilterFloatPool] = useState("");
-  const [searchText, setSearchText] = useState("");
- 
-  // Show only incomplete rows
   const [showMissing, setShowMissing] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -599,12 +637,26 @@ export default function CampusSetup() {
       setRows(initial);
 
       setFunctionalAreas(
-        Array.from(new Set(initial.map((r) => r.functionalArea).filter(Boolean)))
+        Array.from(
+          new Set(initial.map((r) => r.functionalArea).filter(Boolean))
+        )
       );
 
       setUnitGroupings(
-        Array.from(new Set(initial.map((r) => r.unitGrouping).filter(Boolean)))
+        Array.from(
+          new Set(initial.map((r) => r.unitGrouping).filter(Boolean))
+        )
       );
+
+      // Add any existing UOS values into the options list
+      setUnitOfServiceOptions((prev) => {
+        const fromRows = Array.from(
+          new Set(initial.map((r) => r.unitOfService).filter(Boolean))
+        ) as string[];
+        const merged = new Set(prev);
+        fromRows.forEach((v) => merged.add(v));
+        return Array.from(merged);
+      });
     }
   }, [data]);
 
@@ -612,7 +664,6 @@ export default function CampusSetup() {
   // PERSIST TO LS + CONTEXT
   // -----------------------
 
-  // Persist to context + localStorage but debounce to avoid blocking main thread
   useEffect(() => {
     const normalized = normalizeSortOrder(rows);
 
@@ -620,7 +671,10 @@ export default function CampusSetup() {
     saveTimeoutRef.current = window.setTimeout(() => {
       updateData("facilitySetup", normalized);
       try {
-        localStorage.setItem(STORAGE_KEY_FACILITY_SETUP, JSON.stringify(normalized));
+        localStorage.setItem(
+          STORAGE_KEY_FACILITY_SETUP,
+          JSON.stringify(normalized)
+        );
       } catch (err) {
         console.error("Error saving campus setup", err);
       }
@@ -642,7 +696,6 @@ export default function CampusSetup() {
 
   const filteredRows = useMemo(() => {
     return sortedRows.filter((r) => {
-
       // Unit Grouping
       if (filterUnitGroup && r.unitGrouping !== filterUnitGroup) return false;
 
@@ -650,34 +703,27 @@ export default function CampusSetup() {
       if (filterFloatPool === "yes" && !r.isFloatPool) return false;
       if (filterFloatPool === "no" && r.isFloatPool) return false;
 
-      // SEARCH
-      if (searchText) {
-        const text = searchText.toLowerCase();
-        const match =
-          r.costCenterKey.toLowerCase().includes(text) ||
-          r.costCenterName.toLowerCase().includes(text) ||
-          r.functionalArea.toLowerCase().includes(text) ||
-          r.campus.toLowerCase().includes(text);
-
-        if (!match) return false;
+      // Show only incomplete rows
+      if (showMissing) {
+        const missing =
+          !r.costCenterKey ||
+          !r.costCenterName ||
+          !r.campus ||
+          !r.functionalArea ||
+          (!r.isFloatPool &&
+            (r.capacity === "" ||
+              r.capacity === null ||
+              r.capacity === undefined)) ||
+          (!r.isFloatPool && !r.unitOfService);
+        if (!missing) return false;
       }
 
       return true;
     });
-  }, [
-    sortedRows,
-    filterUnitGroup,
-    filterFloatPool,
-    searchText,
-  ]);
+  }, [sortedRows, filterUnitGroup, filterFloatPool, showMissing]);
 
-
-  const floatPoolOptions = useMemo(
-    () =>
-      rows
-        .filter((r) => r.isFloatPool)
-        .map((r) => r.costCenterName || r.costCenterKey)
-        .filter(Boolean),
+  const floatPoolRows = useMemo(
+    () => rows.filter((r) => r.isFloatPool),
     [rows]
   );
 
@@ -699,9 +745,16 @@ export default function CampusSetup() {
     return row;
   }, []);
 
-  const updateRow = useCallback((id: number, patch: Partial<FacilityRow>) => {
-    setRows((prev) => prev.map((r) => (r.id === id ? normalizeRow({ ...r, ...patch }) : r)));
-  }, [normalizeRow]);
+  const updateRow = useCallback(
+    (id: number, patch: Partial<FacilityRow>) => {
+      setRows((prev) =>
+        prev.map((r) =>
+          r.id === id ? normalizeRow({ ...r, ...patch }) : r
+        )
+      );
+    },
+    [normalizeRow]
+  );
 
   const addRow = useCallback(() => {
     setRows((prev) => {
@@ -736,7 +789,9 @@ export default function CampusSetup() {
   // EXCEL UPLOAD
   // -----------------------
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -745,7 +800,9 @@ export default function CampusSetup() {
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: "array" });
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rowsRaw = XLSX.utils.sheet_to_json(sheet, { defval: "" }) as any[];
+      const rowsRaw = XLSX.utils.sheet_to_json(sheet, {
+        defval: "",
+      }) as any[];
 
       const parsed = parseExcelToRows(rowsRaw);
       const normalized = normalizeSortOrder(parsed);
@@ -753,7 +810,9 @@ export default function CampusSetup() {
       setRows(normalized);
 
       setFunctionalAreas(
-        Array.from(new Set(normalized.map((r) => r.functionalArea).filter(Boolean)))
+        Array.from(
+          new Set(normalized.map((r) => r.functionalArea).filter(Boolean))
+        )
       );
     } catch (err) {
       console.error("Error parsing campus setup Excel", err);
@@ -774,9 +833,9 @@ export default function CampusSetup() {
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    
+
     setIsDragging(false);
-    
+
     if (!over || active.id === over.id) return;
 
     // Use requestAnimationFrame to defer the update and reduce reflow violations
@@ -798,49 +857,84 @@ export default function CampusSetup() {
   // NEW FUNCTIONAL AREA
   // -----------------------
 
-  const handleFunctionalAreaChange = useCallback((row: FacilityRow, value: string) => {
-    if (value === "__add_new__") {
-      const name = window.prompt("New functional area name?");
-      if (name && name.trim()) {
-        const trimmed = name.trim();
-        setFunctionalAreas((prev) => (prev.includes(trimmed) ? prev : [...prev, trimmed]));
-        updateRow(row.id, { functionalArea: trimmed });
+  const handleFunctionalAreaChange = useCallback(
+    (row: FacilityRow, value: string) => {
+      if (value === "__add_new__") {
+        const name = window.prompt("New functional area name?");
+        if (name && name.trim()) {
+          const trimmed = name.trim();
+          setFunctionalAreas((prev) =>
+            prev.includes(trimmed) ? prev : [...prev, trimmed]
+          );
+          updateRow(row.id, { functionalArea: trimmed });
+        }
+      } else {
+        updateRow(row.id, { functionalArea: value });
       }
-    } else {
-      updateRow(row.id, { functionalArea: value });
-    }
-  }, [updateRow]);
+    },
+    [updateRow]
+  );
 
   // -----------------------
   // NEW UNIT GROUPING
   // -----------------------
 
-  const handleUnitGroupingChange = useCallback((row: FacilityRow, value: string) => {
-    if (value === "__add_new__") {
-      const name = window.prompt("New unit grouping name?");
-      if (name && name.trim()) {
-        const trimmed = name.trim();
-        setUnitGroupings((prev) => (prev.includes(trimmed) ? prev : [...prev, trimmed]));
-        updateRow(row.id, { unitGrouping: trimmed });
+  const handleUnitGroupingChange = useCallback(
+    (row: FacilityRow, value: string) => {
+      if (value === "__add_new__") {
+        const name = window.prompt("New unit grouping name?");
+        if (name && name.trim()) {
+          const trimmed = name.trim();
+          setUnitGroupings((prev) =>
+            prev.includes(trimmed) ? prev : [...prev, trimmed]
+          );
+          updateRow(row.id, { unitGrouping: trimmed });
+        }
+      } else {
+        updateRow(row.id, { unitGrouping: value });
       }
-    } else {
-      updateRow(row.id, { unitGrouping: value });
-    }
-  }, [updateRow]);
+    },
+    [updateRow]
+  );
 
   // -----------------------
   // POOL PARTICIPATION
   // -----------------------
 
-  const handlePoolParticipationChange = useCallback((row: FacilityRow, e: React.ChangeEvent<HTMLSelectElement>) => {
-    const selected: string[] = [];
-    const options = e.target.options;
-    for (let i = 0; i < options.length; i++) {
-      const opt = options[i];
-      if (opt.selected && opt.value) selected.push(opt.value);
-    }
-    updateRow(row.id, { poolParticipation: selected });
-  }, [updateRow]);
+  const handlePoolParticipationChange = useCallback(
+    (row: FacilityRow, e: React.ChangeEvent<HTMLSelectElement>) => {
+      const selected: string[] = [];
+      const options = e.target.options;
+      for (let i = 0; i < options.length; i++) {
+        const opt = options[i];
+        if (opt.selected && opt.value) selected.push(opt.value);
+      }
+      updateRow(row.id, { poolParticipation: selected });
+    },
+    [updateRow]
+  );
+
+  // -----------------------
+  // UNIT OF SERVICE CHANGE
+  // -----------------------
+
+  const handleUnitOfServiceChange = useCallback(
+    (row: FacilityRow, value: string) => {
+      if (value === "__add_new__") {
+        const name = window.prompt("New Unit of Service?");
+        if (name && name.trim()) {
+          const trimmed = name.trim();
+          setUnitOfServiceOptions((prev) =>
+            prev.includes(trimmed) ? prev : [...prev, trimmed]
+          );
+          updateRow(row.id, { unitOfService: trimmed });
+        }
+      } else {
+        updateRow(row.id, { unitOfService: value });
+      }
+    },
+    [updateRow]
+  );
 
   // -----------------------
   // RENDER
@@ -852,6 +946,7 @@ export default function CampusSetup() {
         <h2 className="text-lg font-semibold">Campus Set-up</h2>
 
         <div className="flex flex-wrap items-center gap-2">
+
           {/* Upload Excel */}
           <input
             aria-label="Upload Excel"
@@ -912,8 +1007,7 @@ export default function CampusSetup() {
       {/* FILTER BAR */}
       <Card className="p-4 space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
-
-          //*Campus Filter and Functional Area Filter will be modified by Master Filters *//
+          {/* *Campus Filter and Functional Area Filter will be driven by Master Filters* */}
 
           {/* Unit Group Filter */}
           <Select
@@ -923,7 +1017,9 @@ export default function CampusSetup() {
           >
             <option value="">All Unit Groups</option>
             {unitGroupings.map((ug) => (
-              <option key={ug} value={ug}>{ug}</option>
+              <option key={ug} value={ug}>
+                {ug}
+              </option>
             ))}
           </Select>
 
@@ -937,32 +1033,23 @@ export default function CampusSetup() {
             <option value="yes">Float Pools Only</option>
             <option value="no">Non-Float Units Only</option>
           </Select>
-
-          {/* Search Box */}
-          <Input
-            id="search"
-            aria-label="Search"
-            placeholder="Search cost centers..."
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-          />
         </div>
-        
-          {/* SHOW ONLY ROWS WITH MISSING VALUES */}
-          <label className="inline-flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={showMissing}
-              onChange={(e) => setShowMissing(e.target.checked)}
-              className="h-4 w-4 text-emerald-600 border-gray-300 rounded"
-            />
-            <span className="text-gray-700">Show only incomplete rows</span>
-          </label>
+
+        {/* SHOW ONLY ROWS WITH MISSING VALUES */}
+        <label className="inline-flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={showMissing}
+            onChange={(e) => setShowMissing(e.target.checked)}
+            className="h-4 w-4 text-emerald-600 border-gray-300 rounded"
+          />
+          <span className="text-gray-700">Show only incomplete rows</span>
+        </label>
       </Card>
 
       {/* TABLE */}
       <Card className="overflow-x-auto">
-        <DndContext 
+        <DndContext
           sensors={sensors}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
@@ -996,12 +1083,14 @@ export default function CampusSetup() {
                     campusOptions={campusOptions}
                     functionalAreas={functionalAreas}
                     unitGroupings={unitGroupings}
-                    floatPoolOptions={floatPoolOptions}
+                    floatPoolRows={floatPoolRows}
+                    unitOfServiceOptions={unitOfServiceOptions}
                     onUpdateRow={updateRow}
                     onDeleteRow={deleteRow}
                     onFunctionalAreaChange={handleFunctionalAreaChange}
                     onUnitGroupingChange={handleUnitGroupingChange}
                     onPoolParticipationChange={handlePoolParticipationChange}
+                    onUnitOfServiceChange={handleUnitOfServiceChange}
                   />
                 ))}
 
