@@ -59,73 +59,123 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
   )
 
   // -------------------------
-  // LOAD EXISTING (normalize)
+  // SHIFT NAME BUILDER
   // -------------------------
-  useEffect(() => {
-    const raw = Array.isArray(data?.shiftConfig) ? data.shiftConfig : []
+  const buildShiftName = (
+    days: string[],
+    start: string,
+    end: string,
+    breakMinutes: number | "N/A"
+  ) => {
+    if (!days || days.length === 0) return "";
 
-    if (raw.length === 0) return
+    const weekdaySet = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+    const weekendSet = ["Saturday", "Sunday"];
 
-    const normalized = raw.map((r: any) => ({
-      id: typeof r.id === "number" ? r.id : Date.now(),
-      shift_group: r.shift_group ?? "",
-      shift_name: r.shift_name || "N/A",
-      start_time: r.start_time || "N/A",
-      end_time: r.end_time || "N/A",
-      break_minutes:
-        typeof r.break_minutes === "number" ? r.break_minutes : "N/A",
-      total_hours:
-        typeof r.total_hours === "number" ? r.total_hours : "N/A",
-      shift_type: r.shift_type || "N/A",
-      days: Array.isArray(r.days) ? r.days : [],
-      campuses: Array.isArray(r.campuses) ? r.campuses : [],
-    }))
+    let label = "";
+    const hasWeekday = days.some(d => weekdaySet.includes(d));
+    const hasWeekend = days.some(d => weekendSet.includes(d));
 
-    setRows(normalized)
-  }, [data?.shiftConfig])
+    if (hasWeekday && !hasWeekend) label = "Weekday";
+    else if (hasWeekend && !hasWeekday) label = "Weekend";
+    else label = "Mixed";
+
+    const formatTime = (t: string) => {
+      if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(t)) return "";
+      let [h, m] = t.split(":").map(Number);
+      const suffix = h >= 12 ? "P" : "A";
+      h = h % 12 === 0 ? 12 : h % 12;
+      return `${h}${suffix}`;
+    };
+
+    const startLabel = formatTime(start);
+    const endLabel = formatTime(end);
+
+    let full = `${label} ${startLabel}-${endLabel}`;
+
+    // BREAK LOGIC
+    if (breakMinutes === 0) {
+      full += " No Lunch";
+    } else if (typeof breakMinutes === "number" && breakMinutes > 0) {
+      if (breakMinutes < 60) {
+        full += ` (Lunch: ${breakMinutes}m)`;
+      } else {
+        const hours = (breakMinutes / 60).toFixed(1).replace(".0", "");
+        full += ` (Lunch: ${hours}h)`;
+      }
+    }
+
+    return full.trim();
+  };
+
+
+    // -------------------------
+    // LOAD EXISTING (normalize)
+    // -------------------------
+    useEffect(() => {
+      const raw = Array.isArray(data?.shiftConfig) ? data.shiftConfig : []
+
+      if (raw.length === 0) return
+
+      const normalized = raw.map((r: any) => ({
+        id: typeof r.id === "number" ? r.id : Date.now(),
+        shift_group: r.shift_group ?? "",
+        shift_name: r.shift_name || "N/A",
+        start_time: r.start_time || "N/A",
+        end_time: r.end_time || "N/A",
+        break_minutes:
+          typeof r.break_minutes === "number" ? r.break_minutes : "N/A",
+        total_hours:
+          typeof r.total_hours === "number" ? r.total_hours : "N/A",
+        shift_type: r.shift_type || "N/A",
+        days: Array.isArray(r.days) ? r.days : [],
+        campuses: Array.isArray(r.campuses) ? r.campuses : [],
+      }))
+
+      setRows(normalized)
+    }, [data?.shiftConfig])
 
   // -------------------------
   // TIME HELPERS
   // -------------------------
-  const isValidTime = (value: string) =>
-    /^([01]\d|2[0-3]):([0-5]\d)$/.test(value)
+    const isValidTime = (value: string) => /^([01]\d|2[0-3]):([0-5]\d)$/.test(value)
 
-  const calculateHours = (start: string, end: string, breakMinutes: number) => {
-    if (!isValidTime(start) || !isValidTime(end)) return "N/A"
+    const calculateHours = (start: string, end: string, breakMinutes: number) => {
+      if (!isValidTime(start) || !isValidTime(end)) return "N/A"
 
-    const [sH, sM] = start.split(":").map(Number)
-    const [eH, eM] = end.split(":").map(Number)
+      const [sH, sM] = start.split(":").map(Number)
+      const [eH, eM] = end.split(":").map(Number)
 
-    const s = new Date(0, 0, 0, sH, sM)
-    const e = new Date(0, 0, 0, eH, eM)
+      const s = new Date(0, 0, 0, sH, sM)
+      const e = new Date(0, 0, 0, eH, eM)
 
-    let diff = (e.getTime() - s.getTime()) / (1000 * 60 * 60)
-    if (diff < 0) diff += 24
+      let diff = (e.getTime() - s.getTime()) / (1000 * 60 * 60)
+      if (diff < 0) diff += 24
 
-    diff -= breakMinutes / 60
-    if (diff < 0) diff = 0
+      diff -= breakMinutes / 60
+      if (diff < 0) diff = 0
 
-    return Number(diff.toFixed(2))
-  }
-
-  const recalcRow = (row: ShiftRow): ShiftRow => {
-    if (
-      row.start_time === "N/A" ||
-      row.end_time === "N/A" ||
-      row.break_minutes === "N/A"
-    ) {
-      return { ...row, total_hours: "N/A" }
+      return Number(diff.toFixed(2))
     }
 
-    return {
-      ...row,
-      total_hours: calculateHours(
-        row.start_time,
-        row.end_time,
-        Number(row.break_minutes)
-      ),
+    const recalcRow = (row: ShiftRow): ShiftRow => {
+      if (
+        row.start_time === "N/A" ||
+        row.end_time === "N/A" ||
+        row.break_minutes === "N/A"
+      ) {
+        return { ...row, total_hours: "N/A" }
+      }
+
+      return {
+        ...row,
+        total_hours: calculateHours(
+          row.start_time,
+          row.end_time,
+          Number(row.break_minutes)
+        ),
+      }
     }
-  }
 
   // -------------------------
   // UPDATE FIELD (TS SAFE)
@@ -144,30 +194,31 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
 
         let newRow = { ...row }
 
-        // Shift group logic gates the entire row
+        // -------------------------
+        // SHIFT GROUP GATES THE ROW
+        // -------------------------
         if (field === "shift_group") {
-          newRow.shift_group = value
+          newRow.shift_group = value;
 
           if (!value) {
-            // lock everything
-            newRow.shift_name = "N/A"
-            newRow.start_time = "N/A"
-            newRow.end_time = "N/A"
-            newRow.break_minutes = "N/A"
-            newRow.total_hours = "N/A"
-            newRow.shift_type = "N/A"
-            newRow.days = []
-            newRow.campuses = []
-            return newRow
+            newRow.shift_name = "N/A";
+            newRow.start_time = "N/A";
+            newRow.end_time = "N/A";
+            newRow.break_minutes = "N/A";
+            newRow.total_hours = "N/A";
+            newRow.shift_type = "N/A";
+            newRow.days = [];
+            newRow.campuses = [];
+            return newRow;
           }
 
-          // unlock fields when group defined
-          if (newRow.shift_name === "N/A") newRow.shift_name = ""
-          if (newRow.start_time === "N/A") newRow.start_time = ""
-          if (newRow.end_time === "N/A") newRow.end_time = ""
-          if (newRow.break_minutes === "N/A") newRow.break_minutes = 0
-          if (newRow.shift_type === "N/A") newRow.shift_type = ""
+          if (newRow.shift_name === "N/A") newRow.shift_name = "";
+          if (newRow.start_time === "N/A") newRow.start_time = "";
+          if (newRow.end_time === "N/A") newRow.end_time = "";
+          if (newRow.break_minutes === "N/A") newRow.break_minutes = 0;
+          if (newRow.shift_type === "N/A") newRow.shift_type = "";
         }
+
 
         // TS SAFE field updates
         switch (field) {
@@ -198,8 +249,35 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
             break
         }
 
-        return recalc ? recalcRow(newRow) : newRow
-      })
+        // -------------------------
+        // AUTO-BUILD SHIFT NAME
+        // -------------------------
+        if (
+          field === "start_time" ||
+          field === "end_time" ||
+          field === "break_minutes" ||
+          field === "days"
+        ) {
+          if (
+            newRow.start_time !== "N/A" &&
+            newRow.end_time !== "N/A" &&
+            newRow.break_minutes !== "N/A" &&
+            newRow.days.length > 0
+          ) {
+            newRow.shift_name = buildShiftName(
+              newRow.days,
+              newRow.start_time,
+              newRow.end_time,
+              newRow.break_minutes
+            );
+          }
+        }
+
+        // -------------------------
+        // RECALC HOURS
+        // -------------------------
+        return recalc ? recalcRow(newRow) : newRow;
+      });
 
       debouncedSave(updated)
       return updated
