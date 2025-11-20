@@ -1069,32 +1069,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
               </div>
 
               <div>
-                <p className="font-semibold">Full Name</p>
-                {drawerMode === "edit" ? (
-                  <div className="flex gap-2">
-                    <Input
-                      id={`first_name_${drawerRow.id || "new"}`}
-                      placeholder="First name"
-                      value={drawerRow.first_name}
-                      onChange={(e) =>
-                        updateDrawerField("first_name", e.target.value)
-                      }
-                    />
-                    <Input
-                      id={`last_name_${drawerRow.id || "new"}`}
-                      placeholder="Last name"
-                      value={drawerRow.last_name}
-                      onChange={(e) =>
-                        updateDrawerField("last_name", e.target.value)
-                      }
-                    />
-                  </div>
-                ) : (
-                  <p>{formatFullName(drawerRow)}</p>
-                )}
-              </div>
-
-              <div>
                 <p className="font-semibold">Primary Cost Center ID</p>
                 {drawerMode === "edit" ? (
                   <Input
@@ -1106,21 +1080,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                   />
                 ) : (
                   <p>{drawerRow.primary_cost_center_id || "—"}</p>
-                )}
-              </div>
-
-              <div>
-                <p className="font-semibold">Primary Cost Center Name</p>
-                {drawerMode === "edit" ? (
-                  <Input
-                    id={`cost_center_name_${drawerRow.id || "new"}`}
-                    value={drawerRow.cost_center_name || ""}
-                    onChange={(e) =>
-                      updateDrawerField("cost_center_name", e.target.value)
-                    }
-                  />
-                ) : (
-                  <p>{drawerRow.cost_center_name || "—"}</p>
                 )}
               </div>
 
