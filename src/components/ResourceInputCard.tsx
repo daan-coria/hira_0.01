@@ -881,6 +881,164 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
             </div>
 
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-2 text-sm text-gray-700">
+
+              {/* ====== MAIN TABLE FIELDS (Top of Drawer) ====== */}
+
+              <div>
+                <p className="font-semibold">Cost Center Name</p>
+                {drawerMode === "edit" ? (
+                  <Input
+                    id={`drawer_cost_center_${drawerRow.id || "new"}`}
+                    value={drawerRow.cost_center_name || ""}
+                    onChange={(e) =>
+                      updateDrawerField("cost_center_name", e.target.value)
+                    }
+                  />
+                ) : (
+                  <p>{drawerRow.cost_center_name || "—"}</p>
+                )}
+              </div>
+
+              <div>
+                <p className="font-semibold">Employee ID</p>
+                {drawerMode === "edit" ? (
+                  <Input
+                    id={`drawer_employee_id_${drawerRow.id || "new"}`}
+                    value={drawerRow.employee_id || ""}
+                    onChange={(e) =>
+                      updateDrawerField("employee_id", e.target.value)
+                    }
+                  />
+                ) : (
+                  <p>{drawerRow.employee_id || "—"}</p>
+                )}
+              </div>
+
+              <div>
+                <p className="font-semibold">Full Name</p>
+                {drawerMode === "edit" ? (
+                  <div className="flex gap-2">
+                    <Input
+                      id={`drawer_first_name_${drawerRow.id || "new"}`}
+                      placeholder="First name"
+                      value={drawerRow.first_name}
+                      onChange={(e) => updateDrawerField("first_name", e.target.value)}
+                    />
+                    <Input
+                      id={`drawer_last_name_${drawerRow.id || "new"}`}
+                      placeholder="Last name"
+                      value={drawerRow.last_name}
+                      onChange={(e) => updateDrawerField("last_name", e.target.value)}
+                    />
+                  </div>
+                ) : (
+                  <p>{`${drawerRow.first_name} ${drawerRow.last_name}`.trim() || "—"}</p>
+                )}
+              </div>
+
+              <div>
+                <p className="font-semibold">Job Name</p>
+                {drawerMode === "edit" ? (
+                  <Select
+                    value={drawerRow.job_name || drawerRow.position}
+                    onChange={(e) => updateDrawerField("job_name", e.target.value)}
+                  >
+                    <option value="">-- Select --</option>
+                    {jobNames.map((j) => (
+                      <option key={j} value={j}>
+                        {j}
+                      </option>
+                    ))}
+                  </Select>
+                ) : (
+                  <p>{drawerRow.job_name || drawerRow.position || "—"}</p>
+                )}
+              </div>
+
+              <div>
+                <p className="font-semibold">Unit FTE</p>
+                {drawerMode === "edit" ? (
+                  <Input
+                    id={`drawer_unit_fte_${drawerRow.id || "new"}`}
+                    type="number"
+                    min={0}
+                    step={0.1}
+                    value={drawerRow.unit_fte}
+                    onChange={(e) =>
+                      updateDrawerField("unit_fte", Number(e.target.value))
+                    }
+                  />
+                ) : (
+                  <p>{drawerRow.unit_fte}</p>
+                )}
+              </div>
+
+              <div>
+                <p className="font-semibold">Shift Group</p>
+                {drawerMode === "edit" ? (
+                  <Select
+                    value={drawerRow.shift_group || drawerRow.shift}
+                    onChange={(e) => updateDrawerField("shift_group", e.target.value)}
+                  >
+                    <option value="">-- Select --</option>
+                    {getFilteredShifts(drawerRow.position || "").map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))}
+                  </Select>
+                ) : (
+                  <p>{drawerRow.shift_group || drawerRow.shift || "—"}</p>
+                )}
+              </div>
+
+              <div>
+                <p className="font-semibold">Weekend Group</p>
+                {drawerMode === "edit" ? (
+                  <Select
+                    value={drawerRow.weekend_group}
+                    onChange={(e) => updateDrawerField("weekend_group", e.target.value)}
+                  >
+                    <option value="">-- Select --</option>
+                    {weekendGroupList.map((g) => (
+                      <option key={g} value={g}>
+                        {g}
+                      </option>
+                    ))}
+                  </Select>
+                ) : (
+                  <p>{drawerRow.weekend_group || "—"}</p>
+                )}
+              </div>
+
+              <div>
+                <p className="font-semibold">Start Date</p>
+                {drawerMode === "edit" ? (
+                  <Input
+                    id={`drawer_start_date_${drawerRow.id || "new"}`}
+                    type="date"
+                    value={drawerRow.start_date || ""}
+                    onChange={(e) => updateDrawerField("start_date", e.target.value)}
+                  />
+                ) : (
+                  <p>{drawerRow.start_date || "—"}</p>
+                )}
+              </div>
+
+              <div>
+                <p className="font-semibold">End Date</p>
+                {drawerMode === "edit" ? (
+                  <Input
+                    id={`drawer_end_date_${drawerRow.id || "new"}`}
+                    type="date"
+                    value={drawerRow.end_date || ""}
+                    onChange={(e) => updateDrawerField("end_date", e.target.value)}
+                  />
+                ) : (
+                  <p>{drawerRow.end_date || "—"}</p>
+                )}
+              </div>
+
               {/* Schedule IDs */}
               <div>
                 <p className="font-semibold">Schedule System ID</p>
