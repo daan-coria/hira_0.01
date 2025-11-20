@@ -69,20 +69,37 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
   ) => {
     if (!days || days.length === 0) return "";
 
+    // If exactly 1 day → show that day name
+    if (days.length === 1) {
+      return buildFinalShiftLabel(days[0], start, end, breakMinutes);
+    }
+
     const weekdaySet = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
     const weekendSet = ["Saturday", "Sunday"];
 
-    let label = "";
     const hasWeekday = days.some(d => weekdaySet.includes(d));
     const hasWeekend = days.some(d => weekendSet.includes(d));
 
+    let label = "";
     if (hasWeekday && !hasWeekend) label = "Weekday";
     else if (hasWeekend && !hasWeekday) label = "Weekend";
     else label = "Mixed";
 
+    return buildFinalShiftLabel(label, start, end, breakMinutes);
+  };
+
+  // -------------------------
+  // FINAL LABEL BUILDER
+  // -------------------------
+  const buildFinalShiftLabel = (
+    label: string,
+    start: string,
+    end: string,
+    breakMinutes: number | "N/A"
+  ) => {
     const formatTime = (t: string) => {
       if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(t)) return "";
-      let [h, m] = t.split(":").map(Number);
+      let [h] = t.split(":").map(Number);
       const suffix = h >= 12 ? "P" : "A";
       h = h % 12 === 0 ? 12 : h % 12;
       return `${h}${suffix}`;
@@ -107,6 +124,7 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
 
     return full.trim();
   };
+
 
 
     // -------------------------
@@ -511,7 +529,11 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                       onChange={e =>
                         updateRowField(row.id, "shift_name", e.target.value)
                       }
-                      className="!m-0 !p-1"
+                      className="!m-0 !p-1 w-64"
+                      style={{
+                        fontSize: "13px",
+                        whiteSpace: "normal",
+                      }}
                     />
                   )}
                 </td>
@@ -523,8 +545,9 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                   ) : (
                     <Input
                       id=""
+                      type="time"
+                      step="60"     // 1-minute increments, or change to 900 for 15-minute
                       value={row.start_time}
-                      placeholder="07:00"
                       onChange={e =>
                         updateRowField(
                           row.id,
@@ -533,7 +556,8 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                           true
                         )
                       }
-                      className="!m-0 !p-1 w-20"
+                      className="!m-0 !p-1 w-28"
+                      style={{ fontSize: "13px" }}
                     />
                   )}
                 </td>
@@ -545,8 +569,9 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                   ) : (
                     <Input
                       id=""
+                      type="time"
+                      step="60"
                       value={row.end_time}
-                      placeholder="19:00"
                       onChange={e =>
                         updateRowField(
                           row.id,
@@ -555,7 +580,8 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                           true
                         )
                       }
-                      className="!m-0 !p-1 w-20"
+                      className="!m-0 !p-1 w-28"
+                      style={{ fontSize: "13px" }}
                     />
                   )}
                 </td>
