@@ -1,4 +1,3 @@
-// src/components/AvailabilityDrawer.tsx
 import { useEffect, useState } from "react"
 import { DatePickerInput } from "@mantine/dates"
 import "@mantine/dates/styles.css"

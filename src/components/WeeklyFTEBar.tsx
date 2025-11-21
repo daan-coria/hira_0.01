@@ -1,17 +1,22 @@
 import dayjs from "dayjs"
-import { AvailabilityEntry, computeWeeklyFTE } from "@/utils/useAvailabilityCalculator"
+import {
+    AvailabilityEntry,
+    computeWeeklyFTE,
+    } from "@/utils/useAvailabilityCalculator"
 
-type WeeklyFTEBarProps = {
+    type WeeklyFTEBarProps = {
     baseFTE: number
     availability?: AvailabilityEntry[]
     onWeekClick?: (weekStart: string) => void
-}
+    }
 
-export default function WeeklyFTEBar({
+    export default function WeeklyFTEBar({
     baseFTE,
     availability,
     onWeekClick,
-}: WeeklyFTEBarProps) {
+    }: WeeklyFTEBarProps) {
+    // If there is no availability data at all, we keep showing
+    // the "Edit Availability" button in the parent component.
     if (!availability || availability.length === 0) {
         return null
     }
@@ -25,18 +30,22 @@ export default function WeeklyFTEBar({
     return (
         <div className="flex gap-2 overflow-x-auto py-1 whitespace-nowrap max-w-full">
         {weeklyPoints.map((point) => {
-            const tooltip =
-            point.reasons.length === 0
-                ? ""
-                : point.reasons
-                    .map((r) => {
-                    const range =
-                        r.end && r.end.trim()
-                        ? `${r.start} — ${r.end}`
-                        : `${r.start} — Ongoing`
-                    return `${r.type}: ${range}`
-                    })
-                    .join("\n")
+            // Build tooltip text using reasons returned by computeWeeklyFTE
+            let tooltip: string
+
+            if (!point.reasons || point.reasons.length === 0) {
+            tooltip = `Base FTE: ${baseFTE}\nNo availability adjustments this week`
+            } else {
+            tooltip = point.reasons
+                .map((r) => {
+                const range =
+                    r.end && r.end.trim()
+                    ? `${r.start} — ${r.end}`
+                    : `${r.start} — Ongoing`
+                return `${r.type}: ${range}`
+                })
+                .join("\n")
+            }
 
             return (
             <button
@@ -55,4 +64,4 @@ export default function WeeklyFTEBar({
         })}
         </div>
     )
-}
+    }
