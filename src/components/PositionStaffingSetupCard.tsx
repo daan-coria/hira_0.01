@@ -50,7 +50,7 @@ export default function PositionStaffingSetupCard() {
     <Card className="mt-4">
       {/* Header */}
       <h2 className="text-sm font-semibold mb-4">
-        (6) Staffing Needs (ADMIN)
+        Staffing Needs
       </h2>
 
       {/* Column headers */}
