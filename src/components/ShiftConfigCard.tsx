@@ -146,9 +146,9 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
   // LOAD EXISTING (normalize)
   // -------------------------
     useEffect(() => {
-      const raw = Array.isArray(data?.shiftConfig) ? data.shiftConfig : []
+      const raw = Array.isArray(data?.shiftConfig) ? data.shiftConfig : [];
 
-      if (raw.length === 0) {
+      if (raw.length === 3) {
         const starterRows: ShiftRow[] = Array.from({ length: 3 }).map(() => ({
           id: Date.now() + Math.random(),
           shift_group: "",
@@ -180,10 +180,10 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
         shift_type: r.shift_type || "N/A",
         days: Array.isArray(r.days) ? r.days : [],
         campuses: Array.isArray(r.campuses) ? r.campuses : [],
-      }))
+      }));
 
-      setRows(normalized)
-    }, [data?.shiftConfig])
+      setRows(normalized);
+    }, [data?.shiftConfig]);
 
   // -------------------------
   // TIME HELPERS
