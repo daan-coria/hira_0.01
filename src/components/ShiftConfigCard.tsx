@@ -69,24 +69,41 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
   ) => {
     if (!days || days.length === 0) return "";
 
-    // If exactly 1 day → show that day name
-    if (days.length === 1) {
-      return buildFinalShiftLabel(days[0], start, end, breakMinutes);
-    }
-
     const weekdaySet = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
     const weekendSet = ["Saturday", "Sunday"];
 
     const hasWeekday = days.some(d => weekdaySet.includes(d));
     const hasWeekend = days.some(d => weekendSet.includes(d));
 
-    let label = "";
-    if (hasWeekday && !hasWeekend) label = "Weekday";
-    else if (hasWeekend && !hasWeekday) label = "Weekend";
-    else label = "Mixed";
+    // A. If exactly 1 day → show that day
+    if (days.length === 1) {
+      return buildFinalShiftLabel(days[0], start, end, breakMinutes);
+    }
 
-    return buildFinalShiftLabel(label, start, end, breakMinutes);
-  };
+    // B. If all 5 weekdays → "Weekday"
+    if (
+      days.length === 5 &&
+      weekdaySet.every(d => days.includes(d))
+    ) {
+      return buildFinalShiftLabel("Weekday", start, end, breakMinutes);
+    }
+
+    // C. If Saturday + Sunday → "Weekend"
+    if (
+      days.length === 2 &&
+      weekendSet.every(d => days.includes(d))
+    ) {
+      return buildFinalShiftLabel("Weekend", start, end, breakMinutes);
+    }
+
+    // D. If multiple days but NOT all weekday or all weekend → list them
+    if (days.length > 1 && (!hasWeekday || !hasWeekend)) {
+      return buildFinalShiftLabel(days.join(", "), start, end, breakMinutes);
+    }
+
+    // E. Mixed weekday + weekend
+    return buildFinalShiftLabel("Mixed", start, end, breakMinutes);
+    };
 
   // -------------------------
   // FINAL LABEL BUILDER
@@ -125,11 +142,9 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
     return full.trim();
   };
 
-
-
-    // -------------------------
-    // LOAD EXISTING (normalize)
-    // -------------------------
+  // -------------------------
+  // LOAD EXISTING (normalize)
+  // -------------------------
     useEffect(() => {
       const raw = Array.isArray(data?.shiftConfig) ? data.shiftConfig : []
 
@@ -198,19 +213,26 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
   // -------------------------
   // UPDATE FIELD (TS SAFE)
   // -------------------------
+
+  const defaultShiftByGroup: Record<string, { start: string; end: string; break: number }> = {
+    Day: { start: "07:00", end: "19:00", break: 0 },
+    Evening: { start: "15:00", end: "23:00", break: 0 },
+    Night: { start: "19:00", end: "07:00", break: 0 },
+  };
+
   const updateRowField = (
     id: number,
     field: keyof ShiftRow,
     value: any,
     recalc: boolean = false
   ) => {
-    setSaving(true)
+    setSaving(true);
 
     setRows(prev => {
       const updated = prev.map(row => {
-        if (row.id !== id) return row
+        if (row.id !== id) return row;
 
-        let newRow = { ...row }
+        let newRow = { ...row };
 
         // -------------------------
         // SHIFT GROUP GATES THE ROW
@@ -218,6 +240,7 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
         if (field === "shift_group") {
           newRow.shift_group = value;
 
+          // If user clears the group → lock the row
           if (!value) {
             newRow.shift_name = "N/A";
             newRow.start_time = "N/A";
@@ -230,41 +253,58 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
             return newRow;
           }
 
-          if (newRow.shift_name === "N/A") newRow.shift_name = "";
-          if (newRow.start_time === "N/A") newRow.start_time = "";
-          if (newRow.end_time === "N/A") newRow.end_time = "";
-          if (newRow.break_minutes === "N/A") newRow.break_minutes = 0;
-          if (newRow.shift_type === "N/A") newRow.shift_type = "";
+          // Apply defaults for Day / Evening / Night
+          const preset = defaultShiftByGroup[value];
+          if (preset) {
+            newRow.start_time = preset.start;
+            newRow.end_time = preset.end;
+            newRow.break_minutes = preset.break;
+          }
+
+          // Name waits until days are selected
+          newRow.shift_name = "";
+
+          return newRow;
         }
 
+        // -------------------------
+        // UNLOCK FIELDS IF PREVIOUSLY "N/A"
+        // -------------------------
+        if (newRow.shift_name === "N/A") newRow.shift_name = "";
+        if (newRow.start_time === "N/A") newRow.start_time = "";
+        if (newRow.end_time === "N/A") newRow.end_time = "";
+        if (newRow.break_minutes === "N/A") newRow.break_minutes = 0;
+        if (newRow.shift_type === "N/A") newRow.shift_type = "";
 
-        // TS SAFE field updates
+        // -------------------------
+        // TS SAFE FIELD UPDATES
+        // -------------------------
         switch (field) {
           case "shift_name":
           case "start_time":
           case "end_time":
           case "shift_type":
-            newRow[field] = value
-            break
+            newRow[field] = value;
+            break;
 
           case "break_minutes":
-            newRow.break_minutes = value === "" ? 0 : Number(value)
-            break
+            newRow.break_minutes = value === "" ? 0 : Number(value);
+            break;
 
           case "days":
-            newRow.days = value
-            break
+            newRow.days = value;
+            break;
 
           case "campuses":
-            newRow.campuses = value
-            break
+            newRow.campuses = value;
+            break;
 
           case "total_hours":
-            newRow.total_hours = value
-            break
+            newRow.total_hours = value;
+            break;
 
           default:
-            break
+            break;
         }
 
         // -------------------------
@@ -276,18 +316,20 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
           field === "break_minutes" ||
           field === "days"
         ) {
-          if (
-            newRow.start_time !== "N/A" &&
-            newRow.end_time !== "N/A" &&
-            newRow.break_minutes !== "N/A" &&
-            newRow.days.length > 0
-          ) {
+          const hasStart = newRow.start_time && newRow.start_time !== "N/A";
+          const hasEnd = newRow.end_time && newRow.end_time !== "N/A";
+          const hasBreak = typeof newRow.break_minutes === "number";
+          const hasDays = newRow.days.length > 0;
+
+          if (hasStart && hasEnd && hasBreak && hasDays) {
             newRow.shift_name = buildShiftName(
               newRow.days,
               newRow.start_time,
               newRow.end_time,
               newRow.break_minutes
             );
+          } else {
+            newRow.shift_name = "";
           }
         }
 
@@ -297,10 +339,10 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
         return recalc ? recalcRow(newRow) : newRow;
       });
 
-      debouncedSave(updated)
-      return updated
-    })
-  }
+      debouncedSave(updated);
+      return updated;
+    });
+  };
 
   const updateRowDays = (id: number, days: string[]) => {
     updateRowField(id, "days", days)
