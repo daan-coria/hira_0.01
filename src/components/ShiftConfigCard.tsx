@@ -148,7 +148,24 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
     useEffect(() => {
       const raw = Array.isArray(data?.shiftConfig) ? data.shiftConfig : []
 
-      if (raw.length === 0) return
+      if (raw.length === 0) {
+        const starterRows: ShiftRow[] = Array.from({ length: 3 }).map(() => ({
+          id: Date.now() + Math.random(),
+          shift_group: "",
+          shift_name: "N/A",
+          start_time: "N/A",
+          end_time: "N/A",
+          break_minutes: "N/A",
+          total_hours: "N/A",
+          shift_type: "N/A",
+          days: [],
+          campuses: [],
+        }));
+
+        setRows(starterRows);
+        updateData("shiftConfig", starterRows);
+        return;
+      }
 
       const normalized = raw.map((r: any) => ({
         id: typeof r.id === "number" ? r.id : Date.now(),
