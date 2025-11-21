@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 
-// -------------------------------------------------------
+// ----------------------------------------
 // MOCK DATA
-// -------------------------------------------------------
+// ----------------------------------------
 const MOCK_UNITS = [
   { id: "5E-ICU", name: "5E ICU" },
   { id: "5W", name: "5W" },
@@ -21,9 +21,44 @@ const MOCK_SHIFTS = [
   { value: "shift4", label: "Weekday 7P-7A No Lunch" }
 ];
 
-// -------------------------------------------------------
+// For now, we use a constant census from your PDF example
+const MOCK_CENSUS = 25;
+
+
+// ----------------------------------------
+// CALCULATION LOGIC
+// ----------------------------------------
+function computeStaffing(row: any, census: number) {
+  const min = Number(row.min) || 0;
+  const threshold = Number(row.threshold) || 0;
+  const ratio = Number(row.ratio) || 0;
+  const maxRatio = Number(row.maxRatio) || 0;
+  const fixed = Number(row.fixed) || 0;
+
+  if (!ratio || !maxRatio) return "";
+
+  // Step 1: ratio-based
+  let ratioBased = census / ratio;
+
+  // Step 2: add fixed
+  let ratioPlusFixed = ratioBased + fixed;
+
+  // Step 3: max ratio cap
+  const maxAllowed = census / maxRatio;
+  let finalRatio = Math.max(ratioPlusFixed, maxAllowed);
+
+  // Step 4: minimum staffing
+  finalRatio = Math.max(finalRatio, min);
+
+  // Step 5: round up
+  return Math.ceil(finalRatio);
+}
+
+
+
+// ----------------------------------------
 // COMPONENT
-// -------------------------------------------------------
+// ----------------------------------------
 export default function PositionStaffingSetupCard() {
   const [rows, setRows] = useState(() =>
     MOCK_UNITS.map((u) => ({
@@ -46,15 +81,15 @@ export default function PositionStaffingSetupCard() {
     );
   };
 
+
   return (
     <Card className="mt-4">
-      {/* Header */}
       <h2 className="text-sm font-semibold mb-4">
-        Staffing Needs
+        (6) Staffing Needs (ADMIN)
       </h2>
 
       {/* Column headers */}
-      <div className="grid grid-cols-[auto,1.5fr,1.2fr,repeat(5,minmax(0,1fr)),1.4fr] gap-3 text-xs font-semibold text-gray-500 mb-2">
+      <div className="grid grid-cols-[auto,1.5fr,1.2fr,repeat(5,minmax(0,1fr)),1fr] gap-3 text-xs font-semibold text-gray-500 mb-2">
         <div />
         <div>Department Name</div>
         <div>Resource Type</div>
@@ -63,117 +98,91 @@ export default function PositionStaffingSetupCard() {
         <div>Ratio</div>
         <div>Max Ratio</div>
         <div>Fixed</div>
-        <div>Shift Name</div>
+        <div>Calculated Staff</div>
       </div>
 
       {/* Rows */}
       <div className="space-y-3">
-        {rows.map((row) => (
-          <div
-            key={row.id}
-            className="grid grid-cols-[auto,1.5fr,1.2fr,repeat(5,minmax(0,1fr)),1.4fr] gap-3 items-center text-sm"
-          >
-            {/* Checkbox */}
-            <div className="flex justify-center">
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-gray-300"
-                checked={row.active}
-                onChange={(e) =>
-                  updateRow(row.id, { active: e.target.checked })
-                }
-              />
-            </div>
+        {rows.map((row) => {
+          const calculated = computeStaffing(row, MOCK_CENSUS);
 
-            {/* Name */}
-            <div>{row.unitName}</div>
-
-            {/* Resource type radio */}
-            <div className="flex items-center gap-4">
-              {MOCK_RESOURCE_TYPES.map((rt) => (
-                <label
-                  key={rt}
-                  className="inline-flex items-center gap-1 text-gray-700"
-                >
-                  <input
-                    type="radio"
-                    className="h-4 w-4"
-                    checked={row.resourceType === rt}
-                    onChange={() =>
-                      updateRow(row.id, { resourceType: rt })
-                    }
-                  />
-                  <span className="text-xs">{rt}</span>
-                </label>
-              ))}
-            </div>
-
-            {/* Minimum Staffing */}
-            <Input
-              value={row.min}
-              id=""
-              onChange={(e) =>
-                updateRow(row.id, { min: e.target.value })
-              }
-              className="text-sm"
-            />
-
-            {/* Threshold */}
-            <Input
-              value={row.threshold}
-              id=""
-              onChange={(e) =>
-                updateRow(row.id, { threshold: e.target.value })
-              }
-              className="text-sm"
-            />
-
-            {/* Ratio */}
-            <Input
-              value={row.ratio}
-              id=""
-              onChange={(e) =>
-                updateRow(row.id, { ratio: e.target.value })
-              }
-              className="text-sm"
-            />
-
-            {/* Max Ratio */}
-            <Input
-              value={row.maxRatio}
-              id=""
-              onChange={(e) =>
-                updateRow(row.id, { maxRatio: e.target.value })
-              }
-              className="text-sm"
-            />
-
-            {/* Fixed */}
-            <Input
-              value={row.fixed}
-              id=""
-              onChange={(e) =>
-                updateRow(row.id, { fixed: e.target.value })
-              }
-              className="text-sm"
-            />
-
-            {/* Shift */}
-            <Select
-              value={row.shift}
-              onChange={(e) =>
-                updateRow(row.id, { shift: e.target.value })
-              }
-              className="text-sm"
+          return (
+            <div
+              key={row.id}
+              className="grid grid-cols-[auto,1.5fr,1.2fr,repeat(5,minmax(0,1fr)),1fr] gap-3 items-center text-sm"
             >
-              {MOCK_SHIFTS.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </Select>
-          </div>
-        ))}
+              {/* Checkbox */}
+              <div className="flex justify-center">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={row.active}
+                  onChange={(e) =>
+                    updateRow(row.id, { active: e.target.checked })
+                  }
+                />
+              </div>
+
+              {/* Unit Name */}
+              <div>{row.unitName}</div>
+
+              {/* Resource Type */}
+              <div className="flex items-center gap-4">
+                {MOCK_RESOURCE_TYPES.map((rt) => (
+                  <label key={rt} className="inline-flex items-center gap-1">
+                    <input
+                      type="radio"
+                      className="h-4 w-4"
+                      checked={row.resourceType === rt}
+                      onChange={() => updateRow(row.id, { resourceType: rt })}
+                    />
+                    <span className="text-xs">{rt}</span>
+                  </label>
+                ))}
+              </div>
+
+              {/* Minimum */}
+              <Input
+                value={row.min}
+                id=""
+                onChange={(e) => updateRow(row.id, { min: e.target.value })}
+              />
+
+              {/* Threshold */}
+              <Input
+                value={row.threshold}
+                id=""
+                onChange={(e) => updateRow(row.id, { threshold: e.target.value })}
+              />
+
+              {/* Ratio */}
+              <Input
+                value={row.ratio}
+                id=""
+                onChange={(e) => updateRow(row.id, { ratio: e.target.value })}
+              />
+
+              {/* Max Ratio */}
+              <Input
+                id=""
+                value={row.maxRatio}
+                onChange={(e) => updateRow(row.id, { maxRatio: e.target.value })}
+              />
+
+              {/* Fixed */}
+              <Input
+                id=""
+                value={row.fixed}
+                onChange={(e) => updateRow(row.id, { fixed: e.target.value })}
+              />
+
+              {/* Calculated */}
+              <div className="text-center font-semibold text-brand-600">
+                {calculated || "-"}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </Card>
   );
