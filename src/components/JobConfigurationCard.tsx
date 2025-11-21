@@ -232,7 +232,7 @@ export default function JobConfigurationCard(
   return (
     <div className="p-4 space-y-4">
       <h1 className="text-xl font-semibold">
-        (4) Job Configuration <span className="text-sm text-gray-500">(Admin)</span>
+        Job Configuration
       </h1>
 
       <Card className="space-y-4">
