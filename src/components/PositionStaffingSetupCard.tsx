@@ -85,7 +85,7 @@ export default function PositionStaffingSetupCard() {
   return (
     <Card className="mt-4">
       <h2 className="text-sm font-semibold mb-4">
-        (6) Staffing Needs (ADMIN)
+        Staffing Needs
       </h2>
 
       {/* Column headers */}
