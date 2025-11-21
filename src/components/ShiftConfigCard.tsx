@@ -45,7 +45,7 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
   ]
 
   const campusOptions = ["Lansing", "Bay", "Flint"]
-  const shiftGroupSuggestions = ["Day", "Evening", "Night", "Weekend", "Weekday"]
+  const shiftGroupSuggestions = ["Day", "Evening", "Night"]
 
   // -------------------------
   // DEBOUNCED SAVE
