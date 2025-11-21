@@ -261,8 +261,18 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
             newRow.break_minutes = preset.break;
           }
 
-          // Name waits until days are selected
-          newRow.shift_name = "";
+          // If days already selected, build name immediately
+          if (newRow.days.length > 0) {
+            newRow.shift_name = buildShiftName(
+              newRow.days,
+              newRow.start_time,
+              newRow.end_time,
+              newRow.break_minutes
+            );
+          } else {
+            // Otherwise, name waits until days are chosen
+            newRow.shift_name = "";
+          }
 
           return newRow;
         }
