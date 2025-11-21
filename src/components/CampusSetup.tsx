@@ -250,11 +250,11 @@ function FacilityRowItem({
         ☰
       </td>
 
-      {/* Cost Center Key */}
+      {/* Cost Center/Department Key */}
       <td className="px-3 py-2 align-middle">
         <Input
           id={`costCenterKey-${row.id}`}
-          aria-label="Cost Center Key"
+          aria-label="Department Key"
           value={row.costCenterKey}
           onChange={(e) =>
             onUpdateRow(row.id, { costCenterKey: e.target.value })
@@ -263,11 +263,11 @@ function FacilityRowItem({
         />
       </td>
 
-      {/* Cost Center Name */}
+      {/* Cost Center/Department Name */}
       <td className="px-3 py-2 align-middle">
         <Input
           id={`costCenterName-${row.id}`}
-          aria-label="Cost Center Name"
+          aria-label="Department Name"
           value={row.costCenterName}
           onChange={(e) =>
             onUpdateRow(row.id, { costCenterName: e.target.value })
@@ -516,9 +516,12 @@ export default function CampusSetup() {
   // TABLE FILTERS
   // -----------------------
 
-  const [filterUnitGroup, setFilterUnitGroup] = useState("");
-  const [filterFloatPool, setFilterFloatPool] = useState("");
-  const [showMissing, setShowMissing] = useState(false);
+  const 
+    [filterUnitGroup, setFilterUnitGroup] = useState("");
+  const 
+    [filterFloatPool, setFilterFloatPool] = useState("");
+  const 
+    [showMissing, setShowMissing] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const saveTimeoutRef = useRef<number | null>(null);
@@ -537,8 +540,8 @@ export default function CampusSetup() {
   // -----------------------
   const handleExportCSV = () => {
     const headers = [
-      "Cost Center Key",
-      "Cost Center Name",
+      "Department Key",
+      "Department Name",
       "Campus",
       "Functional Area",
       "Unit Grouping",
@@ -582,8 +585,8 @@ export default function CampusSetup() {
   // -----------------------
   const handleExportExcel = () => {
     const exportRows = rows.map((r) => ({
-      "Cost Center Key": r.costCenterKey,
-      "Cost Center Name": r.costCenterName,
+      "Department Key": r.costCenterKey,
+      "Department Name": r.costCenterName,
       Campus: r.campus,
       "Functional Area": r.functionalArea,
       "Unit Grouping": r.unitGrouping,
@@ -994,7 +997,7 @@ export default function CampusSetup() {
             onClick={addRow}
           >
             <Plus className="w-4 h-4" />
-            Add Cost Center
+            Add Department
           </Button>
         </div>
       </div>
@@ -1057,8 +1060,8 @@ export default function CampusSetup() {
               <thead>
                 <tr className="bg-gray-50 text-xs font-semibold text-gray-600">
                   <th className="w-8 px-2 py-2" />
-                  <th className="px-3 py-2 text-left">Cost Center Key</th>
-                  <th className="px-3 py-2 text-left">Cost Center Name</th>
+                  <th className="px-3 py-2 text-left">Department Key</th>
+                  <th className="px-3 py-2 text-left">Department Name</th>
                   <th className="px-3 py-2 text-left">Campus</th>
                   <th className="px-3 py-2 text-left">Functional Area</th>
                   <th className="px-3 py-2 text-left">Unit Grouping</th>
@@ -1095,8 +1098,8 @@ export default function CampusSetup() {
                       colSpan={11}
                       className="px-3 py-6 text-center text-sm text-gray-400"
                     >
-                      No cost centers defined yet. Upload an Excel file or add a
-                      cost center manually.
+                      No departments defined yet. Upload an Excel file or add a
+                      department manually.
                     </td>
                   </tr>
                 )}
