@@ -270,16 +270,6 @@ export default function AvailabilityConfigCard({ onNext, onPrev }: Props) {
           </table>
         </div>
       )}
-
-      {/* Navigation */}
-      <div className="flex justify-between mt-6">
-        <Button variant="ghost" onClick={onPrev}>
-          ← Previous
-        </Button>
-        <Button variant="primary" onClick={onNext}>
-          Next →
-        </Button>
-      </div>
     </Card>
   )
 }

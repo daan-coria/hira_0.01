@@ -1,488 +1,328 @@
-import { useState, useEffect, useCallback } from "react"
-import { useApp } from "@/store/AppContext"
-import { toast } from "react-hot-toast"
-import Card from "@/components/ui/Card"
-import Button from "@/components/ui/Button"
-import Input from "@/components/ui/Input"
-import Select from "@/components/ui/Select"
-import debounce from "lodash.debounce"
+import {
+  useEffect,
+  useMemo,
+  useState,
+  ChangeEvent,
+} from "react";
+import { useApp } from "@/store/AppContext";
+import Card from "@/components/ui/Card";
+import Input from "@/components/ui/Input";
+import Select from "@/components/ui/Select";
 
-type Row = {
-  id?: number
-  role: string
-  category: string
-  type: "Variable" | "Fixed"
-  ratio: number | string
-  max_ratio: number | string
-  include_in_ratio: boolean
-  direct_care_percent: number
-  total_hours_per_week: number | string
-  weekend_rotation: number | ""
-  fte: number | string
-  budgeted_fte: number
-  filled_fte: number
-  open_fte: number
-}
+type StaffingRow = {
+  id: string;
+  unitName: string;
+  departmentName?: string;
+  active: boolean;
+  resourceType: "Nurse" | "NA/UC";
+  minStaffing: string;
+  minThreshold: string;
+  ratio: string;
+  maxRatio: string;
+  fixed: string;
+  shiftKey: string;
+};
 
-type Props = {
-  onNext?: () => void
-  onPrev?: () => void
-}
+type SnapshotShift = {
+  id?: string | number;
+  key?: string;
+  name?: string;
+  shift_name?: string;
+  display_name?: string;
+};
 
-export default function PositionStaffingSetupCard({ onNext, onPrev }: Props) {
-  const { state, updateData, data } = useApp()
-  const [rows, setRows] = useState<Row[]>([])
-  const categories =
-    data.categories && data.categories.length
-      ? data.categories
-      : ["Nursing", "Support", "Other"]
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+export default function PositionStaffingSetupCard() {
+  const { getFrontendSnapshot } = useApp();
 
-  const baseURL = `${window.location.origin}/mockdata`
+  // -------------------------
+  // Pull data from snapshot
+  // -------------------------
+  const snapshot: any = useMemo(
+    () => (typeof getFrontendSnapshot === "function" ? getFrontendSnapshot() : {}),
+    [getFrontendSnapshot]
+  );
 
-  // 🗂️ Fallback dataset
-  const fallbackData: Row[] = [
-    {
-      id: 1,
-      role: "RN",
-      category: "Nursing",
-      type: "Variable",
-      ratio: 4,
-      max_ratio: 5,
-      include_in_ratio: true,
-      direct_care_percent: 100,
-      fte: "N/A",
-      budgeted_fte: 10,
-      filled_fte: 8,
-      open_fte: 2,
-      total_hours_per_week: 40,
-      weekend_rotation: 1,
-    },
-    {
-      id: 2,
-      role: "LPN",
-      category: "Nursing",
-      type: "Variable",
-      ratio: 6,
-      max_ratio: 8,
-      include_in_ratio: true,
-      direct_care_percent: 80,
-      fte: "N/A",
-      budgeted_fte: 6,
-      filled_fte: 5,
-      open_fte: 1,
-      total_hours_per_week: 40,
-      weekend_rotation: 2,
-    },
-    {
-      id: 3,
-      role: "CNA",
-      category: "Support",
-      type: "Variable",
-      ratio: 8,
-      max_ratio: 10,
-      include_in_ratio: true,
-      direct_care_percent: 90,
-      fte: "N/A",
-      budgeted_fte: 12,
-      filled_fte: 11,
-      open_fte: 1,
-      total_hours_per_week: 40,
-      weekend_rotation: 3,
-    },
-    {
-      id: 4,
-      role: "Clerk",
-      category: "Other",
-      type: "Fixed",
-      ratio: "N/A",
-      max_ratio: "N/A",
-      include_in_ratio: false,
-      direct_care_percent: 0,
-      fte: 1,
-      budgeted_fte: 1,
-      filled_fte: 1,
-      open_fte: 0,
-      total_hours_per_week: 40,
-      weekend_rotation: "",
-    },
-  ]
+  const healthSystem = snapshot?.healthSystem ?? {};
+  const facilitySummary = snapshot?.facilitySummary ?? {};
+  const shifts: SnapshotShift[] = Array.isArray(snapshot?.shifts)
+    ? snapshot.shifts
+    : [];
 
-  // 🧭 Mappings between numeric code and backend label
-  const weekendLabels: Record<number, string> = {
-    1: "Every weekend",
-    2: "Every other weekend",
-    3: "Every third weekend",
-  }
+  // -------------------------
+  // Derive units (5E ICU, 5W, 6E, ...)
+  // -------------------------
+  const unitNames: string[] = useMemo(() => {
+    const rows: any[] =
+      facilitySummary?.rows ??
+      facilitySummary?.units ??
+      facilitySummary?.data ??
+      [];
 
-  // 🧩 Normalize incoming weekend values
-  function normalizeWeekend(val: any): number | "" {
-    if (!val) return ""
-    const text = val.toString().toLowerCase()
-    if (text.includes("every weekend") || text === "1") return 1
-    if (text.includes("every other weekend") || text === "2") return 2
-    if (text.includes("every third weekend") || text === "3") return 3
-    return ""
-  }
+    const names = rows
+      .map((r) => {
+        // Try several common keys; fall back to cost center name
+        return (
+          r.unitGrouping ||
+          r.unit_name ||
+          r.unit ||
+          r.departmentName ||
+          r.department ||
+          r.functionalArea ||
+          r.costCenterName ||
+          r.name ||
+          ""
+        );
+      })
+      .filter(Boolean);
 
-  // 💾 Debounced save with backend label mapping
-  const debouncedSave = useCallback(
-    debounce((updated: Row[]) => {
-      const withLabels = updated.map((r) => ({
-        ...r,
-        weekend_rotation:
-          weekendLabels[r.weekend_rotation as number] || "",
-      }))
-      setSaving(true)
-      updateData("staffingConfig", withLabels)
-      setTimeout(() => setSaving(false), 600)
-    }, 600),
-    [updateData]
-  )
+    return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b));
+  }, [facilitySummary]);
 
-  // 📥 Load mock data or fallback
+  // -------------------------
+  // Shift options from snapshot.shifts
+  // -------------------------
+  const shiftOptions = useMemo(
+    () =>
+      shifts.map((s) => {
+        const label =
+          s.display_name ||
+          s.shift_name ||
+          s.name ||
+          String(s.id ?? s.key ?? "Shift");
+        const value = String(s.id ?? s.key ?? label);
+        return { label, value };
+      }),
+    [shifts]
+  );
+
+  // -------------------------
+  // Initial rows: one per unit
+  // -------------------------
+  const [rows, setRows] = useState<StaffingRow[]>([]);
+
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true)
-        const res = await fetch(`${baseURL}/staffing-config.json`)
-        if (!res.ok) throw new Error("Missing staffing config, using fallback")
-        const data = await res.json()
-        const normalized = data.map((r: Row) => ({
-          ...r,
-          weekend_rotation: normalizeWeekend(r.weekend_rotation),
-        }))
-        setRows(normalized)
-        updateData("staffingConfig", normalized)
-      } catch {
-        console.warn("⚠️ Using fallback data")
-        setRows(fallbackData)
-        updateData("staffingConfig", fallbackData)
-        setError("Loaded fallback data.")
-      } finally {
-        setLoading(false)
-      }
+    if (!unitNames.length) {
+      setRows([]);
+      return;
     }
-    loadData()
-  }, [])
 
-  // 🔢 FTE calculation
-  const calcFTE = (row: Row): number => {
-    const facilityRows = (state.facilitySetup as any[]) || []
-    const bedCount =
-      typeof facilityRows[0]?.capacity === "number"
-        ? facilityRows[0].capacity
-        : 0
-    const ratio = typeof row.ratio === "number" ? row.ratio : 0
-    const carePct = row.direct_care_percent / 100
-    if (!ratio || ratio <= 0) return 0
-    return parseFloat(((bedCount / ratio) * carePct).toFixed(2))
-  }
+    setRows((prev) => {
+      // Keep any existing row editing state if unit already exists
+      const byId = new Map(prev.map((r) => [r.id, r]));
 
-  // ✏️ Handle change
-  const handleChange = (i: number, field: keyof Row, value: any) => {
-    const updated = rows.map((r, idx) => {
-      if (idx !== i) return r
-      const newRow = { ...r }
+      const next: StaffingRow[] = unitNames.map((unitName) => {
+        const id = unitName;
+        const existing = byId.get(id);
+        if (existing) return existing;
 
-      // 🛑 Prevent negatives
-      if (
-        ["ratio", "max_ratio", "fte", "budgeted_fte", "filled_fte", "open_fte"].includes(field)
-      ) {
-        if (Number(value) < 0) {
-          toast.error("Values cannot be negative")
-          return r
-        }
+        return {
+          id,
+          unitName,
+          departmentName: unitName,
+          active: false,
+          resourceType: "Nurse",
+          minStaffing: "",
+          minThreshold: "",
+          ratio: "",
+          maxRatio: "",
+          fixed: "",
+          shiftKey: shiftOptions[0]?.value ?? "",
+        };
+      });
+
+      return next;
+    });
+  }, [unitNames, shiftOptions]);
+
+  // -------------------------
+  // Handlers
+  // -------------------------
+  const updateRow = (id: string, patch: Partial<StaffingRow>) => {
+    setRows((prev) =>
+      prev.map((row) => (row.id === id ? { ...row, ...patch } : row))
+    );
+  };
+
+  const handleNumberChange =
+    (id: string, field: keyof StaffingRow) =>
+    (e: ChangeEvent<HTMLInputElement>) => {
+      const raw = e.target.value;
+      // Allow empty string or valid number string
+      if (raw === "" || /^-?\d*\.?\d*$/.test(raw)) {
+        updateRow(id, { [field]: raw } as Partial<StaffingRow>);
       }
+    };
 
-      // 🧮 Ratio logic
-      if (field === "ratio" && Number(value) > Number(r.max_ratio)) {
-        toast.error("Ratio cannot exceed Max Ratio")
-        return r
-      }
+  const handleShiftChange =
+    (id: string) => (e: ChangeEvent<HTMLSelectElement>) => {
+      updateRow(id, { shiftKey: e.target.value });
+    };
 
-      (newRow as Record<keyof Row, any>)[field] = value
+  // -------------------------
+  // Render
+  // -------------------------
 
-
-      // 🧱 Type logic
-      if (field === "type") {
-        if (value === "Fixed") {
-          newRow.ratio = "N/A"
-          newRow.max_ratio = "N/A"
-          newRow.fte = 1
-        } else {
-          newRow.ratio = 1
-          newRow.max_ratio = 1
-          newRow.fte = "N/A"
-        }
-      }
-
-      if (newRow.type === "Variable") newRow.fte = calcFTE(newRow)
-      if (["budgeted_fte", "filled_fte"].includes(field))
-        newRow.open_fte =
-          (newRow.budgeted_fte || 0) - (newRow.filled_fte || 0)
-
-      return newRow
-    })
-
-    setRows(updated)
-    debouncedSave(updated)
-  }
-
-  // ➕ Add, remove, clear
-  const addRow = () => {
-    const newRow: Row = {
-      id: Date.now(),
-      role: "",
-      category: "",
-      type: "Variable",
-      ratio: 1,
-      max_ratio: 1,
-      include_in_ratio: true,
-      direct_care_percent: 100,
-      total_hours_per_week: 40,
-      weekend_rotation: "",
-      fte: "N/A",
-      budgeted_fte: 0,
-      filled_fte: 0,
-      open_fte: 0,
-    }
-    const updated = [...rows, newRow]
-    setRows(updated)
-    debouncedSave(updated)
-  }
-
-  const handleCategoryChange = (i: number, value: string) => {
-    if (value === "__add_custom__") {
-      const newCat = prompt("Enter new category name:")
-      if (newCat && !categories.includes(newCat)) {
-        const updatedCats = [...categories, newCat]
-        updateData("categories", updatedCats)
-        handleChange(i, "category", newCat)
-      }
-    } else handleChange(i, "category", value)
-  }
-
-  const removeRow = (id?: number) => {
-    const updated = rows.filter((r) => r.id !== id)
-    setRows(updated)
-    debouncedSave(updated)
-  }
-
-  const clearAll = () => {
-    if (!window.confirm("Reset all roles to default?")) return
-    setRows(fallbackData)
-    updateData("staffingConfig", fallbackData)
+  if (!unitNames.length) {
+    return (
+      <Card className="mt-4">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-sm font-semibold text-gray-800">
+            (6) Staffing Needs (ADMIN)
+          </h2>
+        </div>
+        <p className="text-sm text-gray-500">
+          No units were found from Facility Setup. Once you’ve configured units,
+          they will appear here automatically.
+        </p>
+      </Card>
+    );
   }
 
   return (
-    <Card className="p-5 rounded-xl shadow-sm divide-y divide-gray-200">
+    <Card className="mt-4">
+      {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-800">
-          Position & Staffing Setup
-        </h3>
-        <div className="flex items-center gap-3">
-          {saving && <span className="text-sm text-gray-500">Saving…</span>}
-          <Button
-            variant="ghost"
-            onClick={clearAll}
-            className="text-sm text-red-600 border border-red-300 hover:bg-red-50"
-          >
-            Clear All
-          </Button>
-          <Button onClick={addRow}>+ Add Role</Button>
-        </div>
+        <h2 className="text-sm font-semibold text-gray-800">
+          (6) Staffing Needs (ADMIN)
+        </h2>
       </div>
 
-      {error && (
-        <p className="text-yellow-700 bg-yellow-50 px-3 py-1 rounded mb-2">
-          {error}
-        </p>
-      )}
+      {/* Column headers */}
+      <div className="grid grid-cols-[auto,1.5fr,1.2fr,repeat(5,minmax(0,1fr)),1.4fr] gap-3 text-xs font-semibold text-gray-500 mb-2">
+        <div />
+        <div>Department Name</div>
+        <div>Resource Type</div>
+        <div>Minimum Staffing</div>
+        <div>Minimum Staffing Threshold</div>
+        <div>Ratio</div>
+        <div>Max Ratio</div>
+        <div>Fixed</div>
+        <div>Shift Name</div>
+      </div>
 
-      {loading ? (
-        <p className="text-gray-500">Loading configuration...</p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm border border-gray-200 rounded-md">
-            <thead className="bg-gray-50 text-gray-700">
-              <tr>
-                <th className="px-3 py-2 border">Role</th>
-                <th className="px-3 py-2 border">Category</th>
-                <th className="px-3 py-2 border">Type</th>
-                <th className="px-3 py-2 border text-right">Ratio</th>
-                <th className="px-3 py-2 border text-right">Max Ratio</th>
-                <th className="px-3 py-2 border text-right">Direct Care %</th>
-                <th className="px-3 py-2 border text-center">Include</th>
-                <th className="px-3 py-2 border text-right">Hours/Week</th>
-                <th className="px-3 py-2 border text-right">Weekend Rotation</th>
-                <th className="px-3 py-2 border text-right">Head Count</th>
-                <th className="px-3 py-2 border text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, i) => (
-                <tr
-                  key={row.id || i}
-                  className={`${i % 2 === 0 ? "bg-white" : "bg-gray-50"} hover:bg-gray-100`}
-                >
-                  <td className="border px-2 py-1">
-                    <Input
-                      id={`role_${i}`}
-                      value={row.role}
-                      onChange={(e) => handleChange(i, "role", e.target.value)}
-                      className="!m-0 !p-1 w-full"
-                    />
-                  </td>
-                  <td className="border px-2 py-1">
-                    <Select
-                      id={`cat_${i}`}
-                      value={row.category}
-                      onChange={(e) => handleCategoryChange(i, e.target.value)}
-                      className="!m-0 !p-1 w-full"
-                    >
-                      <option value="">-- Select Category --</option>
-                      {categories.map((cat) => (
-                        <option key={cat} value={cat}>
-                          {cat}
-                        </option>
-                      ))}
-                      <option value="__add_custom__">+ Add Custom Category…</option>
-                    </Select>
-                  </td>
-                  <td className="border px-2 py-1">
-                    <Select
-                      id={`type_${i}`}
-                      value={row.type}
-                      onChange={(e) =>
-                        handleChange(i, "type", e.target.value as any)
-                      }
-                      className="!m-0 !p-1"
-                    >
-                      <option value="Variable">Variable</option>
-                      <option value="Fixed">Fixed</option>
-                    </Select>
-                  </td>
+      <div className="space-y-3">
+        {rows.map((row) => (
+          <div
+            key={row.id}
+            className="grid grid-cols-[auto,1.5fr,1.2fr,repeat(5,minmax(0,1fr)),1.4fr] gap-3 items-center text-sm"
+          >
+            {/* Active checkbox */}
+            <div className="flex justify-center">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-gray-300 text-brand-600"
+                checked={row.active}
+                onChange={(e) =>
+                  updateRow(row.id, { active: e.target.checked })
+                }
+              />
+            </div>
 
-                  {/* Ratio & Max Ratio */}
-                  <td className="border px-2 py-1 text-right">
-                    <Input
-                      id={`ratio_${i}`}
-                      type={row.type === "Fixed" ? "text" : "number"}
-                      value={row.type === "Fixed" ? "N/A" : row.ratio}
-                      disabled={row.type === "Fixed"}
-                      onChange={(e) => handleChange(i, "ratio", Number(e.target.value))}
-                      className="!m-0 !p-1 w-20 text-right"
-                    />
-                  </td>
-                  <td className="border px-2 py-1 text-right">
-                    <Input
-                      id={`maxratio_${i}`}
-                      type={row.type === "Fixed" ? "text" : "number"}
-                      value={row.type === "Fixed" ? "N/A" : row.max_ratio}
-                      disabled={row.type === "Fixed"}
-                      onChange={(e) => handleChange(i, "max_ratio", Number(e.target.value))}
-                      className="!m-0 !p-1 w-20 text-right"
-                    />
-                  </td>
+            {/* Department / Unit name */}
+            <div className="text-gray-800">{row.departmentName ?? row.unitName}</div>
 
-                  <td className="border px-2 py-1 text-right">
-                    <Input
-                      id={`dc_${i}`}
-                      type="number"
-                      value={row.direct_care_percent}
-                      onChange={(e) =>
-                        handleChange(i, "direct_care_percent", Number(e.target.value))
-                      }
-                      className="!m-0 !p-1 w-20 text-right"
-                    />
-                  </td>
+            {/* Resource Type radio buttons */}
+            <div className="flex items-center gap-4">
+              <label className="inline-flex items-center gap-1 text-gray-700">
+                <input
+                  type="radio"
+                  className="h-4 w-4 text-brand-600"
+                  checked={row.resourceType === "NA/UC"}
+                  onChange={() =>
+                    updateRow(row.id, { resourceType: "NA/UC" })
+                  }
+                />
+                <span className="text-xs">NA/UC</span>
+              </label>
+              <label className="inline-flex items-center gap-1 text-gray-700">
+                <input
+                  type="radio"
+                  className="h-4 w-4 text-brand-600"
+                  checked={row.resourceType === "Nurse"}
+                  onChange={() =>
+                    updateRow(row.id, { resourceType: "Nurse" })
+                  }
+                />
+                <span className="text-xs">Nurse</span>
+              </label>
+            </div>
 
-                  <td className="border px-2 py-1 text-center">
-                    <input
-                      id={`include_${i}`}
-                      type="checkbox"
-                      title={`Include ${row.role || "role " + (i + 1)} in ratio`}
-                      checked={row.include_in_ratio}
-                      onChange={(e) =>
-                        handleChange(i, "include_in_ratio", e.target.checked)
-                      }
-                      className="h-4 w-4 text-green-600 border-gray-300 rounded"
-                    />
-                  </td>
+            {/* Minimum Staffing */}
+            <div>
+              <Input
+                value={row.minStaffing}
+                id=""
+                onChange={handleNumberChange(row.id, "minStaffing")}
+                className="w-full text-sm"
+                placeholder="0"
+              />
+            </div>
 
-                  <td className="border px-2 py-1 text-right">
-                    <Input
-                      id={`hours_${i}`}
-                      type="number"
-                      min={1}
-                      max={168}
-                      value={row.total_hours_per_week}
-                      onChange={(e) =>
-                        handleChange(i, "total_hours_per_week", Number(e.target.value))
-                      }
-                      className="!m-0 !p-1 w-20 text-right"
-                    />
-                  </td>
+            {/* Minimum Staffing Threshold */}
+            <div>
+              <Input
+                value={row.minThreshold}
+                id=""
+                onChange={handleNumberChange(row.id, "minThreshold")}
+                className="w-full text-sm"
+                placeholder="0"
+              />
+            </div>
 
-                  {/* Simplified weekend rotation (1–3 numeric codes) */}
-                  <td className="border px-2 py-1 text-right">
-                    <Select
-                      id={`weekend_${i}`}
-                      value={row.weekend_rotation}
-                      onChange={(e) =>
-                        handleChange(i, "weekend_rotation", Number(e.target.value))
-                      }
-                      className="!m-0 !p-1 w-20 text-right"
-                    >
-                      <option value="">--</option>
-                      <option value="1">1</option>
-                      <option value="2">2</option>
-                      <option value="3">3</option>
-                    </Select>
-                  </td>
+            {/* Ratio */}
+            <div>
+              <Input
+                value={row.ratio}
+                id=""
+                onChange={handleNumberChange(row.id, "ratio")}
+                className="w-full text-sm"
+                placeholder="5"
+              />
+            </div>
 
-                  <td className="border px-2 py-1 text-right">
-                    {row.type === "Variable" ? (
-                      <div className="text-gray-400 text-center">N/A</div>
-                    ) : (
-                      <Input
-                        id={`fte_${i}`}
-                        type="number"
-                        value={row.fte}
-                        onChange={(e) => handleChange(i, "fte", Number(e.target.value))}
-                        className="!m-0 !p-1 w-20 text-right"
-                      />
-                    )}
-                  </td>
+            {/* Max Ratio */}
+            <div>
+              <Input
+                value={row.maxRatio}
+                id=""
+                onChange={handleNumberChange(row.id, "maxRatio")}
+                className="w-full text-sm"
+                placeholder="6"
+              />
+            </div>
 
-                  <td className="border px-2 py-1 text-center">
-                    <Button
-                      variant="ghost"
-                      onClick={() => removeRow(row.id)}
-                      className="text-xs text-red-600 hover:bg-red-50"
-                    >
-                      Remove
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+            {/* Fixed */}
+            <div>
+              <Input
+                value={row.fixed}
+                id=""
+                onChange={handleNumberChange(row.id, "fixed")}
+                className="w-full text-sm"
+                placeholder="0"
+              />
+            </div>
 
-      {/* Navigation */}
-      <div className="flex justify-between mt-6">
-        <Button variant="ghost" onClick={onPrev}>
-          ← Previous
-        </Button>
-        <Button variant="primary" onClick={onNext}>
-          Next →
-        </Button>
+            {/* Shift Name */}
+            <div>
+              <Select
+                value={row.shiftKey}
+                onChange={handleShiftChange(row.id)}
+                className="w-full text-sm"
+                ariaLabel="Shift name"
+              >
+                {shiftOptions.length === 0 && (
+                  <option value="">No shifts defined</option>
+                )}
+                {shiftOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          </div>
+        ))}
       </div>
     </Card>
-  )
+  );
 }
