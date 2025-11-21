@@ -32,8 +32,9 @@ export default function DropdownMenu() {
     "Staffing Grid",
     "Demand",
     "Position Control",
-    "----------------- Current pages to be updated -----------------",
-    "Resource Availability",
+    "----------------- Pending pages -----------------",
+    "Pay Code Definition",
+    "Skills",
   ]
 
   const renderStep = () => {
@@ -51,7 +52,8 @@ export default function DropdownMenu() {
       case 10: return <CensusOverrideCard />
       case 11: return <div className="p-4">Position Control Placeholder</div>
       case 12: return <div className="p-4">Divider (no content)</div>
-      case 13: return <AvailabilityConfigCard />
+      case 13: return <div className="p-4">Pay Code Definition Placeholder</div>
+      case 14: return <div className="p-4">Skill Sets Placeholder</div>
       default: return null
     }
   }
@@ -68,7 +70,7 @@ export default function DropdownMenu() {
 
       {/* POPUP DROPDOWN MENU — Controlled by MenuIcon */}
       {menuOpen && (
-        <div className="absolute left-4 top-4 w-64 bg-white shadow-xl border rounded-lg z-50">
+        <div className="absolute left-0 top-full mt-2 w-64 bg-white shadow-xl border rounded-lg z-50">
           {steps.map((name, i) =>
             name.includes("Current pages") ? (
               <div
