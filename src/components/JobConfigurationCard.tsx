@@ -9,7 +9,7 @@ type Category = "Nursing" | "Support" | "Other" | "";
 type JobConfigRow = {
   id: number;
   resourceType: string;
-  directCarePct: string; // e.g. "100%"
+  directCarePct: string; 
   category: Category;
   weekendRotations: string[];
   campuses: string[];
@@ -41,6 +41,7 @@ const DEFAULT_WEEKEND_ROTATIONS = [
 
 const DEFAULT_OPEN_REQ = ["NA", "UC", "MGR", "Nurse", "RN", "RN I", "RN II"];
 const DEFAULT_ROSTER = ["NA", "UC", "Manager", "Nurse", "RN", "RN I", "RN II"];
+
 const DEFAULT_SCHEDULE = [
   "Nurse Assistant",
   "Unit Coordinator",
@@ -97,9 +98,8 @@ function createInitialRows(campuses: string[]): JobConfigRow[] {
   ];
 }
 
-export default function JobConfigurationCard(
-  props: JobConfigurationAdminProps
-) {
+export default function JobConfigurationCard(props: JobConfigurationAdminProps) {
+    
   const allCampuses = props.campusesFromConfig?.length
     ? props.campusesFromConfig
     : DEFAULT_CAMPUSES;
@@ -231,72 +231,58 @@ export default function JobConfigurationCard(
 
   return (
     <div className="p-4 space-y-4">
-      <h1 className="text-xl font-semibold">
-        Job Configuration
-      </h1>
+      <h1 className="text-xl font-semibold">Job Configuration</h1>
 
       <Card className="space-y-4">
         {/* Header row */}
-        <div className="grid grid-cols-12 gap-3 text-xs font-semibold text-gray-500">
+        <div className="grid grid-cols-14 gap-4 text-xs font-semibold text-gray-500">
           <div className="col-span-2">Resource Type</div>
-          <div>Direct Care</div>
-          <div className="col-span-2">Weekend Rotation</div>
-          <div className="col-span-2">Campus</div>
-          <div>Category</div>
-          <div>Open Req Job</div>
-          <div>Roster Job</div>
-          <div>Schedule Job</div>
+          <div className="col-span-1">Direct Care</div>
+          <div className="col-span-3">Weekend Rotation</div>
+          <div className="col-span-3">Campus</div>
+          <div className="col-span-1">Category</div>
+          <div className="col-span-2">Job Descriptions</div>
+          <div className="col-span-1 text-right pr-2">Delete</div>
         </div>
 
         <div className="space-y-3">
           {rows.map((row) => {
             const allCampusesSelected =
-              allCampuses.length > 0 &&
-              allCampuses.every((c) => row.campuses.includes(c));
+              allCampuses.length > 0 && allCampuses.every((c) => row.campuses.includes(c));
 
-            const campusLabel =
-              row.campuses.length > 0 ? row.campuses.join(", ") : "No campus";
+            const campusLabel = row.campuses.length > 0 ? row.campuses.join(", ") : "No campus";
 
-            const weekendLabel =
-              row.weekendRotations.length > 0
-                ? row.weekendRotations.join(" • ")
-                : "None";
+            const weekendLabel = row.weekendRotations.length > 0 ? row.weekendRotations.join(" • ") : "None";
 
             return (
               <div
                 key={row.id}
-                className="grid grid-cols-12 gap-3 items-start rounded-xl border border-gray-200 bg-white p-3"
+                className="grid grid-cols-14 gap-4 items-start rounded-xl border border-gray-200 bg-white p-4"
               >
                 {/* Resource Type */}
-                <div className="col-span-2 space-y-1">
+                <div className="col-span-2">
                   <Input
                     value={row.resourceType}
                     id=""
-                    placeholder="e.g. Nurse"
-                    onChange={(e) =>
-                      updateRowField(row.id, "resourceType", e.target.value)
-                    }
+                    onChange={(e) => updateRowField(row.id, "resourceType", e.target.value)}
+                    className="w-full"
                   />
-                  <div className="text-[11px] text-gray-400">
-                    {campusLabel}
-                  </div>
+                  <div className="text-[11px] text-gray-400">{campusLabel}</div>
                 </div>
 
                 {/* Direct Care */}
-                <div>
+                <div className="col-span-1">
                   <Input
                     value={row.directCarePct}
                     id=""
-                    placeholder="100%"
-                    onChange={(e) =>
-                      updateRowField(row.id, "directCarePct", e.target.value)
-                    }
+                    onChange={(e) => updateRowField(row.id, "directCarePct", e.target.value)}
+                    className="w-full"
                   />
                 </div>
 
-                {/* Weekend Rotation (multi) */}
-                <div className="col-span-2">
-                  <div className="flex flex-wrap gap-1">
+                {/* Weekend Rotation */}
+                <div className="col-span-3 space-y-1">
+                  <div className="flex flex-wrap gap-2">
                     {allWeekendRotations.map((rot) => {
                       const checked = row.weekendRotations.includes(rot);
                       return (
@@ -312,23 +298,19 @@ export default function JobConfigurationCard(
                             type="checkbox"
                             className="mr-1 h-3 w-3"
                             checked={checked}
-                            onChange={() =>
-                              toggleWeekendRotation(row.id, rot)
-                            }
+                            onChange={() => toggleWeekendRotation(row.id, rot)}
                           />
                           {rot}
                         </label>
                       );
                     })}
                   </div>
-                  <div className="mt-1 text-[11px] text-gray-400">
-                    Selected: {weekendLabel}
-                  </div>
+                  <div className="text-[11px] text-gray-400">Selected: {weekendLabel}</div>
                 </div>
 
-                {/* Campus (multi + select all) */}
-                <div className="col-span-2 space-y-1">
-                  <div className="flex flex-wrap gap-1">
+                {/* Campus */}
+                <div className="col-span-3 space-y-1">
+                  <div className="flex flex-wrap gap-2">
                     <label className="inline-flex items-center rounded-full border px-2 py-1 text-[11px] cursor-pointer bg-gray-50 border-gray-300 text-gray-600">
                       <input
                         type="checkbox"
@@ -338,6 +320,7 @@ export default function JobConfigurationCard(
                       />
                       Select All
                     </label>
+
                     {allCampuses.map((campus) => {
                       const checked = row.campuses.includes(campus);
                       return (
@@ -363,16 +346,11 @@ export default function JobConfigurationCard(
                 </div>
 
                 {/* Category */}
-                <div>
+                <div className="col-span-1 space-y-1">
                   <Select
                     value={row.category}
-                    onChange={(e) =>
-                      updateRowField(
-                        row.id,
-                        "category",
-                        e.target.value as Category
-                      )
-                    }
+                    onChange={(e) => updateRowField(row.id, "category", e.target.value as any)}
+                    className="w-full"
                   >
                     <option value="">Select…</option>
                     <option value="Nursing">Nursing</option>
@@ -380,111 +358,83 @@ export default function JobConfigurationCard(
                     <option value="Other">Other</option>
                   </Select>
 
-                  {/* Flags */}
                   <div className="mt-2 flex flex-col gap-1 text-[11px] text-gray-600">
-                    <label className="inline-flex items-center gap-1">
+                    <label>
                       <input
                         type="checkbox"
                         checked={row.isCharge}
-                        onChange={(e) =>
-                          updateRowField(row.id, "isCharge", e.target.checked)
-                        }
-                        className="h-3 w-3"
+                        onChange={(e) => updateRowField(row.id, "isCharge", e.target.checked)}
                       />
                       Charge
                     </label>
-                    <label className="inline-flex items-center gap-1">
+
+                    <label>
                       <input
                         type="checkbox"
                         checked={row.isOriented}
-                        onChange={(e) =>
-                          updateRowField(
-                            row.id,
-                            "isOriented",
-                            e.target.checked
-                          )
-                        }
-                        className="h-3 w-3"
+                        onChange={(e) => updateRowField(row.id, "isOriented", e.target.checked)}
                       />
                       Orientee
                     </label>
-                    <label className="inline-flex items-center gap-1">
+
+                    <label>
                       <input
                         type="checkbox"
                         checked={row.isPreceptor}
-                        onChange={(e) =>
-                          updateRowField(
-                            row.id,
-                            "isPreceptor",
-                            e.target.checked
-                          )
-                        }
-                        className="h-3 w-3"
+                        onChange={(e) => updateRowField(row.id, "isPreceptor", e.target.checked)}
                       />
                       Preceptor
                     </label>
                   </div>
                 </div>
 
-                {/* Open Req Job */}
-                <div>
+                {/* Job Descriptions */}
+                <div className="col-span-2 space-y-2">
                   <Select
                     value={row.openReqJob}
-                    onChange={(e) =>
-                      updateRowField(row.id, "openReqJob", e.target.value)
-                    }
+                    onChange={(e) => updateRowField(row.id, "openReqJob", e.target.value)}
+                    className="w-full"
                   >
-                    <option value="">Select…</option>
-                    {openReqOptions.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
+                    <option value="">Open Req…</option>
+                    {openReqOptions.map((o) => (
+                      <option key={o} value={o}>
+                        {o}
                       </option>
                     ))}
                   </Select>
-                </div>
 
-                {/* Roster Job */}
-                <div>
                   <Select
                     value={row.rosterJob}
-                    onChange={(e) =>
-                      updateRowField(row.id, "rosterJob", e.target.value)
-                    }
+                    onChange={(e) => updateRowField(row.id, "rosterJob", e.target.value)}
+                    className="w-full"
                   >
-                    <option value="">Select…</option>
-                    {rosterOptions.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
+                    <option value="">Roster…</option>
+                    {rosterOptions.map((o) => (
+                      <option key={o} value={o}>
+                        {o}
+                      </option>
+                    ))}
+                  </Select>
+
+                  <Select
+                    value={row.scheduleJob}
+                    onChange={(e) => updateRowField(row.id, "scheduleJob", e.target.value)}
+                    className="w-full"
+                  >
+                    <option value="">Schedule…</option>
+                    {scheduleOptions.map((o) => (
+                      <option key={o} value={o}>
+                        {o}
                       </option>
                     ))}
                   </Select>
                 </div>
 
-                {/* Schedule Job + delete button */}
-                <div className="flex items-start gap-2">
-                  <div className="flex-1">
-                    <Select
-                      value={row.scheduleJob}
-                      onChange={(e) =>
-                        updateRowField(row.id, "scheduleJob", e.target.value)
-                      }
-                    >
-                      <option value="">Select…</option>
-                      {scheduleOptions.map((opt) => (
-                        <option key={opt} value={opt}>
-                          {opt}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="px-2 py-1 text-red-600"
-                    onClick={() => removeRow(row.id)}
-                  >
+                {/* Delete */}
+                <div className="col-span-1 flex justify-end">
+                  <button onClick={() => removeRow(row.id)} className="text-red-500 hover:text-red-700 text-lg">
                     🗑
-                  </Button>
+                  </button>
                 </div>
               </div>
             );
