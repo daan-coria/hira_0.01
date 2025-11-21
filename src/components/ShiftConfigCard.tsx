@@ -529,7 +529,9 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                         updateRowField(row.id, "shift_name", e.target.value)
                       }
                       className="
-                        w-[360px]
+                        w-[260px]
+                        min-h-[38px]
+                        max-h-[80px]
                         px-2 py-1
                         border rounded-md
                         bg-white dark:bg-gray-900
@@ -543,8 +545,7 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                       "
                       style={{
                         fontSize: "14px",
-                        lineHeight: "1.25",
-                        minHeight: "40px",
+                        lineHeight: "1.3",
                       }}
                     />
                   )}
