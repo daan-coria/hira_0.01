@@ -832,7 +832,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     </td>
 
                     {/* Availability column */}
-                    <td className="border px-2 py-1">
+                    <td className="border px-2 py-1 max-w-[260px] overflow-x-auto whitespace-nowrap">
                       {row.availability && row.availability.length > 0 ? (
                         <WeeklyFTEBar
                           baseFTE={row.unit_fte}

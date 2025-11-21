@@ -23,7 +23,7 @@ export default function WeeklyFTEBar({
     }
 
     return (
-        <div className="flex gap-2 overflow-x-auto py-1">
+        <div className="flex gap-2 overflow-x-auto py-1 whitespace-nowrap max-w-full">
         {weeklyPoints.map((point) => {
             const tooltip =
             point.reasons.length === 0
