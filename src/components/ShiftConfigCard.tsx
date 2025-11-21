@@ -479,7 +479,7 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
             <tr>
               <th className="border px-2 py-1 w-6">⇕</th>
               <th className="border px-2 py-1">Group</th>
-              <th className="border px-2 py-1">Name</th>
+              <th className="border px-2 py-1 w-[260px]">Name</th>
               <th className="border px-2 py-1">Start</th>
               <th className="border px-2 py-1">End</th>
               <th className="border px-2 py-1 text-right">Break</th>
