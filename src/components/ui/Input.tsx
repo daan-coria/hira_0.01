@@ -27,7 +27,26 @@ export default function Input({
       <input
         id={inputId}
         {...props}
-        className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition ${className}`}
+        className={`
+          w-full px-3 py-2 border rounded-md 
+          bg-white dark:bg-gray-900 
+          border-gray-300 dark:border-gray-700 
+          text-gray-800 dark:text-gray-100 
+          focus:ring-2 focus:ring-green-500 focus:border-green-500 
+          outline-none transition
+
+          whitespace-normal
+          break-words
+          overflow-visible
+          text-clip
+
+          ${className}
+        `}
+        style={{
+          whiteSpace: "normal",
+          overflow: "visible",
+          textOverflow: "clip",
+        }}
       />
     </div>
   )

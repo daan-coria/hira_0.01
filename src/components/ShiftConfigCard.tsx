@@ -519,22 +519,32 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                 </td>
 
                 {/* NAME */}
-                <td className="border px-2">
+                <td className="border px-2 align-top">
                   {isLocked(row) ? (
                     "N/A"
                   ) : (
-                    <Input
-                      id=""
+                    <textarea
                       value={row.shift_name}
                       onChange={e =>
                         updateRowField(row.id, "shift_name", e.target.value)
                       }
-                      className="!m-0 !p-1 w-80"
+                      className="
+                        w-[360px]
+                        px-2 py-1
+                        border rounded-md
+                        bg-white dark:bg-gray-900
+                        border-gray-300 dark:border-gray-700
+                        text-gray-800 dark:text-gray-100
+                        focus:ring-2 focus:ring-green-500 focus:border-green-500
+                        outline-none transition
+                        whitespace-normal
+                        break-words
+                        resize-none
+                      "
                       style={{
                         fontSize: "14px",
-                        whiteSpace: "normal",
-                        overflow: "visible",
-                        lineHeight: "1.2",
+                        lineHeight: "1.25",
+                        minHeight: "40px",
                       }}
                     />
                   )}
