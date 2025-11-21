@@ -99,7 +99,7 @@ function createInitialRows(campuses: string[]): JobConfigRow[] {
 }
 
 export default function JobConfigurationCard(props: JobConfigurationAdminProps) {
-    
+
   const allCampuses = props.campusesFromConfig?.length
     ? props.campusesFromConfig
     : DEFAULT_CAMPUSES;
@@ -235,15 +235,16 @@ export default function JobConfigurationCard(props: JobConfigurationAdminProps) 
 
       <Card className="space-y-4">
         {/* Header row */}
-        <div className="grid grid-cols-14 gap-4 text-xs font-semibold text-gray-500">
-          <div className="col-span-2">Resource Type</div>
-          <div className="col-span-1">Direct Care</div>
-          <div className="col-span-3">Weekend Rotation</div>
-          <div className="col-span-3">Campus</div>
-          <div className="col-span-1">Category</div>
-          <div className="col-span-2">Job Descriptions</div>
-          <div className="col-span-1 text-right pr-2">Delete</div>
+        <div className="grid grid-cols-7 gap-6 text-xs font-semibold text-gray-600 pb-2">
+        <div>Resource Type</div>
+        <div>Direct Care</div>
+        <div>Weekend Rotation</div>
+        <div>Campus</div>
+        <div>Open Req Job</div>
+        <div>Roster Job</div>
+        <div>Schedule Job</div>
         </div>
+
 
         <div className="space-y-3">
           {rows.map((row) => {
@@ -256,187 +257,142 @@ export default function JobConfigurationCard(props: JobConfigurationAdminProps) 
 
             return (
               <div
-                key={row.id}
-                className="grid grid-cols-14 gap-4 items-start rounded-xl border border-gray-200 bg-white p-4"
-              >
-                {/* Resource Type */}
-                <div className="col-span-2">
-                  <Input
-                    value={row.resourceType}
-                    id=""
-                    onChange={(e) => updateRowField(row.id, "resourceType", e.target.value)}
-                    className="w-full"
-                  />
-                  <div className="text-[11px] text-gray-400">{campusLabel}</div>
-                </div>
+            key={row.id}
+            className="grid grid-cols-7 gap-6 items-start rounded-xl border border-gray-200 bg-white p-4"
+            >
+            {/* Resource Type */}
+            <div>
+                <Input
+                id=""
+                value={row.resourceType}
+                onChange={(e) => updateRowField(row.id, "resourceType", e.target.value)}
+                className="w-full"
+                />
+                <div className="text-[11px] text-gray-400">{campusLabel}</div>
+            </div>
 
-                {/* Direct Care */}
-                <div className="col-span-1">
-                  <Input
-                    value={row.directCarePct}
-                    id=""
-                    onChange={(e) => updateRowField(row.id, "directCarePct", e.target.value)}
-                    className="w-full"
-                  />
-                </div>
+            {/* Direct Care */}
+            <div>
+                <Input
+                id=""
+                value={row.directCarePct}
+                onChange={(e) => updateRowField(row.id, "directCarePct", e.target.value)}
+                className="w-full"
+                />
+            </div>
 
-                {/* Weekend Rotation */}
-                <div className="col-span-3 space-y-1">
-                  <div className="flex flex-wrap gap-2">
-                    {allWeekendRotations.map((rot) => {
-                      const checked = row.weekendRotations.includes(rot);
-                      return (
-                        <label
-                          key={rot}
-                          className={`inline-flex items-center rounded-full border px-2 py-1 text-[11px] cursor-pointer ${
-                            checked
-                              ? "bg-brand-50 border-brand-500 text-brand-700"
-                              : "bg-gray-50 border-gray-300 text-gray-600"
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            className="mr-1 h-3 w-3"
-                            checked={checked}
-                            onChange={() => toggleWeekendRotation(row.id, rot)}
-                          />
-                          {rot}
-                        </label>
-                      );
-                    })}
-                  </div>
-                  <div className="text-[11px] text-gray-400">Selected: {weekendLabel}</div>
-                </div>
-
-                {/* Campus */}
-                <div className="col-span-3 space-y-1">
-                  <div className="flex flex-wrap gap-2">
-                    <label className="inline-flex items-center rounded-full border px-2 py-1 text-[11px] cursor-pointer bg-gray-50 border-gray-300 text-gray-600">
-                      <input
+            {/* Weekend Rotation */}
+            <div className="space-y-2">
+                <div className="flex flex-wrap gap-2">
+                {allWeekendRotations.map((rot) => {
+                    const checked = row.weekendRotations.includes(rot);
+                    return (
+                    <label
+                        key={rot}
+                        className={`inline-flex items-center rounded-full border px-2 py-1 text-[11px] cursor-pointer ${
+                        checked
+                            ? "bg-brand-50 border-brand-500 text-brand-700"
+                            : "bg-gray-50 border-gray-300 text-gray-600"
+                        }`}
+                    >
+                        <input
                         type="checkbox"
                         className="mr-1 h-3 w-3"
-                        checked={allCampusesSelected}
-                        onChange={() => toggleAllCampuses(row.id)}
-                      />
-                      Select All
+                        checked={checked}
+                        onChange={() => toggleWeekendRotation(row.id, rot)}
+                        />
+                        {rot}
                     </label>
-
-                    {allCampuses.map((campus) => {
-                      const checked = row.campuses.includes(campus);
-                      return (
-                        <label
-                          key={campus}
-                          className={`inline-flex items-center rounded-full border px-2 py-1 text-[11px] cursor-pointer ${
-                            checked
-                              ? "bg-brand-50 border-brand-500 text-brand-700"
-                              : "bg-gray-50 border-gray-300 text-gray-600"
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            className="mr-1 h-3 w-3"
-                            checked={checked}
-                            onChange={() => toggleCampus(row.id, campus)}
-                          />
-                          {campus}
-                        </label>
-                      );
-                    })}
-                  </div>
+                    );
+                })}
                 </div>
+            </div>
 
-                {/* Category */}
-                <div className="col-span-1 space-y-1">
-                  <Select
-                    value={row.category}
-                    onChange={(e) => updateRowField(row.id, "category", e.target.value as any)}
-                    className="w-full"
-                  >
-                    <option value="">Select…</option>
-                    <option value="Nursing">Nursing</option>
-                    <option value="Support">Support</option>
-                    <option value="Other">Other</option>
-                  </Select>
+            {/* Campus */}
+            <div className="space-y-2">
+                <div className="flex flex-wrap gap-2">
+                <label className="inline-flex items-center rounded-full border px-2 py-1 text-[11px] cursor-pointer bg-gray-50 border-gray-300 text-gray-600">
+                    <input
+                    type="checkbox"
+                    className="mr-1 h-3 w-3"
+                    checked={allCampusesSelected}
+                    onChange={() => toggleAllCampuses(row.id)}
+                    />
+                    Select All
+                </label>
 
-                  <div className="mt-2 flex flex-col gap-1 text-[11px] text-gray-600">
-                    <label>
-                      <input
+                {allCampuses.map((campus) => {
+                    const checked = row.campuses.includes(campus);
+                    return (
+                    <label
+                        key={campus}
+                        className={`inline-flex items-center rounded-full border px-2 py-1 text-[11px] cursor-pointer ${
+                        checked
+                            ? "bg-brand-50 border-brand-500 text-brand-700"
+                            : "bg-gray-50 border-gray-300 text-gray-600"
+                        }`}
+                    >
+                        <input
                         type="checkbox"
-                        checked={row.isCharge}
-                        onChange={(e) => updateRowField(row.id, "isCharge", e.target.checked)}
-                      />
-                      Charge
+                        className="mr-1 h-3 w-3"
+                        checked={checked}
+                        onChange={() => toggleCampus(row.id, campus)}
+                        />
+                        {campus}
                     </label>
-
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={row.isOriented}
-                        onChange={(e) => updateRowField(row.id, "isOriented", e.target.checked)}
-                      />
-                      Orientee
-                    </label>
-
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={row.isPreceptor}
-                        onChange={(e) => updateRowField(row.id, "isPreceptor", e.target.checked)}
-                      />
-                      Preceptor
-                    </label>
-                  </div>
+                    );
+                })}
                 </div>
+            </div>
 
-                {/* Job Descriptions */}
-                <div className="col-span-2 space-y-2">
-                  <Select
-                    value={row.openReqJob}
-                    onChange={(e) => updateRowField(row.id, "openReqJob", e.target.value)}
-                    className="w-full"
-                  >
-                    <option value="">Open Req…</option>
-                    {openReqOptions.map((o) => (
-                      <option key={o} value={o}>
-                        {o}
-                      </option>
-                    ))}
-                  </Select>
+            {/* Open Req */}
+            <div>
+                <Select
+                value={row.openReqJob}
+                onChange={(e) => updateRowField(row.id, "openReqJob", e.target.value)}
+                className="w-full"
+                >
+                <option value="">Select…</option>
+                {openReqOptions.map((o) => (
+                    <option key={o} value={o}>{o}</option>
+                ))}
+                </Select>
+            </div>
 
-                  <Select
-                    value={row.rosterJob}
-                    onChange={(e) => updateRowField(row.id, "rosterJob", e.target.value)}
-                    className="w-full"
-                  >
-                    <option value="">Roster…</option>
-                    {rosterOptions.map((o) => (
-                      <option key={o} value={o}>
-                        {o}
-                      </option>
-                    ))}
-                  </Select>
+            {/* Roster Job */}
+            <div>
+                <Select
+                value={row.rosterJob}
+                onChange={(e) => updateRowField(row.id, "rosterJob", e.target.value)}
+                className="w-full"
+                >
+                <option value="">Select…</option>
+                {rosterOptions.map((o) => (
+                    <option key={o} value={o}>{o}</option>
+                ))}
+                </Select>
+            </div>
 
-                  <Select
-                    value={row.scheduleJob}
-                    onChange={(e) => updateRowField(row.id, "scheduleJob", e.target.value)}
-                    className="w-full"
-                  >
-                    <option value="">Schedule…</option>
-                    {scheduleOptions.map((o) => (
-                      <option key={o} value={o}>
-                        {o}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-
-                {/* Delete */}
-                <div className="col-span-1 flex justify-end">
-                  <button onClick={() => removeRow(row.id)} className="text-red-500 hover:text-red-700 text-lg">
-                    🗑
-                  </button>
-                </div>
-              </div>
+            {/* Schedule Job + Delete */}
+            <div className="flex items-center gap-3">
+                <Select
+                value={row.scheduleJob}
+                onChange={(e) => updateRowField(row.id, "scheduleJob", e.target.value)}
+                className="w-full"
+                >
+                <option value="">Select…</option>
+                {scheduleOptions.map((o) => (
+                    <option key={o} value={o}>{o}</option>
+                ))}
+                </Select>
+                <button
+                onClick={() => removeRow(row.id)}
+                className="text-red-500 hover:text-red-700"
+                >
+                🗑
+                </button>
+            </div>
+            </div>
             );
           })}
         </div>
