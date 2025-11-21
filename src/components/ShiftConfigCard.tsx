@@ -529,10 +529,12 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                       onChange={e =>
                         updateRowField(row.id, "shift_name", e.target.value)
                       }
-                      className="!m-0 !p-1 w-64"
+                      className="!m-0 !p-1 w-80"
                       style={{
-                        fontSize: "13px",
+                        fontSize: "14px",
                         whiteSpace: "normal",
+                        overflow: "visible",
+                        lineHeight: "1.2",
                       }}
                     />
                   )}
