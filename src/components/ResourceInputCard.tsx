@@ -9,6 +9,9 @@ import debounce from "lodash.debounce"
 import Papa from "papaparse"
 import Swal from "sweetalert2"
 import "sweetalert2/dist/sweetalert2.min.css"
+import WeeklyFTEBar from "@/components/WeeklyFTEBar"
+import AvailabilityDrawer from "@/components/AvailabilityDrawer"
+import { AvailabilityEntry } from "@/utils/useAvailabilityCalculator"
 
 type ResourceRow = {
   // Core identifiers
@@ -33,6 +36,9 @@ type ResourceRow = {
 
   // Status
   vacancy_status: string // used as "Status" filter
+
+  // Availability
+  availability?: AvailabilityEntry[]
 
   // Drawer-only extended profile
   schedule_system_id?: string
@@ -63,6 +69,13 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
   const [drawerMode, setDrawerMode] = useState<"view" | "edit">("view")
   const [drawerOriginalRow, setDrawerOriginalRow] = useState<ResourceRow | null>(null)
   const [drawerIsNew, setDrawerIsNew] = useState(false)
+
+  // Availability drawer state (right side)
+  const [availabilityRowIndex, setAvailabilityRowIndex] = useState<
+    number | null
+  >(null)
+  const [availabilityWeek, setAvailabilityWeek] = useState<string | null>(null)
+  const [isAvailabilityOpen, setIsAvailabilityOpen] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const weekendGroups = ["A", "B", "C", "WC"]
@@ -146,7 +159,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Positions from Step 2
+  // Positions
   const positions =
     Array.isArray(data?.staffingConfig) && data.staffingConfig.length > 0
       ? data.staffingConfig.map((p: any) => p.role)
@@ -273,6 +286,40 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
   const updateDrawerField = (field: keyof ResourceRow, value: any) => {
     setDrawerRow((prev) => (prev ? { ...prev, [field]: value } : prev))
   }
+
+  // --- Availability drawer helpers -------------------------------------
+
+  const openAvailabilityForRow = (rowIndex: number, weekStart?: string) => {
+    setAvailabilityRowIndex(rowIndex)
+    setAvailabilityWeek(weekStart ?? null)
+    setIsAvailabilityOpen(true)
+  }
+
+  const closeAvailabilityDrawer = () => {
+    setIsAvailabilityOpen(false)
+    setAvailabilityRowIndex(null)
+    setAvailabilityWeek(null)
+  }
+
+  const handleAvailabilitySave = (entries: AvailabilityEntry[]) => {
+    if (availabilityRowIndex === null) {
+      closeAvailabilityDrawer()
+      return
+    }
+
+    setRows((prev) => {
+      const updated = [...prev]
+      const target = { ...updated[availabilityRowIndex], availability: entries }
+      updated[availabilityRowIndex] = target
+      debouncedSave(updated)
+      return updated
+    })
+
+    closeAvailabilityDrawer()
+  }
+
+  const currentAvailabilityRow =
+    availabilityRowIndex !== null ? rows[availabilityRowIndex] : null
 
   // --- Add / Remove rows -----------------------------------------------------
 
@@ -441,7 +488,9 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
   })
 
   // Helpers for options
-  const campuses = Array.from(new Set(rows.map((r) => r.campus).filter(Boolean))) as string[]
+  const campuses = Array.from(
+    new Set(rows.map((r) => r.campus).filter(Boolean))
+  ) as string[]
   const costCenters = Array.from(
     new Set(rows.map((r) => r.cost_center_name).filter(Boolean))
   ) as string[]
@@ -479,7 +528,9 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
             title="Upload CSV file"
             aria-label="Upload CSV file"
           />
-          <Button onClick={() => fileInputRef.current?.click()}>Upload CSV</Button>
+          <Button onClick={() => fileInputRef.current?.click()}>
+            Upload CSV
+          </Button>
           <Button
             onClick={handleExport}
             variant="ghost"
@@ -618,15 +669,14 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                 <th className="px-3 py-2 border text-right">Unit FTE</th>
                 <th className="px-3 py-2 border">Shift Group</th>
                 <th className="px-3 py-2 border">Weekend Group</th>
-                <th className="px-3 py-2 border">Start Date</th>
-                <th className="px-3 py-2 border">End Date</th>
+                <th className="px-3 py-2 border">Availability</th>
               </tr>
             </thead>
 
             <tbody>
               {filteredRows.map((row, i) => {
                 const rowIndex = rows.findIndex((r) => r.id === row.id)
-
+                const effectiveIndex = rowIndex >= 0 ? rowIndex : i
                 const filteredShifts = getFilteredShifts(row.position || "")
 
                 return (
@@ -781,38 +831,30 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       </Select>
                     </td>
 
-                    {/* Start Date */}
+                    {/* Availability column */}
                     <td className="border px-2 py-1">
-                      <Input
-                        id={`start_date_${row.id || i}`}
-                        type="date"
-                        value={row.start_date || ""}
-                        onChange={(e) =>
-                          handleChange(
-                            rowIndex >= 0 ? rowIndex : i,
-                            "start_date",
-                            e.target.value
-                          )
-                        }
-                        className="!m-0 !p-1"
-                      />
-                    </td>
-
-                    {/* End Date */}
-                    <td className="border px-2 py-1">
-                      <Input
-                        id={`end_date_${row.id || i}`}
-                        type="date"
-                        value={row.end_date || ""}
-                        onChange={(e) =>
-                          handleChange(
-                            rowIndex >= 0 ? rowIndex : i,
-                            "end_date",
-                            e.target.value
-                          )
-                        }
-                        className="!m-0 !p-1"
-                      />
+                      {row.availability && row.availability.length > 0 ? (
+                        <WeeklyFTEBar
+                          baseFTE={row.unit_fte}
+                          availability={row.availability}
+                          onWeekClick={(weekStart) =>
+                            openAvailabilityForRow(
+                              effectiveIndex,
+                              weekStart
+                            )
+                          }
+                        />
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          className="!px-3 !py-1 text-xs"
+                          onClick={() =>
+                            openAvailabilityForRow(effectiveIndex)
+                          }
+                        >
+                          Edit Availability
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 )
@@ -822,7 +864,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
         </div>
       )}
 
-      {/* Drawer overlay */}
+      {/* Employee Information Drawer */}
       {activeInfoRow !== null && drawerRow && (
         <>
           <div
@@ -1288,6 +1330,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                   >
                     Close
                   </Button>
+
                   <Button
                     variant="primary"
                     onClick={() => setDrawerMode("edit")}
@@ -1318,6 +1361,15 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
         </>
       )}
       
+      {/* Availability Drawer (RIGHT side) */}
+      {isAvailabilityOpen && currentAvailabilityRow && (
+        <AvailabilityDrawer
+          row={currentAvailabilityRow}
+          initialWeek={availabilityWeek}
+          onClose={closeAvailabilityDrawer}
+          onSave={handleAvailabilitySave}
+        />
+      )}
     </Card>
   )
 }
