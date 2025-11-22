@@ -70,7 +70,7 @@ export default function DropdownMenu() {
 
       {/* POPUP DROPDOWN MENU — Controlled by MenuIcon */}
       {menuOpen && (
-        <div className="absolute left-0 top-full mt-2 w-64 bg-white shadow-xl border rounded-lg z-50">
+        <div className="fixed left-4 top-16 w-64 bg-white shadow-xl border rounded-lg z-50">
           {steps.map((name, i) =>
             name.includes("Current pages") ? (
               <div

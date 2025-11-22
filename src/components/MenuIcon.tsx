@@ -11,7 +11,7 @@ export default function MenuIcon() {
     // If we're NOT on the tool page → go to /tool first
     if (location.pathname !== "/tool") {
       navigate("/tool")
-      setTimeout(() => setMenuOpen(true), 50)  // open after navigation
+      setTimeout(() => setMenuOpen(true), 50)  
     } else {
       setMenuOpen(!menuOpen)
     }
