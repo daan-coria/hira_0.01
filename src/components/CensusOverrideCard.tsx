@@ -18,16 +18,16 @@ import {
 import { DatePickerInput } from "@mantine/dates";
 import "@mantine/dates/styles.css";
 
-import dayjs from "dayjs";
+import dayjs, { Dayjs } from "dayjs";
 import weekOfYear from "dayjs/plugin/weekOfYear";
-import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
-import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
 import isBetween from "dayjs/plugin/isBetween";
+import customParseFormat from "dayjs/plugin/customParseFormat";
 
-dayjs.extend(isSameOrAfter);
-dayjs.extend(isSameOrBefore);
 dayjs.extend(weekOfYear);
 dayjs.extend(isBetween);
+dayjs.extend(customParseFormat);
+
+// ---------- Helpers ----------
 
 // Excel serial → US date MM/DD/YYYY
 function excelSerialToUSDate(v: unknown): string {
@@ -47,14 +47,18 @@ function excelSerialToUSDate(v: unknown): string {
       mm = 0,
       dd = 0;
 
-    if (parts[0].length === 4) {
-      yyyy = +parts[0];
-      mm = +parts[1];
-      dd = +parts[2];
-    } else {
-      mm = +parts[0];
-      dd = +parts[1];
-      yyyy = +parts[2];
+    if (parts.length === 3) {
+      if (parts[0].length === 4) {
+        // yyyy-mm-dd
+        yyyy = +parts[0];
+        mm = +parts[1];
+        dd = +parts[2];
+      } else {
+        // mm-dd-yyyy or mm/dd/yyyy
+        mm = +parts[0];
+        dd = +parts[1];
+        yyyy = +parts[2];
+      }
     }
 
     if (yyyy && mm && dd) {
@@ -77,60 +81,66 @@ function excelTimeToHHMM(v: unknown): string {
     return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
   }
   if (typeof v === "string") {
-    const match = v.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/i);
-    if (!match) return "";
-    let hh = +match[1];
-    const mm = +match[2];
-    const period = match[3]?.toUpperCase();
-    if (period === "AM" && hh === 12) hh = 0;
-    if (period === "PM" && hh !== 12) hh += 12;
-    return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+    const match = v.match(/^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i);
+    if (match) {
+      let hh = parseInt(match[1], 10);
+      const mm = parseInt(match[2], 10);
+      const ampm = match[3]?.toUpperCase();
+
+      if (ampm === "PM" && hh < 12) hh += 12;
+      if (ampm === "AM" && hh === 12) hh = 0;
+
+      return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+    }
   }
-  return "";
+  return "00:00";
 }
 
-//Week Starts on Sunday
-function getWeekStartingSunday(d: dayjs.Dayjs) {
-  const startOfYear = dayjs(`${d.year()}-01-01`);
-
-  // Sunday = 0
-  const firstSunday =
-    startOfYear.day() === 0
-      ? startOfYear
-      : startOfYear.subtract(startOfYear.day(), "day");
-
-  return Math.floor(d.diff(firstSunday, "day") / 7) + 1;
+// Week number with weeks starting on Sunday
+function getWeekStartingSunday(d: Dayjs): number {
+  const startOfYear = dayjs(`${d.year()}-01-01`, "YYYY-MM-DD");
+  const diffDays = d.startOf("day").diff(startOfYear.startOf("day"), "day");
+  // Offset so that weeks start on Sunday (day() === 0)
+  const offset = startOfYear.day(); // 0–6, where 0 is Sunday
+  return Math.floor((diffDays + offset) / 7) + 1;
 }
+
+// ---------- Types ----------
 
 type DemandRow = {
   id: number;
-  date: string;
-  hour: string;
+  date: string; // MM/DD/YYYY
+  hour: string; // HH:MM 24h
   demand_value: number;
   year: number | null;
+
   weekNum: number;
   week_of_year: string;
   day_of_week_full: string;
   day_of_week_short: string;
-  xLabel: string;
+  xLabel: string; // `${weekNum}-${dayShort}`
 };
 
-type Props = { onNext?: () => void; onPrev?: () => void };
+type Props = { onNext: () => void; onPrev: () => void };
 
 export default function CensusOverrideCard({ onNext, onPrev }: Props) {
   const { data, updateData } = useApp();
+
   const [rows, setRows] = useState<DemandRow[]>([]);
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
-  const [range, setRange] = useState<[string | null, string | null]>([
-    null,
-    null,
-  ]);
+  const [range, setRange] = useState<[Date | null, Date | null]>([null, null]);
 
-  const [startStr, endStr] = range;
+
+  const [startDate, endDate] = range;
+  const startStr = startDate ? dayjs(startDate).format("MM/DD/YYYY") : "";
+  const endStr = endDate ? dayjs(endDate).format("MM/DD/YYYY") : "";
   const showDots = Boolean(startStr && endStr);
 
-  // ------------- FILE UPLOAD -------------
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ---------- File upload (only 5 columns used) ----------
+
+  const handleFileUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ): Promise<void> => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -140,31 +150,33 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
     const rowsRaw = XLSX.utils.sheet_to_json(sheet, { defval: "" }) as any[];
 
     const parsed: DemandRow[] = rowsRaw.map((r: any, i: number) => {
-      const keys = Object.fromEntries(
-        Object.entries(r).map(([k, v]) => [k.trim().toLowerCase(), v])
-      );
+      const keys = Object.keys(r).reduce((acc: any, k) => {
+        acc[k.trim().toLowerCase()] = r[k];
+        return acc;
+      }, {} as Record<string, any>);
 
-      const dateUS = excelSerialToUSDate(keys["event_date"] || "");
-      const hour24 = excelTimeToHHMM(keys["hour_start"] || "");
+      const eventDate = keys["event_date"] ?? keys["date"] ?? "";
+      const hourStart = keys["hour_start"] ?? keys["time"] ?? "";
+      const demandKey = Object.keys(keys).find((k) => k.includes("patient"));
+      const patientsRaw = demandKey ? keys[demandKey] : 0;
+
+      const dateUS = excelSerialToUSDate(eventDate); // MM/DD/YYYY
+      const hour24 = excelTimeToHHMM(hourStart);
 
       let demandValue = 0;
-      const demandKey = Object.keys(keys).find((k) => k.includes("patient"));
-      if (demandKey) {
-        const raw = keys[demandKey];
-        if (typeof raw === "number") demandValue = raw;
-        else if (typeof raw === "string") {
-          const parsedVal = parseFloat(raw.replace(/[^\d.-]/g, ""));
-          if (!isNaN(parsedVal)) demandValue = parsedVal;
-        }
+      if (typeof patientsRaw === "number") {
+        demandValue = patientsRaw;
+      } else if (typeof patientsRaw === "string") {
+        const parsedVal = parseFloat(patientsRaw.replace(/[^\d.-]/g, ""));
+        if (!isNaN(parsedVal)) demandValue = parsedVal;
       }
 
-      const year = dateUS ? new Date(dateUS).getFullYear() : null;
-      const weekNum = dateUS ? getWeekStartingSunday(dayjs(dateUS)) : 0;
-
-      const day_of_week_full = dateUS ? dayjs(dateUS).format("dddd") : "";
-      const day_of_week_short = dateUS ? dayjs(dateUS).format("ddd") : "";
+      const d = dateUS ? dayjs(dateUS, "MM/DD/YYYY") : null;
+      const year = d ? d.year() : null;
+      const weekNum = d ? getWeekStartingSunday(d) : 0;
+      const day_of_week_full = d ? d.format("dddd") : "";
+      const day_of_week_short = d ? d.format("ddd") : "";
       const week_of_year = `Week ${weekNum}`;
-
       const xLabel = `${weekNum}-${day_of_week_short}`;
 
       return {
@@ -185,7 +197,8 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
     updateData("demand", parsed);
   };
 
-  // ------------- LOAD FROM CONTEXT -------------
+  // ---------- Load from context ----------
+
   useEffect(() => {
     if (rows.length === 0 && Array.isArray(data?.demand)) {
       setRows(data.demand as DemandRow[]);
@@ -197,16 +210,19 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
     setSelectedDates([]);
   }, [startStr, endStr]);
 
-  // ------------- CHART DATA (DATE RANGE ONLY) -------------
+  // ---------- CHART DATA (date range only) ----------
+
   const chartRows = useMemo(() => {
     let base = [...rows];
 
     if (startStr && endStr) {
-      const s = dayjs(startStr);
-      const e = dayjs(endStr);
+      const s = dayjs(startStr, "MM/DD/YYYY");
+      const e = dayjs(endStr, "MM/DD/YYYY");
 
       base = base.filter((r) =>
-        dayjs(r.date).isBetween(s, e, "day", "[]")
+        r.date
+          ? dayjs(r.date, "MM/DD/YYYY").isBetween(s, e, "day", "[]")
+          : false
       );
     }
 
@@ -215,13 +231,15 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
 
   const chartData = chartRows;
 
-  // ------------- TABLE DATA (DATE RANGE + CLICKED DOTS) -------------
+  // ---------- TABLE DATA (date range + clicked dots) ----------
+
   const tableRows = useMemo(() => {
     if (selectedDates.length === 0) return [];
     return chartRows.filter((r) => selectedDates.includes(r.date));
   }, [chartRows, selectedDates]);
 
-  // ------------- MERGED DATA FOR MULTI-YEAR LINES -------------
+  // ---------- Merge for multi-year lines ----------
+
   const mergedData = useMemo(() => {
     const map: Record<string, any> = {};
 
@@ -229,8 +247,13 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
       const key = row.xLabel;
       const year = row.year?.toString() ?? "";
 
-      if (!map[key]) map[key] = { xLabel: key, originalDate: row.date};
-      map[key][year] = row.demand_value;
+      if (!map[key]) {
+        map[key] = { xLabel: key, originalDate: row.date };
+      }
+
+      if (year) {
+        map[key][year] = row.demand_value;
+      }
     });
 
     return Object.values(map);
@@ -238,18 +261,19 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
 
   const years = Array.from(
     new Set(chartData.map((r) => r.year?.toString()))
-  ).filter(Boolean);
+  ).filter(Boolean) as string[];
 
   const colors = ["#4f46e5", "#f97316", "#22c55e", "#eab308"];
 
-  // ------------- CUSTOM AXIS (DAY LABELS + WEEK BARS) -------------
+  // ---------- Custom axis under chart (days + week bars) ----------
+
   const renderCustomAxis = () => {
     if (mergedData.length === 0) return null;
 
     const timeline = mergedData.map((d: any) => {
-      const [week, day] = d.xLabel.split("-");
+      const [week, day] = (d.xLabel as string).split("-");
       return {
-        xLabel: d.xLabel,
+        xLabel: d.xLabel as string,
         week: Number(week),
         day,
       };
@@ -297,7 +321,8 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
     );
   };
 
-  // ------------- PAGINATION (TABLE) -------------
+  // ---------- Pagination for table ----------
+
   const rowsPerPage = 24;
   const [page, setPage] = useState(1);
   const totalPages = Math.ceil(tableRows.length / rowsPerPage);
@@ -306,16 +331,22 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
     page * rowsPerPage
   );
 
+  // ---------- Render ----------
+
   return (
     <Card className="p-4 space-y-4">
-      {/* FILTER BAR */}
+      {/* TOP BAR */}
       <div className="flex flex-wrap gap-4 items-end">
-        <div className="w-[280px]">
+        {/* Date Range */}
+        <div className="w-[300px]">
           <label className="block text-xs font-medium mb-1">Date Range</label>
+
           <DatePickerInput
             type="range"
             value={range}
-            onChange={setRange}
+            onChange={(value) =>
+              setRange(value as [Date | null, Date | null])
+            }
             numberOfColumns={2}
             dropdownType="modal"
             valueFormat="MM/DD/YYYY"
@@ -323,10 +354,11 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
           />
         </div>
 
+        {/* Upload File */}
         <div className="ml-auto">
           <input
             type="file"
-            accept=".xlsx,.xls"
+            accept=".xlsx,xls"
             onChange={handleFileUpload}
             className="text-sm"
           />
@@ -339,8 +371,10 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
           <LineChart
             data={mergedData}
             onClick={(e: any) => {
-              const label = e?.activePayload?.[0]?.payload?.originalDate;
+              const label: string | undefined =
+                e?.activePayload?.[0]?.payload?.originalDate;
               if (!label) return;
+
               setSelectedDates((prev) =>
                 prev.includes(label)
                   ? prev.filter((x) => x !== label)
@@ -375,13 +409,13 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
         </ResponsiveContainer>
       </div>
 
-      {/* Custom Axis Below Chart (only when range selected) */}
+      {/* Custom axis only when range selected */}
       {startStr && endStr && renderCustomAxis()}
 
-      {/* TABLE — only after at least one dot has been clicked */}
+      {/* TABLE – only after at least one dot has been clicked */}
       {selectedDates.length > 0 && (
         <>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto mt-4">
             <table className="min-w-full border border-gray-200 text-sm">
               <thead className="bg-gray-50">
                 <tr>
@@ -414,35 +448,28 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
             {totalPages > 1 && (
               <div className="flex justify-center items-center gap-4 mt-3">
                 <button
-                  disabled={page === 1}
-                  onClick={() => setPage((p) => p - 1)}
+                  type="button"
                   className="px-3 py-1 border rounded disabled:opacity-50"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
                 >
-                  ← Prev
+                  Prev
                 </button>
-
-                <span className="text-sm text-gray-600">
+                <span className="text-xs text-gray-600">
                   Page {page} of {totalPages}
                 </span>
-
                 <button
-                  disabled={page === totalPages}
-                  onClick={() => setPage((p) => p + 1)}
+                  type="button"
                   className="px-3 py-1 border rounded disabled:opacity-50"
+                  onClick={() =>
+                    setPage((p) => Math.min(totalPages, p + 1))
+                  }
+                  disabled={page === totalPages}
                 >
-                  Next →
+                  Next
                 </button>
               </div>
             )}
-          </div>
-
-          <div className="flex justify-between mt-6">
-            <button className="btn btn-ghost" onClick={onPrev}>
-              ← Previous
-            </button>
-            <button className="btn btn-primary" onClick={onNext}>
-              Next →
-            </button>
           </div>
         </>
       )}
