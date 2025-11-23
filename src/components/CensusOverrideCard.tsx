@@ -297,6 +297,8 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
 
 
   // Pagination
+    useEffect(() => {setPage(1);}, [startStr, endStr]);
+
   const rowsPerPage = 24;
   const [page, setPage] = useState(1);
   const totalPages = Math.ceil(filteredRows.length / rowsPerPage);
@@ -400,8 +402,8 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
         {totalPages > 1 && (
           <div className="flex justify-center items-center gap-4 mt-3">
             <button
-              disabled={page === 1}
-              onClick={() => setPage((p) => p - 1)}
+              disabled={page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
               className="px-3 py-1 border rounded disabled:opacity-50"
             >
               ← Prev
@@ -412,24 +414,14 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
             </span>
 
             <button
-              disabled={page === totalPages}
-              onClick={() => setPage((p) => p + 1)}
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               className="px-3 py-1 border rounded disabled:opacity-50"
             >
               Next →
             </button>
           </div>
         )}
-      </div>
-
-      {/* Nav buttons */}
-      <div className="flex justify-between mt-6">
-        <button className="btn btn-ghost" onClick={onPrev}>
-          ← Previous
-        </button>
-        <button className="btn btn-primary" onClick={onNext}>
-          Next →
-        </button>
       </div>
     </Card>
   );
