@@ -348,7 +348,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
             }}
           >
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="xLabel" tick={false} axisLine={false} />
+            <XAxis dataKey="xLabel" tick={false} axisLine={false} hide={!startStr || !endStr} />
             <YAxis />
             <Tooltip />
             <Legend />
@@ -368,7 +368,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
       </div>
 
       {/* Custom Axis Below Chart */}
-      {renderCustomAxis()}
+      {startStr && endStr && renderCustomAxis()}
 
       {/* ===== TABLE ===== */}
       <div className="overflow-x-auto">
