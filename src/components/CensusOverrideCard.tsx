@@ -179,29 +179,30 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
     }
   }, [data?.demand]);
 
-  // Apply Date Range + Selected Dates
-  const filteredRows = useMemo(() => {
-  // If no dot clicked → table must stay hidden
-  if (selectedDates.length === 0) return [];
+  // Data for CHART (only date range)
+  const chartRows = useMemo(() => {
+    let base = [...rows];
 
-  let base = [...rows];
+    if (startStr && endStr) {
+      const s = dayjs(startStr);
+      const e = dayjs(endStr);
 
-  // Date range filter 
-  if (startStr && endStr) {
-    const s = dayjs(startStr);
-    const e = dayjs(endStr);
-    base = base.filter((r) =>
-      dayjs(r.date).isBetween(s, e, "day", "[]")
-    );
-  }
+      base = base.filter((r) =>
+        dayjs(r.date).isBetween(s, e, "day", "[]")
+      );
+    }
 
-  // Only keep rows the user actually clicked
-  base = base.filter((r) => selectedDates.includes(r.xLabel));
+    return base;
+  }, [rows, startStr, endStr]);
 
-  return base;
-}, [rows, startStr, endStr, selectedDates]);
+  // Data for TABLE (date range + clicked dots)
+  const tableRows = useMemo(() => {
+    if (selectedDates.length === 0) return [];
 
-  const chartData = filteredRows;
+    return chartRows.filter((r) => selectedDates.includes(r.xLabel));
+  }, [chartRows, selectedDates]);
+
+    const chartData = chartRows;
 
   // Group by week for rendering
   const weeks = useMemo(() => {
@@ -300,8 +301,8 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
   // Pagination
   const rowsPerPage = 24;
   const [page, setPage] = useState(1);
-  const totalPages = Math.ceil(filteredRows.length / rowsPerPage);
-  const visibleRows = filteredRows.slice(
+  const totalPages = Math.ceil(chartRows.length / rowsPerPage);
+  const visibleRows = tableRows.slice(
     (page - 1) * rowsPerPage,
     page * rowsPerPage
   );
