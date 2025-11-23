@@ -362,7 +362,8 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                 dataKey={y}
                 name={`Year ${y}`}
                 stroke={colors[i % colors.length]}
-                dot={false}
+                dot={{ r: 4 }}
+                activeDot={{ r: 6 }}
               />
             ))}
           </LineChart>
