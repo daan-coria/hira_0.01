@@ -218,7 +218,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
   // ------------- TABLE DATA (DATE RANGE + CLICKED DOTS) -------------
   const tableRows = useMemo(() => {
     if (selectedDates.length === 0) return [];
-    return chartRows.filter((r) => selectedDates.includes(r.xLabel));
+    return chartRows.filter((r) => selectedDates.includes(r.date));
   }, [chartRows, selectedDates]);
 
   // ------------- MERGED DATA FOR MULTI-YEAR LINES -------------
@@ -229,7 +229,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
       const key = row.xLabel;
       const year = row.year?.toString() ?? "";
 
-      if (!map[key]) map[key] = { xLabel: key };
+      if (!map[key]) map[key] = { xLabel: key, originalDate: row.date};
       map[key][year] = row.demand_value;
     });
 
@@ -339,7 +339,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
           <LineChart
             data={mergedData}
             onClick={(e: any) => {
-              const label = e?.activePayload?.[0]?.payload?.xLabel;
+              const label = e?.activePayload?.[0]?.payload?.originalDate;
               if (!label) return;
               setSelectedDates((prev) =>
                 prev.includes(label)
