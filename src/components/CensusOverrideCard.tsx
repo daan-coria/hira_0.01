@@ -181,26 +181,27 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
 
   // Apply Date Range + Selected Dates
   const filteredRows = useMemo(() => {
-    let base = [...rows];
+  // If no dot clicked → table must stay hidden
+  if (selectedDates.length === 0) return [];
 
-    if (startStr && endStr) {
-      const s = dayjs(startStr);
-      const e = dayjs(endStr);
+  let base = [...rows];
 
-      base = base.filter((r) =>
-        dayjs(r.date).isBetween(s, e, "day", "[]")
-      );
-    }
+  // Date range filter 
+  if (startStr && endStr) {
+    const s = dayjs(startStr);
+    const e = dayjs(endStr);
+    base = base.filter((r) =>
+      dayjs(r.date).isBetween(s, e, "day", "[]")
+    );
+  }
 
-    if (selectedDates.length > 0) {
-      base = base.filter((r) => selectedDates.includes(r.xLabel));
-    }
+  // Only keep rows the user actually clicked
+  base = base.filter((r) => selectedDates.includes(r.xLabel));
 
-    return base;
-  }, [rows, startStr, endStr, selectedDates]);
+  return base;
+}, [rows, startStr, endStr, selectedDates]);
 
   const chartData = filteredRows;
-
 
   // Group by week for rendering
   const weeks = useMemo(() => {
