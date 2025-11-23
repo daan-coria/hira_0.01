@@ -15,7 +15,6 @@ import {
 } from "recharts";
 
 // Mantine date range picker
-
 import { DatePickerInput } from "@mantine/dates";
 import "@mantine/dates/styles.css";
 
@@ -115,8 +114,9 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
   ]);
 
   const [startStr, endStr] = range;
+  const showDots = Boolean(startStr && endStr);
 
-  // File upload
+  // ------------- FILE UPLOAD -------------
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -172,14 +172,19 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
     updateData("demand", parsed);
   };
 
-  // Load from Context
+  // ------------- LOAD FROM CONTEXT -------------
   useEffect(() => {
     if (rows.length === 0 && Array.isArray(data?.demand)) {
       setRows(data.demand as DemandRow[]);
     }
-  }, [data?.demand]);
+  }, [data?.demand, rows.length]);
 
-  // Data for CHART (only date range)
+  // Clear selected dates when date range changes
+  useEffect(() => {
+    setSelectedDates([]);
+  }, [startStr, endStr]);
+
+  // ------------- CHART DATA (DATE RANGE ONLY) -------------
   const chartRows = useMemo(() => {
     let base = [...rows];
 
@@ -195,26 +200,15 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
     return base;
   }, [rows, startStr, endStr]);
 
-  // Data for TABLE (date range + clicked dots)
+  const chartData = chartRows;
+
+  // ------------- TABLE DATA (DATE RANGE + CLICKED DOTS) -------------
   const tableRows = useMemo(() => {
     if (selectedDates.length === 0) return [];
-
     return chartRows.filter((r) => selectedDates.includes(r.xLabel));
   }, [chartRows, selectedDates]);
 
-    const chartData = chartRows;
-
-  // Group by week for rendering
-  const weeks = useMemo(() => {
-    const wk: Record<number, any[]> = {};
-    chartData.forEach((r) => {
-      if (!wk[r.weekNum]) wk[r.weekNum] = [];
-      wk[r.weekNum].push(r);
-    });
-    return wk;
-  }, [chartData]);
-
-  //Merge by xLabel for multi-year chart
+  // ------------- MERGED DATA FOR MULTI-YEAR LINES -------------
   const mergedData = useMemo(() => {
     const map: Record<string, any> = {};
 
@@ -235,11 +229,10 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
 
   const colors = ["#4f46e5", "#f97316", "#22c55e", "#eab308"];
 
-  // Custom X-axis Renderer
+  // ------------- CUSTOM AXIS (DAY LABELS + WEEK BARS) -------------
   const renderCustomAxis = () => {
     if (mergedData.length === 0) return null;
 
-    // Build grouped structure
     const timeline = mergedData.map((d: any) => {
       const [week, day] = d.xLabel.split("-");
       return {
@@ -249,18 +242,12 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
       };
     });
 
-    // Unique weeks in order:
-    const orderedWeeks = Array.from(
-      new Set(timeline.map((x) => x.week))
-    );
+    const orderedWeeks = Array.from(new Set(timeline.map((x) => x.week)));
 
     return (
       <div className="w-full mt-4 select-none">
-        {/* ---- DAY LABELS ---- */}
-        <div
-          className="flex text-xs font-medium text-gray-700 justify-between"
-          style={{ width: "100%" }}
-        >
+        {/* Day labels */}
+        <div className="flex text-xs font-medium text-gray-700 justify-between">
           {timeline.map((t, idx) => (
             <div
               key={idx}
@@ -274,7 +261,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
           ))}
         </div>
 
-        {/* ---- WEEK BARS ---- */}
+        {/* Week bars */}
         <div className="flex mt-2">
           {orderedWeeks.map((wk) => {
             const count = timeline.filter((t) => t.week === wk).length;
@@ -287,7 +274,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                   textAlign: "center",
                 }}
               >
-                <div className="h-1 bg-blue-600 rounded-full mb-1"></div>
+                <div className="h-1 bg-blue-600 rounded-full mb-1" />
                 <div className="text-blue-700 font-semibold">{wk}</div>
               </div>
             );
@@ -297,11 +284,10 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
     );
   };
 
-
-  // Pagination
+  // ------------- PAGINATION (TABLE) -------------
   const rowsPerPage = 24;
   const [page, setPage] = useState(1);
-  const totalPages = Math.ceil(chartRows.length / rowsPerPage);
+  const totalPages = Math.ceil(tableRows.length / rowsPerPage);
   const visibleRows = tableRows.slice(
     (page - 1) * rowsPerPage,
     page * rowsPerPage
@@ -309,7 +295,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
 
   return (
     <Card className="p-4 space-y-4">
-      {/* ===== FILTER BAR ===== */}
+      {/* FILTER BAR */}
       <div className="flex flex-wrap gap-4 items-end">
         <div className="w-[280px]">
           <label className="block text-xs font-medium mb-1">Date Range</label>
@@ -334,7 +320,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
         </div>
       </div>
 
-      {/* ===== CHART ===== */}
+      {/* CHART */}
       <div className="mt-2 h-80">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
@@ -347,10 +333,16 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                   ? prev.filter((x) => x !== label)
                   : [...prev, label]
               );
+              setPage(1);
             }}
           >
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="xLabel" tick={false} axisLine={false} hide={!startStr || !endStr} />
+            <XAxis
+              dataKey="xLabel"
+              tick={false}
+              axisLine={false}
+              hide={!startStr || !endStr}
+            />
             <YAxis />
             <Tooltip />
             <Legend />
@@ -362,18 +354,18 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                 dataKey={y}
                 name={`Year ${y}`}
                 stroke={colors[i % colors.length]}
-                dot={{ r: 4 }}
-                activeDot={{ r: 6 }}
+                dot={showDots ? { r: 4 } : false}
+                activeDot={showDots ? { r: 6 } : false}
               />
             ))}
           </LineChart>
         </ResponsiveContainer>
       </div>
 
-      {/* Custom Axis Below Chart */}
+      {/* Custom Axis Below Chart (only when range selected) */}
       {startStr && endStr && renderCustomAxis()}
 
-      {/* ===== TABLE ===== */}
+      {/* TABLE — only after at least one dot has been clicked */}
       {selectedDates.length > 0 && (
         <>
           <div className="overflow-x-auto">
@@ -387,15 +379,20 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                   <th className="px-3 py-2 border text-center">Demand</th>
                 </tr>
               </thead>
-
               <tbody>
                 {visibleRows.map((r) => (
                   <tr key={r.id} className="odd:bg-white even:bg-gray-50">
-                    <td className="border px-2 py-1 text-center">{r.week_of_year}</td>
-                    <td className="border px-2 py-1 text-center">{r.day_of_week_full}</td>
+                    <td className="border px-2 py-1 text-center">
+                      {r.week_of_year}
+                    </td>
+                    <td className="border px-2 py-1 text-center">
+                      {r.day_of_week_full}
+                    </td>
                     <td className="border px-2 py-1 text-center">{r.date}</td>
                     <td className="border px-2 py-1 text-center">{r.hour}</td>
-                    <td className="border px-2 py-1 text-right">{r.demand_value}</td>
+                    <td className="border px-2 py-1 text-right">
+                      {r.demand_value}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -411,7 +408,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                   ← Prev
                 </button>
 
-                <span className="text-sm">
+                <span className="text-sm text-gray-600">
                   Page {page} of {totalPages}
                 </span>
 
