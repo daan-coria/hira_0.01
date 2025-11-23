@@ -89,6 +89,19 @@ function excelTimeToHHMM(v: unknown): string {
   return "";
 }
 
+//Week Starts on Sunday
+function getWeekStartingSunday(d: dayjs.Dayjs) {
+  const startOfYear = dayjs(`${d.year()}-01-01`);
+
+  // Sunday = 0
+  const firstSunday =
+    startOfYear.day() === 0
+      ? startOfYear
+      : startOfYear.subtract(startOfYear.day(), "day");
+
+  return Math.floor(d.diff(firstSunday, "day") / 7) + 1;
+}
+
 type DemandRow = {
   id: number;
   date: string;
@@ -146,7 +159,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
       }
 
       const year = dateUS ? new Date(dateUS).getFullYear() : null;
-      const weekNum = dateUS ? dayjs(dateUS).week() : 0;
+      const weekNum = dateUS ? getWeekStartingSunday(dayjs(dateUS)) : 0;
 
       const day_of_week_full = dateUS ? dayjs(dateUS).format("dddd") : "";
       const day_of_week_short = dateUS ? dayjs(dateUS).format("ddd") : "";
