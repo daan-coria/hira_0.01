@@ -168,15 +168,32 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
       };
     });
 
-    setRows(parsed);
-    updateData("demand", parsed);
+    const cleaned = parsed.filter(r =>
+      r.date &&
+      dayjs(r.date, "MM/DD/YYYY").isValid() &&
+      r.hour &&
+      r.hour !== "" &&
+      !isNaN(r.demand_value)
+    );
+
+    setRows(cleaned);
+    updateData("demand", cleaned); 
   };
 
   // Load from Context
   useEffect(() => {
     if (rows.length === 0 && Array.isArray(data?.demand)) {
-      setRows(data.demand as DemandRow[]);
-    }
+      const cleaned = (data.demand as DemandRow[]).filter(r =>
+        r.date &&
+        dayjs(r.date, "MM/DD/YYYY").isValid() &&
+        r.hour &&
+        r.hour !== "" &&
+        !isNaN(r.demand_value)
+      );
+      
+  setRows(cleaned);
+}
+
   }, [data?.demand]);
 
   // Apply Date Range + Selected Dates
@@ -297,7 +314,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
 
 
   // Pagination
-    useEffect(() => {setPage(1);}, [startStr, endStr]);
+  useEffect(() => {setPage(1);}, [startStr, endStr]);
 
   const rowsPerPage = 24;
   const [page, setPage] = useState(1);
