@@ -14,7 +14,6 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-// Mantine date range picker
 import { DatePickerInput } from "@mantine/dates";
 import "@mantine/dates/styles.css";
 
@@ -27,9 +26,8 @@ dayjs.extend(weekOfYear);
 dayjs.extend(isBetween);
 dayjs.extend(customParseFormat);
 
-// ---------- Helpers ----------
+// ---------- Excel Helpers ----------
 
-// Excel serial → US date MM/DD/YYYY
 function excelSerialToUSDate(v: unknown): string {
   if (typeof v === "number") {
     const base = Date.UTC(1899, 11, 30);
@@ -49,12 +47,10 @@ function excelSerialToUSDate(v: unknown): string {
 
     if (parts.length === 3) {
       if (parts[0].length === 4) {
-        // yyyy-mm-dd
         yyyy = +parts[0];
         mm = +parts[1];
         dd = +parts[2];
       } else {
-        // mm-dd-yyyy or mm/dd/yyyy
         mm = +parts[0];
         dd = +parts[1];
         yyyy = +parts[2];
@@ -72,7 +68,6 @@ function excelSerialToUSDate(v: unknown): string {
   return "";
 }
 
-// Excel time → 24h HH:MM
 function excelTimeToHHMM(v: unknown): string {
   if (typeof v === "number") {
     const totalSec = Math.round((v % 1) * 86400);
@@ -80,6 +75,7 @@ function excelTimeToHHMM(v: unknown): string {
     const mm = Math.floor((totalSec % 3600) / 60);
     return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
   }
+
   if (typeof v === "string") {
     const match = v.match(/^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i);
     if (match) {
@@ -93,15 +89,17 @@ function excelTimeToHHMM(v: unknown): string {
       return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
     }
   }
+
   return "00:00";
 }
 
-// Week number with weeks starting on Sunday
+// ---------- Sunday-based Week Number ----------
+
 function getWeekStartingSunday(d: Dayjs): number {
   const startOfYear = dayjs(`${d.year()}-01-01`, "YYYY-MM-DD");
   const diffDays = d.startOf("day").diff(startOfYear.startOf("day"), "day");
-  // Offset so that weeks start on Sunday (day() === 0)
-  const offset = startOfYear.day(); // 0–6, where 0 is Sunday
+  const offset = startOfYear.day(); // 0 = Sunday
+
   return Math.floor((diffDays + offset) / 7) + 1;
 }
 
@@ -109,8 +107,8 @@ function getWeekStartingSunday(d: Dayjs): number {
 
 type DemandRow = {
   id: number;
-  date: string; // MM/DD/YYYY
-  hour: string; // HH:MM 24h
+  date: string;
+  hour: string;
   demand_value: number;
   year: number | null;
 
@@ -118,29 +116,31 @@ type DemandRow = {
   week_of_year: string;
   day_of_week_full: string;
   day_of_week_short: string;
-  xLabel: string; // `${weekNum}-${dayShort}`
+  xLabel: string;
 };
 
-type Props = { onNext: () => void; onPrev: () => void };
+type Props = { onNext?: () => void; onPrev?: () => void };
+
+// ============================================================================
+//                              MAIN COMPONENT
+// ============================================================================
 
 export default function CensusOverrideCard({ onNext, onPrev }: Props) {
   const { data, updateData } = useApp();
 
   const [rows, setRows] = useState<DemandRow[]>([]);
-  const [selectedDates, setSelectedDates] = useState<string[]>([]);
-  const [range, setRange] = useState<[Date | null, Date | null]>([null, null]);
 
+  // ⬅️ No more selectedDates, click logic removed
+
+  const [range, setRange] = useState<[Date | null, Date | null]>([null, null]);
 
   const [startDate, endDate] = range;
   const startStr = startDate ? dayjs(startDate).format("MM/DD/YYYY") : "";
   const endStr = endDate ? dayjs(endDate).format("MM/DD/YYYY") : "";
-  const showDots = Boolean(startStr && endStr);
 
-  // ---------- File upload (only 5 columns used) ----------
+  // ---------- File Upload ----------
 
-  const handleFileUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ): Promise<void> => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -153,31 +153,29 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
       const keys = Object.keys(r).reduce((acc: any, k) => {
         acc[k.trim().toLowerCase()] = r[k];
         return acc;
-      }, {} as Record<string, any>);
+      }, {});
 
-      const eventDate = keys["event_date"] ?? keys["date"] ?? "";
-      const hourStart = keys["hour_start"] ?? keys["time"] ?? "";
+      const eventDate = keys["event_date"] ?? keys["date"];
+      const hourStart = keys["hour_start"];
       const demandKey = Object.keys(keys).find((k) => k.includes("patient"));
       const patientsRaw = demandKey ? keys[demandKey] : 0;
 
-      const dateUS = excelSerialToUSDate(eventDate); // MM/DD/YYYY
+      const dateUS = excelSerialToUSDate(eventDate);
       const hour24 = excelTimeToHHMM(hourStart);
 
       let demandValue = 0;
-      if (typeof patientsRaw === "number") {
-        demandValue = patientsRaw;
-      } else if (typeof patientsRaw === "string") {
-        const parsedVal = parseFloat(patientsRaw.replace(/[^\d.-]/g, ""));
-        if (!isNaN(parsedVal)) demandValue = parsedVal;
+      if (typeof patientsRaw === "number") demandValue = patientsRaw;
+      else if (typeof patientsRaw === "string") {
+        const p = parseFloat(patientsRaw.replace(/[^\d.-]/g, ""));
+        if (!isNaN(p)) demandValue = p;
       }
 
       const d = dateUS ? dayjs(dateUS, "MM/DD/YYYY") : null;
       const year = d ? d.year() : null;
       const weekNum = d ? getWeekStartingSunday(d) : 0;
-      const day_of_week_full = d ? d.format("dddd") : "";
-      const day_of_week_short = d ? d.format("ddd") : "";
-      const week_of_year = `Week ${weekNum}`;
-      const xLabel = `${weekNum}-${day_of_week_short}`;
+
+      const day_full = d ? d.format("dddd") : "";
+      const day_short = d ? d.format("ddd") : "";
 
       return {
         id: i,
@@ -186,10 +184,10 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
         demand_value: demandValue,
         year,
         weekNum,
-        week_of_year,
-        day_of_week_full,
-        day_of_week_short,
-        xLabel,
+        week_of_year: `Week ${weekNum}`,
+        day_of_week_full: day_full,
+        day_of_week_short: day_short,
+        xLabel: `${weekNum}-${day_short}`,
       };
     });
 
@@ -197,7 +195,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
     updateData("demand", parsed);
   };
 
-  // ---------- Load from context ----------
+  // ---------- Load cached demand ----------
 
   useEffect(() => {
     if (rows.length === 0 && Array.isArray(data?.demand)) {
@@ -205,137 +203,66 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
     }
   }, [data?.demand, rows.length]);
 
-  // Clear selected dates when date range changes
-  useEffect(() => {
-    setSelectedDates([]);
-  }, [startStr, endStr]);
-
-  // ---------- CHART DATA (date range only) ----------
+  // ---------- Filter by Date Range ----------
 
   const chartRows = useMemo(() => {
-    let base = [...rows];
+    if (!startStr || !endStr) return rows;
 
-    if (startStr && endStr) {
-      const s = dayjs(startStr, "MM/DD/YYYY");
-      const e = dayjs(endStr, "MM/DD/YYYY");
+    const s = dayjs(startStr, "MM/DD/YYYY");
+    const e = dayjs(endStr, "MM/DD/YYYY");
 
-      base = base.filter((r) =>
-        r.date
-          ? dayjs(r.date, "MM/DD/YYYY").isBetween(s, e, "day", "[]")
-          : false
-      );
-    }
-
-    return base;
+    return rows.filter((r) =>
+      dayjs(r.date, "MM/DD/YYYY").isBetween(s, e, "day", "[]")
+    );
   }, [rows, startStr, endStr]);
 
-  const chartData = chartRows;
-
-  // ---------- TABLE DATA (date range + clicked dots) ----------
-
-  const tableRows = useMemo(() => {
-    if (selectedDates.length === 0) return [];
-    return chartRows.filter((r) => selectedDates.includes(r.date));
-  }, [chartRows, selectedDates]);
-
-  // ---------- Merge for multi-year lines ----------
+  // ---------- mergedData for Chart ----------
 
   const mergedData = useMemo(() => {
     const map: Record<string, any> = {};
 
-    chartData.forEach((row) => {
+    chartRows.forEach((row) => {
       const key = row.xLabel;
       const year = row.year?.toString() ?? "";
 
       if (!map[key]) {
-        map[key] = { xLabel: key, originalDate: row.date };
+        map[key] = {
+          xLabel: key,
+          originalDate: row.date,
+        };
       }
 
-      if (year) {
-        map[key][year] = row.demand_value;
-      }
+      if (year) map[key][year] = row.demand_value;
     });
 
     return Object.values(map);
-  }, [chartData]);
+  }, [chartRows]);
 
   const years = Array.from(
-    new Set(chartData.map((r) => r.year?.toString()))
+    new Set(chartRows.map((r) => r.year?.toString()))
   ).filter(Boolean) as string[];
 
   const colors = ["#4f46e5", "#f97316", "#22c55e", "#eab308"];
 
-  // ---------- Custom axis under chart (days + week bars) ----------
-
-  const renderCustomAxis = () => {
-    if (mergedData.length === 0) return null;
-
-    const timeline = mergedData.map((d: any) => {
-      const [week, day] = (d.xLabel as string).split("-");
-      return {
-        xLabel: d.xLabel as string,
-        week: Number(week),
-        day,
-      };
-    });
-
-    const orderedWeeks = Array.from(new Set(timeline.map((x) => x.week)));
-
-    return (
-      <div className="w-full mt-4 select-none">
-        {/* Day labels */}
-        <div className="flex text-xs font-medium text-gray-700 justify-between">
-          {timeline.map((t, idx) => (
-            <div
-              key={idx}
-              style={{
-                width: `${100 / timeline.length}%`,
-                textAlign: "center",
-              }}
-            >
-              {t.day}
-            </div>
-          ))}
-        </div>
-
-        {/* Week bars */}
-        <div className="flex mt-2">
-          {orderedWeeks.map((wk) => {
-            const count = timeline.filter((t) => t.week === wk).length;
-            return (
-              <div
-                key={wk}
-                style={{
-                  width: `${(count / timeline.length) * 100}%`,
-                  padding: "4px 0",
-                  textAlign: "center",
-                }}
-              >
-                <div className="h-1 bg-blue-600 rounded-full mb-1" />
-                <div className="text-blue-700 font-semibold">{wk}</div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
-
-  // ---------- Pagination for table ----------
+  // ---------- Table Pagination ----------
 
   const rowsPerPage = 24;
   const [page, setPage] = useState(1);
-  const totalPages = Math.ceil(tableRows.length / rowsPerPage);
-  const visibleRows = tableRows.slice(
+
+  const totalPages = Math.ceil(chartRows.length / rowsPerPage);
+  const visibleRows = chartRows.slice(
     (page - 1) * rowsPerPage,
     page * rowsPerPage
   );
 
-  // ---------- Render ----------
+  // ========================================================================
+  //                              RENDER
+  // ========================================================================
 
   return (
     <Card className="p-4 space-y-4">
-      {/* TOP BAR */}
+
+      {/* FILTER BAR */}
       <div className="flex flex-wrap gap-4 items-end">
         {/* Date Range */}
         <div className="w-[300px]">
@@ -349,6 +276,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
             }
             numberOfColumns={2}
             dropdownType="modal"
+            placeholder="Select date range"
             valueFormat="MM/DD/YYYY"
             clearable
           />
@@ -358,7 +286,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
         <div className="ml-auto">
           <input
             type="file"
-            accept=".xlsx,xls"
+            accept=".xlsx,.xls"
             onChange={handleFileUpload}
             className="text-sm"
           />
@@ -366,53 +294,36 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
       </div>
 
       {/* CHART */}
-      <div className="mt-2 h-80">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart
-            data={mergedData}
-            onClick={(e: any) => {
-              const label: string | undefined =
-                e?.activePayload?.[0]?.payload?.originalDate;
-              if (!label) return;
+      {startStr && endStr && (
+        <div className="mt-2 h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={mergedData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="xLabel" tick={false} axisLine={false} />
+              <YAxis />
+              <Tooltip />
+              <Legend />
 
-              setSelectedDates((prev) =>
-                prev.includes(label)
-                  ? prev.filter((x) => x !== label)
-                  : [...prev, label]
-              );
-              setPage(1);
-            }}
-          >
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis
-              dataKey="xLabel"
-              tick={false}
-              axisLine={false}
-              hide={!startStr || !endStr}
-            />
-            <YAxis />
-            <Tooltip />
-            <Legend />
+              {years.map((y, i) => (
+                <Line
+                  key={y}
+                  dataKey={y}
+                  name={`Year ${y}`}
+                  type="monotone"
+                  stroke={colors[i % colors.length]}
+                  dot={{ r: 4 }}
+                  activeDot={{ r: 6 }}
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
 
-            {years.map((y, i) => (
-              <Line
-                key={y}
-                type="monotone"
-                dataKey={y}
-                name={`Year ${y}`}
-                stroke={colors[i % colors.length]}
-                dot={showDots ? { r: 4 } : false}
-                activeDot={showDots ? { r: 6 } : false}
-              />
-            ))}
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* ===== TABLE (ALWAYS SHOW AFTER DATE RANGE) ===== */}
+      {/* TABLE ALWAYS SHOWS WHEN DATE RANGE SELECTED */}
       {startStr && endStr && (
         <>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto mt-4">
             <table className="min-w-full border border-gray-200 text-sm">
               <thead className="bg-gray-50">
                 <tr>
@@ -427,11 +338,17 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
               <tbody>
                 {visibleRows.map((r) => (
                   <tr key={r.id} className="odd:bg-white even:bg-gray-50">
-                    <td className="border px-2 py-1 text-center">{r.week_of_year}</td>
-                    <td className="border px-2 py-1 text-center">{r.day_of_week_full}</td>
+                    <td className="border px-2 py-1 text-center">
+                      {r.week_of_year}
+                    </td>
+                    <td className="border px-2 py-1 text-center">
+                      {r.day_of_week_full}
+                    </td>
                     <td className="border px-2 py-1 text-center">{r.date}</td>
                     <td className="border px-2 py-1 text-center">{r.hour}</td>
-                    <td className="border px-2 py-1 text-right">{r.demand_value}</td>
+                    <td className="border px-2 py-1 text-right">
+                      {r.demand_value}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -447,7 +364,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                   ← Prev
                 </button>
 
-                <span className="text-sm">
+                <span className="text-sm text-gray-600">
                   Page {page} of {totalPages}
                 </span>
 
@@ -462,6 +379,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
             )}
           </div>
 
+          {/* Footer nav */}
           <div className="flex justify-between mt-6">
             <button className="btn btn-ghost" onClick={onPrev}>
               ← Previous
