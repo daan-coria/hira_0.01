@@ -409,13 +409,10 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
         </ResponsiveContainer>
       </div>
 
-      {/* Custom axis only when range selected */}
-      {startStr && endStr && renderCustomAxis()}
-
-      {/* TABLE – only after at least one dot has been clicked */}
-      {selectedDates.length > 0 && (
+      {/* ===== TABLE (ALWAYS SHOW AFTER DATE RANGE) ===== */}
+      {startStr && endStr && (
         <>
-          <div className="overflow-x-auto mt-4">
+          <div className="overflow-x-auto">
             <table className="min-w-full border border-gray-200 text-sm">
               <thead className="bg-gray-50">
                 <tr>
@@ -426,20 +423,15 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
                   <th className="px-3 py-2 border text-center">Demand</th>
                 </tr>
               </thead>
+
               <tbody>
                 {visibleRows.map((r) => (
                   <tr key={r.id} className="odd:bg-white even:bg-gray-50">
-                    <td className="border px-2 py-1 text-center">
-                      {r.week_of_year}
-                    </td>
-                    <td className="border px-2 py-1 text-center">
-                      {r.day_of_week_full}
-                    </td>
+                    <td className="border px-2 py-1 text-center">{r.week_of_year}</td>
+                    <td className="border px-2 py-1 text-center">{r.day_of_week_full}</td>
                     <td className="border px-2 py-1 text-center">{r.date}</td>
                     <td className="border px-2 py-1 text-center">{r.hour}</td>
-                    <td className="border px-2 py-1 text-right">
-                      {r.demand_value}
-                    </td>
+                    <td className="border px-2 py-1 text-right">{r.demand_value}</td>
                   </tr>
                 ))}
               </tbody>
@@ -448,28 +440,35 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
             {totalPages > 1 && (
               <div className="flex justify-center items-center gap-4 mt-3">
                 <button
-                  type="button"
-                  className="px-3 py-1 border rounded disabled:opacity-50"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
+                  onClick={() => setPage((p) => p - 1)}
+                  className="px-3 py-1 border rounded disabled:opacity-50"
                 >
-                  Prev
+                  ← Prev
                 </button>
-                <span className="text-xs text-gray-600">
+
+                <span className="text-sm">
                   Page {page} of {totalPages}
                 </span>
+
                 <button
-                  type="button"
-                  className="px-3 py-1 border rounded disabled:opacity-50"
-                  onClick={() =>
-                    setPage((p) => Math.min(totalPages, p + 1))
-                  }
                   disabled={page === totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                  className="px-3 py-1 border rounded disabled:opacity-50"
                 >
-                  Next
+                  Next →
                 </button>
               </div>
             )}
+          </div>
+
+          <div className="flex justify-between mt-6">
+            <button className="btn btn-ghost" onClick={onPrev}>
+              ← Previous
+            </button>
+            <button className="btn btn-primary" onClick={onNext}>
+              Next →
+            </button>
           </div>
         </>
       )}
