@@ -20,11 +20,13 @@ import "@mantine/dates/styles.css";
 import dayjs from "dayjs";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
+import weekOfYear from "dayjs/plugin/weekOfYear";
 
 dayjs.extend(isSameOrAfter);
 dayjs.extend(isSameOrBefore);
+dayjs.extend(weekOfYear);
 
-// Excel serial or US-style string (9/25/2024) → US date MM/DD/YYYY
+// Excel serial → US date MM/DD/YYYY
 function excelSerialToUSDate(v: unknown): string {
   if (typeof v === "number") {
     const base = Date.UTC(1899, 11, 30);
@@ -55,14 +57,17 @@ function excelSerialToUSDate(v: unknown): string {
     }
 
     if (yyyy && mm && dd) {
-      return `${String(mm).padStart(2, "0")}/${String(dd).padStart(2, "0")}/${yyyy}`;
+      return `${String(mm).padStart(2, "0")}/${String(dd).padStart(
+        2,
+        "0"
+      )}/${yyyy}`;
     }
   }
 
   return "";
 }
 
-// Excel time (fraction or AM/PM string) -> 24h HH:MM
+// Excel time → 24h HH:MM
 function excelTimeToHHMM(v: unknown): string {
   if (typeof v === "number") {
     const totalSec = Math.round((v % 1) * 86400);
@@ -70,6 +75,7 @@ function excelTimeToHHMM(v: unknown): string {
     const mm = Math.floor((totalSec % 3600) / 60);
     return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
   }
+
   if (typeof v === "string") {
     const match = v.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/i);
     if (match) {
@@ -81,18 +87,19 @@ function excelTimeToHHMM(v: unknown): string {
       return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
     }
   }
+
   return "";
 }
 
 type DemandRow = {
   id?: number;
-  facility: string;
-  unit: string;
-  cc: string;
   date: string;
   hour: string;
   demand_value: number;
-  year?: number | null;
+  year: number | null;
+  week_of_year: string;
+  day_of_week: string;
+  dayKey: string;
 };
 
 type Props = { onNext?: () => void; onPrev?: () => void };
@@ -101,11 +108,7 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
   const { data, updateData } = useApp();
   const [rows, setRows] = useState<DemandRow[]>([]);
 
-  // SERIES
-  const [selectedSeries, setSelectedSeries] = useState<string>("unit");
-  const seriesOptions = ["facility", "unit"];
-
-  // MANTINE DATE RANGE (native JS Dates)
+  // DATE RANGE
   const [range, setRange] = useState<[string | null, string | null]>([
     null,
     null,
@@ -113,6 +116,8 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
 
   const [startStr, endStr] = range;
 
+  // Selected chart dates
+  const [selectedDates, setSelectedDates] = useState<string[]>([]);
 
   // File upload
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -130,8 +135,6 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
         return acc;
       }, {});
 
-      const facility = keys["fac"] || "";
-      const unit = keys["unit"] || "";
       const eventDate = keys["event_date"] || "";
       const hourStart = keys["hour_start"] || "";
       const demandKey = Object.keys(keys).find((k) => k.includes("patient"));
@@ -149,18 +152,26 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
 
       const year = dateUS ? new Date(dateUS).getFullYear() : null;
 
+      // Week + Day of week
+      const weekNum = dateUS ? dayjs(dateUS).week() : null;
+      const week_of_year = weekNum ? `Week ${weekNum}` : "";
+      const day_of_week = dateUS ? dayjs(dateUS).format("dddd") : "";
+
+      // Month-Day key for chart
+      const [m, d] = dateUS ? dateUS.split("/") : ["", ""];
+      const dayKey = `${m}-${d}`;
+
       return {
         id: i,
-        facility,
-        unit,
-        cc: "",
         date: dateUS,
         hour: hour24,
         demand_value: demandValue,
-        year,   
+        year,
+        week_of_year,
+        day_of_week,
+        dayKey,
       };
     });
-
 
     setRows(parsed);
     updateData("demand", parsed);
@@ -168,24 +179,78 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
 
   useEffect(() => {
     if (rows.length === 0 && Array.isArray(data?.demand) && data.demand.length > 0) {
-      setRows(data.demand);
+      setRows(data.demand as DemandRow[]);
     }
   }, [data?.demand]);
 
-  // Filtering based on Mantine’s date range
+  // Filter by date range
   const filteredRows = useMemo(() => {
-    if (!startStr || !endStr) return rows;
+    let base = [...rows];
 
-    const start = dayjs(startStr);
-    const end = dayjs(endStr);
+    if (startStr && endStr) {
+      const start = dayjs(startStr);
+      const end = dayjs(endStr);
 
-    return rows.filter((r) => {
-      const normalized = r.date.replace(/(\d{2})\/(\d{2})\/(\d{4})/, "$3-$1-$2");
-      const d = dayjs(normalized);
+      base = base.filter((r) => {
+        const normalized = r.date.replace(
+          /(\d{2})\/(\d{2})\/(\d{4})/,
+          "$3-$1-$2"
+        );
+        const d = dayjs(normalized);
+        return d.isSameOrAfter(start, "day") && d.isSameOrBefore(end, "day");
+      });
+    }
 
-      return d.isSameOrAfter(start, "day") && d.isSameOrBefore(end, "day");
+    // Filter by chart-selected dates
+    if (selectedDates.length > 0) {
+      base = base.filter((r) => selectedDates.includes(r.dayKey));
+    }
+
+    return base;
+  }, [rows, startStr, endStr, selectedDates]);
+
+  const chartData = filteredRows;
+
+  // Group by year for chart lines
+  const groupedByYear = useMemo(() => {
+    const groups: Record<string, any[]> = {};
+
+    chartData.forEach((row) => {
+      if (!row.year) return;
+      const year = row.year.toString();
+      if (!groups[year]) groups[year] = [];
+      groups[year].push(row);
     });
-  }, [rows, startStr, endStr]);
+
+    return groups;
+  }, [chartData]);
+
+  // Merge by dayKey for multi-year chart comparison
+  const mergedData = useMemo(() => {
+    const map: Record<string, any> = {};
+
+    chartData.forEach((row) => {
+      if (!row.year) return;
+
+      const year = row.year.toString();
+      const key = row.dayKey;
+
+      if (!map[key]) map[key] = { dayKey: key };
+
+      map[key][year] = row.demand_value;
+    });
+
+    return Object.values(map);
+  }, [chartData]);
+
+  const colors = [
+    "#4f46e5",
+    "#22c55e",
+    "#eab308",
+    "#ef4444",
+    "#06b6d4",
+    "#a855f7",
+  ];
 
 
   // Pagination
@@ -194,81 +259,11 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
   const totalPages = Math.ceil(filteredRows.length / rowsPerPage);
   const startIdx = (page - 1) * rowsPerPage;
   const visibleRows = filteredRows.slice(startIdx, startIdx + rowsPerPage);
-  const chartData = filteredRows;
-
-  // Group data by year
-  const groupedByYear = useMemo(() => {
-  const groups: Record<string, any[]> = {};
-
-  chartData.forEach((row) => {
-    if (!row.date || !row.year) return;
-
-    const year = row.year.toString();
-    if (!groups[year]) groups[year] = [];
-
-    const [m, d] = row.date.split("/");
-    const dayKey = `${m}-${d}`;
-
-    groups[year].push({
-      ...row,
-      dayKey,
-    });
-  });
-
-  return groups;
-}, [chartData]);
-
-  const mergedData = useMemo(() => {
-  const map: Record<string, any> = {};
-
-  chartData.forEach((row) => {
-    if (!row.date || !row.year) return;
-
-    const [m, d] = row.date.split("/");
-    const dayKey = `${m}-${d}`;
-    const year = row.year.toString();
-
-    if (!map[dayKey]) {
-      map[dayKey] = { dayKey };
-    }
-
-    map[dayKey][year] = row.demand_value;
-  });
-
-  return Object.values(map);
-}, [chartData]);
-
-  const colors = [
-  "#4f46e5",
-  "#22c55e",
-  "#eab308",
-  "#ef4444",
-  "#06b6d4",
-  "#a855f7",
-];
 
   return (
     <Card className="p-4 space-y-4">
-
       {/* FILTER BAR */}
       <div className="flex flex-wrap gap-4 items-end">
-
-        {/* Series */}
-        <div>
-          <label className="block text-xs font-medium mb-1">Series</label>
-          <select
-            className="border rounded p-1 text-sm"
-            value={selectedSeries}
-            onChange={(e) => setSelectedSeries(e.target.value)}
-          >
-            {seriesOptions.map((s) => (
-              <option key={s} value={s}>
-                {s.charAt(0).toUpperCase() + s.slice(1)}
-              </option>
-            ))}
-          </select>
-        </div>
-
         {/* Date Range */}
         <div className="w-[300px]">
           <label className="block text-xs font-medium mb-1">Date Range</label>
@@ -283,7 +278,6 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
             valueFormat="MM/DD/YYYY"
             clearable
           />
-
         </div>
 
         {/* Upload File */}
@@ -300,12 +294,32 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
       {/* CHART */}
       <div className="mt-2 h-80">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={mergedData}>
+          <LineChart
+            data={mergedData}
+            onClick={(e: any) => {
+              const clickedKey =
+                e &&
+                Array.isArray(e.activePayload) &&
+                e.activePayload[0]?.payload?.dayKey;
+
+              if (!clickedKey) return;
+
+              setSelectedDates((prev) =>
+                prev.includes(clickedKey)
+                  ? prev.filter((x) => x !== clickedKey)
+                  : [...prev, clickedKey]
+              );
+            }}
+          >
             <CartesianGrid strokeDasharray="3 3" />
 
             <XAxis
               dataKey="dayKey"
-              label={{ value: "Month / Day", position: "insideBottom", offset: -5 }}
+              label={{
+                value: "Month / Day",
+                position: "insideBottom",
+                offset: -5,
+              }}
             />
 
             <YAxis />
@@ -331,23 +345,28 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
         <table className="min-w-full border border-gray-200 text-sm">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-3 py-2 border text-center">Facility</th>
-              <th className="px-3 py-2 border text-center">Unit</th>
-              <th className="px-3 py-2 border text-center">CC</th>
+              <th className="px-3 py-2 border text-center">Week of the Year</th>
+              <th className="px-3 py-2 border text-center">Day of Week</th>
               <th className="px-3 py-2 border text-center">Date</th>
               <th className="px-3 py-2 border text-center">Hour</th>
-              <th className="px-3 py-2 border text-center">Demand Value</th>
+              <th className="px-3 py-2 border text-center">Demand</th>
             </tr>
           </thead>
+
           <tbody>
             {visibleRows.map((row, i) => (
               <tr key={i} className="odd:bg-white even:bg-gray-50">
-                <td className="border px-2 py-1 text-center">{row.facility}</td>
-                <td className="border px-2 py-1 text-center">{row.unit}</td>
-                <td className="border px-2 py-1 text-center">{row.cc}</td>
+                <td className="border px-2 py-1 text-center">
+                  {row.week_of_year}
+                </td>
+                <td className="border px-2 py-1 text-center">
+                  {row.day_of_week}
+                </td>
                 <td className="border px-2 py-1 text-center">{row.date}</td>
                 <td className="border px-2 py-1 text-center">{row.hour}</td>
-                <td className="border px-2 py-1 text-right">{row.demand_value}</td>
+                <td className="border px-2 py-1 text-right">
+                  {row.demand_value}
+                </td>
               </tr>
             ))}
           </tbody>
