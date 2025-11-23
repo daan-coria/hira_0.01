@@ -371,66 +371,68 @@ export default function CensusOverrideCard({ onNext, onPrev }: Props) {
       {startStr && endStr && renderCustomAxis()}
 
       {/* ===== TABLE ===== */}
-      <div className="overflow-x-auto">
-        <table className="min-w-full border border-gray-200 text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-3 py-2 border text-center">Week</th>
-              <th className="px-3 py-2 border text-center">Day</th>
-              <th className="px-3 py-2 border text-center">Date</th>
-              <th className="px-3 py-2 border text-center">Hour</th>
-              <th className="px-3 py-2 border text-center">Demand</th>
-            </tr>
-          </thead>
+      {selectedDates.length > 0 && (
+        <>
+          <div className="overflow-x-auto">
+            <table className="min-w-full border border-gray-200 text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-3 py-2 border text-center">Week</th>
+                  <th className="px-3 py-2 border text-center">Day</th>
+                  <th className="px-3 py-2 border text-center">Date</th>
+                  <th className="px-3 py-2 border text-center">Hour</th>
+                  <th className="px-3 py-2 border text-center">Demand</th>
+                </tr>
+              </thead>
 
-          <tbody>
-            {visibleRows.map((r) => (
-              <tr key={r.id} className="odd:bg-white even:bg-gray-50">
-                <td className="border px-2 py-1 text-center">{r.week_of_year}</td>
-                <td className="border px-2 py-1 text-center">{r.day_of_week_full}</td>
-                <td className="border px-2 py-1 text-center">{r.date}</td>
-                <td className="border px-2 py-1 text-center">{r.hour}</td>
-                <td className="border px-2 py-1 text-right">{r.demand_value}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+              <tbody>
+                {visibleRows.map((r) => (
+                  <tr key={r.id} className="odd:bg-white even:bg-gray-50">
+                    <td className="border px-2 py-1 text-center">{r.week_of_year}</td>
+                    <td className="border px-2 py-1 text-center">{r.day_of_week_full}</td>
+                    <td className="border px-2 py-1 text-center">{r.date}</td>
+                    <td className="border px-2 py-1 text-center">{r.hour}</td>
+                    <td className="border px-2 py-1 text-right">{r.demand_value}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex justify-center items-center gap-4 mt-3">
-            <button
-              disabled={page === 1}
-              onClick={() => setPage((p) => p - 1)}
-              className="px-3 py-1 border rounded disabled:opacity-50"
-            >
-              ← Prev
+            {totalPages > 1 && (
+              <div className="flex justify-center items-center gap-4 mt-3">
+                <button
+                  disabled={page === 1}
+                  onClick={() => setPage((p) => p - 1)}
+                  className="px-3 py-1 border rounded disabled:opacity-50"
+                >
+                  ← Prev
+                </button>
+
+                <span className="text-sm">
+                  Page {page} of {totalPages}
+                </span>
+
+                <button
+                  disabled={page === totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                  className="px-3 py-1 border rounded disabled:opacity-50"
+                >
+                  Next →
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-between mt-6">
+            <button className="btn btn-ghost" onClick={onPrev}>
+              ← Previous
             </button>
-
-            <span className="text-sm">
-              Page {page} of {totalPages}
-            </span>
-
-            <button
-              disabled={page === totalPages}
-              onClick={() => setPage((p) => p + 1)}
-              className="px-3 py-1 border rounded disabled:opacity-50"
-            >
+            <button className="btn btn-primary" onClick={onNext}>
               Next →
             </button>
           </div>
-        )}
-      </div>
-
-      {/* Nav buttons */}
-      <div className="flex justify-between mt-6">
-        <button className="btn btn-ghost" onClick={onPrev}>
-          ← Previous
-        </button>
-        <button className="btn btn-primary" onClick={onNext}>
-          Next →
-        </button>
-      </div>
+        </>
+      )}
     </Card>
   );
 }
