@@ -1,6 +1,3 @@
-console.log("REGION STORAGE ON MOUNT:", localStorage.getItem("hira_regions"))
-
-
 import { useEffect, useState } from "react"
 import toast from "react-hot-toast"
 import {
@@ -16,6 +13,7 @@ type Campus = {
   key: string
   name: string
   region: string
+  hoursPerWeekFTE: number | ""   
 }
 
 type SortMode = "alphabetical" | "region" | "custom"
@@ -71,22 +69,21 @@ export default function HealthSystemSetupPage() {
 
   const [initialized, setInitialized] = useState(false)
 
-  // Campus drawer
   const [campusDrawerOpen, setCampusDrawerOpen] = useState(false)
   const [editingCampusKey, setEditingCampusKey] = useState<string | null>(null)
   const [campusForm, setCampusForm] = useState<Campus>({
     key: "",
     name: "",
-    region: "",
+    region: regions[0] || "",
+    hoursPerWeekFTE: "",      
   })
 
   const [regionChanged, setRegionChanged] = useState(false)
 
-  // Region drawer
   const [regionDrawerOpen, setRegionDrawerOpen] = useState(false)
   const [newRegionName, setNewRegionName] = useState("")
 
-  // ---------- LOAD DATA (JSON + localStorage) ----------
+  // ---------- LOAD JSON + LOCALSTORAGE ----------
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -95,52 +92,40 @@ export default function HealthSystemSetupPage() {
           fetch("/mockdata/regions.json"),
         ])
 
-        // Base from JSON
-        const baseCampuses: Campus[] = campusRes.ok
-          ? await campusRes.json()
-          : []
+        const baseCampusesRaw = campusRes.ok ? await campusRes.json() : []
+        const baseRegions: string[] = regionRes.ok ? await regionRes.json() : []
 
-        const baseRegions: string[] = regionRes.ok
-          ? await regionRes.json()
-          : []
+        const baseCampuses: Campus[] = baseCampusesRaw.map((c: any) => ({
+          key: c.key,
+          name: c.name,
+          region: c.region,
+          hoursPerWeekFTE: c.hoursPerWeekFTE ?? "",  // leave blank for Option C
+        }))
 
-        // Saved in localStorage
-        const storedCampusesRaw =
-          window.localStorage.getItem(STORAGE_KEY_CAMPUSES)
-        const storedModeRaw = window.localStorage.getItem(
-          STORAGE_KEY_SORTMODE
-        ) as SortMode | null
-        const storedRegionsRaw =
-          window.localStorage.getItem(STORAGE_KEY_REGIONS)
+        const storedCampusesRaw = window.localStorage.getItem(STORAGE_KEY_CAMPUSES)
+        const storedModeRaw = window.localStorage.getItem(STORAGE_KEY_SORTMODE) as SortMode | null
+        const storedRegionsRaw = window.localStorage.getItem(STORAGE_KEY_REGIONS)
 
-        // ----- Campuses initial value -----
         let initialCampuses: Campus[]
         if (storedCampusesRaw) {
-          initialCampuses = JSON.parse(storedCampusesRaw) as Campus[]
+          const parsed = JSON.parse(storedCampusesRaw)
+          initialCampuses = parsed.map((c: any) => ({
+            ...c,
+            hoursPerWeekFTE: c.hoursPerWeekFTE ?? "",
+          }))
         } else {
           initialCampuses = sortAlphabetical(baseCampuses)
         }
 
-        // ----- Regions initial value -----
         let initialRegions: string[] = []
-
-        // Always load preset regions first
         const presetRegions = baseRegions
-
-        // Load saved regions from LS if present
         const savedRegions = storedRegionsRaw ? JSON.parse(storedRegionsRaw) : []
-
-        // Merge both + derive from campuses
         const derivedFromCampuses = baseCampuses
           .map((c) => c.region)
           .filter((r) => r && r.trim() !== "")
 
         initialRegions = Array.from(
-          new Set([
-            ...presetRegions,
-            ...derivedFromCampuses,
-            ...savedRegions
-          ])
+          new Set([...presetRegions, ...derivedFromCampuses, ...savedRegions])
         ).sort((a, b) => a.localeCompare(b))
 
         setCampuses(initialCampuses)
@@ -157,7 +142,7 @@ export default function HealthSystemSetupPage() {
     loadData()
   }, [])
 
-  // ---------- PERSIST (only after initialized) ----------
+  // ---------- SAVE TO LOCALSTORAGE ----------
   useEffect(() => {
     if (!initialized) return
     window.localStorage.setItem(STORAGE_KEY_CAMPUSES, JSON.stringify(campuses))
@@ -169,7 +154,7 @@ export default function HealthSystemSetupPage() {
     window.localStorage.setItem(STORAGE_KEY_REGIONS, JSON.stringify(regions))
   }, [regions, initialized])
 
-  // SORT HANDLERS
+  // SORT
   const handleSortAlphabetical = () => {
     setCampuses(sortAlphabetical(campuses))
     setSortMode("alphabetical")
@@ -180,7 +165,7 @@ export default function HealthSystemSetupPage() {
     setSortMode("region")
   }
 
-  // DRAG
+  // DRAG HANDLERS
   const handleDragStart = (e: React.DragEvent, key: string) => {
     e.dataTransfer.effectAllowed = "move"
     e.dataTransfer.setData("text/plain", key)
@@ -207,6 +192,7 @@ export default function HealthSystemSetupPage() {
       key: "",
       name: "",
       region: regions[0] || "",
+      hoursPerWeekFTE: "",
     })
     setCampusDrawerOpen(true)
   }
@@ -223,27 +209,36 @@ export default function HealthSystemSetupPage() {
     setEditingCampusKey(null)
   }
 
-  const handleCampusFormChange = (field: keyof Campus, value: string) => {
+  const handleCampusFormChange = (
+    field: keyof Campus,
+    value: string | number
+  ) => {
     setCampusForm((prev) => ({ ...prev, [field]: value }))
     if (field === "region") setRegionChanged(true)
   }
 
+  // SAVE
   const handleSaveCampus = () => {
-    const key = campusForm.key.trim()
-    const name = campusForm.name.trim()
-    const region = campusForm.region.trim()
+    const { key, name, region, hoursPerWeekFTE } = campusForm
 
-    if (!key || !name) {
-      toast.error("Campus Key and Campus Name are required.")
+    if (!key.trim() || !name.trim()) {
+      toast.error("Campus Key and Name are required.")
       return
     }
 
-    if (!region) {
+    if (!region.trim()) {
       toast.error("Region cannot be empty.")
       return
     }
 
-    // ensure region exists in master list
+    if (hoursPerWeekFTE === "" || Number(hoursPerWeekFTE) <= 0) {
+      toast.error("Hours/Week for FTE is required.")
+      return
+    }
+
+    const numericHours = Number(hoursPerWeekFTE)
+
+    // Ensure region exists
     if (!regions.includes(region)) {
       setRegions((prev) =>
         [...prev, region].sort((a, b) => a.localeCompare(b))
@@ -253,15 +248,17 @@ export default function HealthSystemSetupPage() {
     if (editingCampusKey) {
       setCampuses((prev) =>
         prev.map((c) =>
-          c.key === editingCampusKey ? { key, name, region } : c
+          c.key === editingCampusKey
+            ? { ...campusForm, hoursPerWeekFTE: numericHours }
+            : c
         )
       )
     } else {
-      setCampuses([...campuses, { key, name, region }])
+      setCampuses([
+        ...campuses,
+        { ...campusForm, hoursPerWeekFTE: numericHours },
+      ])
     }
-
-    setSortMode("custom")
-    setRegionChanged(false)
 
     toast.success("Campus saved!")
     closeCampusDrawer()
@@ -311,13 +308,14 @@ export default function HealthSystemSetupPage() {
     setNewRegionName("")
   }
 
-  // ===========================
+  // ============================
   // UI
-  // ===========================
+  // ============================
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-6 md:px-8">
       <div className="mx-auto max-w-5xl rounded-2xl bg-white p-6 shadow-sm border border-gray-200">
+
         {/* Header */}
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -325,7 +323,7 @@ export default function HealthSystemSetupPage() {
               Health System Set-Up — Campuses
             </h1>
             <p className="mt-0.5 text-xs text-gray-500">
-              Define campuses, manage regions, and control order.
+              Define campuses, manage regions, control order, and define your Hours/Week for FTE.
             </p>
           </div>
 
@@ -348,7 +346,7 @@ export default function HealthSystemSetupPage() {
           </div>
         </div>
 
-        {/* Sort Controls */}
+        {/* Sort */}
         <div className="mb-4 flex gap-2">
           <button
             onClick={handleSortAlphabetical}
@@ -381,6 +379,7 @@ export default function HealthSystemSetupPage() {
                 <th className="px-4 py-3">Key</th>
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Region</th>
+                <th className="px-4 py-3">Hours/Week for FTE</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
@@ -396,6 +395,10 @@ export default function HealthSystemSetupPage() {
                   <td className="px-4 py-2">{c.key}</td>
                   <td className="px-4 py-2">{c.name}</td>
                   <td className="px-4 py-2">{c.region}</td>
+
+                  <td className="px-4 py-2">
+                    {c.hoursPerWeekFTE === "" ? "—" : c.hoursPerWeekFTE}
+                  </td>
 
                   <td className="px-3 py-2 pr-3 text-right">
                     <div className="flex justify-end gap-1.5 group">
@@ -415,7 +418,6 @@ export default function HealthSystemSetupPage() {
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
 
-                      {/* HIDDEN drag handle */}
                       <button
                         aria-label="Reorder campus"
                         draggable
@@ -434,6 +436,7 @@ export default function HealthSystemSetupPage() {
                 </tr>
               ))}
             </tbody>
+
           </table>
         </div>
       </div>
@@ -468,58 +471,47 @@ export default function HealthSystemSetupPage() {
 
             <div className="flex flex-col h-full justify-between">
               <div className="px-4 py-4 space-y-4">
+
                 {/* Campus Key */}
                 <div>
-                  <label
-                    htmlFor="campus-key"
-                    className="text-xs font-semibold"
-                  >
+                  <label className="text-xs font-semibold">
                     Campus Key
                   </label>
                   <input
-                    id="campus-key"
                     value={campusForm.key}
                     onChange={(e) =>
                       handleCampusFormChange("key", e.target.value)
                     }
-                    className="w-full border rounded-lg px-3 py-1.5 text-sm focus:ring-brand-500 focus:border-brand-500"
+                    className="w-full border rounded-lg px-3 py-1.5 text-sm"
                   />
                 </div>
 
                 {/* Campus Name */}
                 <div>
-                  <label
-                    htmlFor="campus-name"
-                    className="text-xs font-semibold"
-                  >
+                  <label className="text-xs font-semibold">
                     Campus Name
                   </label>
                   <input
-                    id="campus-name"
                     value={campusForm.name}
                     onChange={(e) =>
                       handleCampusFormChange("name", e.target.value)
                     }
-                    className="w-full border rounded-lg px-3 py-1.5 text-sm focus:ring-brand-500 focus:border-brand-500"
+                    className="w-full border rounded-lg px-3 py-1.5 text-sm"
                   />
                 </div>
 
                 {/* Region */}
                 <div>
-                  <label
-                    htmlFor="campus-region"
-                    className="text-xs font-semibold"
-                  >
+                  <label className="text-xs font-semibold">
                     Region
                   </label>
 
                   <select
-                    aria-label="Select region"
                     value={campusForm.region}
                     onChange={(e) =>
                       handleCampusFormChange("region", e.target.value)
                     }
-                    className="w-full border rounded-lg px-3 py-1.5 text-sm focus:ring-brand-500 focus:border-brand-500"
+                    className="w-full border rounded-lg px-3 py-1.5 text-sm"
                   >
                     <option value="">Select region…</option>
                     {regions.map((r) => (
@@ -527,10 +519,9 @@ export default function HealthSystemSetupPage() {
                     ))}
                   </select>
 
-                  {/* Inline add new region */}
+                  {/* Inline new region */}
                   <div className="flex gap-2 mt-2">
                     <input
-                      aria-label="Add new region"
                       type="text"
                       value={campusForm.region}
                       onChange={(e) =>
@@ -547,11 +538,6 @@ export default function HealthSystemSetupPage() {
                     </button>
                   </div>
 
-                  <p className="text-[11px] text-gray-500 mt-1">
-                    Pick or create a region.
-                  </p>
-
-                  {/* Save Region Button */}
                   {regionChanged && (
                     <div className="mt-3 text-right">
                       <button
@@ -563,9 +549,32 @@ export default function HealthSystemSetupPage() {
                     </div>
                   )}
                 </div>
+
+                {/* Hours/Week for FTE */}
+                <div>
+                  <label className="text-xs font-semibold">
+                    Hours/Week for FTE
+                  </label>
+
+                  <input
+                    type="number"
+                    min={1}
+                    max={60}
+                    value={campusForm.hoursPerWeekFTE}
+                    onChange={(e) =>
+                      handleCampusFormChange(
+                        "hoursPerWeekFTE",
+                        e.target.value === "" ? "" : Number(e.target.value)
+                      )
+                    }
+                    className="w-full border rounded-lg px-3 py-1.5 text-sm"
+                    placeholder="Required"
+                  />
+                </div>
+
               </div>
 
-              {/* Footer Buttons */}
+              {/* Footer */}
               <div className="border-t px-4 py-3 flex justify-between">
                 {editingCampusKey && (
                   <button
@@ -593,6 +602,7 @@ export default function HealthSystemSetupPage() {
                   </button>
                 </div>
               </div>
+
             </div>
           </div>
         </>
@@ -619,8 +629,9 @@ export default function HealthSystemSetupPage() {
             </div>
 
             <div className="flex flex-col h-full justify-between">
+
+              {/* Add Region */}
               <div className="px-4 py-4 space-y-3">
-                {/* Add Region */}
                 <div>
                   <label className="text-xs font-semibold">New Region</label>
                   <div className="flex gap-2 mt-1">
@@ -639,7 +650,7 @@ export default function HealthSystemSetupPage() {
                   </div>
                 </div>
 
-                {/* Existing */}
+                {/* Existing Regions */}
                 <div>
                   <label className="text-xs font-semibold">
                     Existing Regions
@@ -651,6 +662,7 @@ export default function HealthSystemSetupPage() {
                         className="flex justify-between items-center border rounded-lg bg-gray-50 px-3 py-1.5"
                       >
                         <span className="text-xs">{r}</span>
+
                         <button
                           aria-label="Delete region"
                           onClick={() => handleDeleteRegion(r)}
@@ -672,10 +684,12 @@ export default function HealthSystemSetupPage() {
                   Close
                 </button>
               </div>
+
             </div>
           </div>
         </>
       )}
+
     </div>
   )
 }
