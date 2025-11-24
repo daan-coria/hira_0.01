@@ -36,7 +36,6 @@ const DEFAULT_WEEKEND_ROTATIONS = [
   "Every Other",
   "Every Third",
   "Weekend Only",
-  "Weekend Every Other",
 ];
 
 const DEFAULT_OPEN_REQ = ["NA", "UC", "MGR", "Nurse", "RN", "RN I", "RN II"];
@@ -244,8 +243,7 @@ export default function JobConfigurationCard(props: JobConfigurationAdminProps) 
         <div>Roster Job</div>
         <div>Schedule Job</div>
         </div>
-
-
+        
         <div className="space-y-3">
           {rows.map((row) => {
             const allCampusesSelected =
@@ -282,30 +280,21 @@ export default function JobConfigurationCard(props: JobConfigurationAdminProps) 
             </div>
 
             {/* Weekend Rotation */}
-            <div className="space-y-2">
-                <div className="flex flex-wrap gap-2">
-                {allWeekendRotations.map((rot) => {
-                    const checked = row.weekendRotations.includes(rot);
-                    return (
-                    <label
-                        key={rot}
-                        className={`inline-flex items-center rounded-full border px-2 py-1 text-[11px] cursor-pointer ${
-                        checked
-                            ? "bg-brand-50 border-brand-500 text-brand-700"
-                            : "bg-gray-50 border-gray-300 text-gray-600"
-                        }`}
-                    >
-                        <input
-                        type="checkbox"
-                        className="mr-1 h-3 w-3"
-                        checked={checked}
-                        onChange={() => toggleWeekendRotation(row.id, rot)}
-                        />
-                        {rot}
-                    </label>
-                    );
-                })}
-                </div>
+            <div>
+              <Select
+                value={row.weekendRotations[0] ?? ""}
+                onChange={(e) =>
+                  updateRowField(row.id, "weekendRotations", [e.target.value])
+                }
+                className="w-full"
+              >
+                <option value="">Select...</option>
+                {allWeekendRotations.map((rot) => (
+                  <option key={rot} value={rot}>
+                    {rot}
+                  </option>
+                ))}
+              </Select>
             </div>
 
             {/* Campus */}
@@ -345,52 +334,108 @@ export default function JobConfigurationCard(props: JobConfigurationAdminProps) 
                 </div>
             </div>
 
-            {/* Open Req */}
-            <div>
-                <Select
-                value={row.openReqJob}
-                onChange={(e) => updateRowField(row.id, "openReqJob", e.target.value)}
-                className="w-full"
-                >
-                <option value="">Select…</option>
-                {openReqOptions.map((o) => (
-                    <option key={o} value={o}>{o}</option>
-                ))}
-                </Select>
+            {/* Open Req Job */}
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-2">
+                {openReqOptions.map((o) => {
+                  const selected = row.openReqJob.split(",").includes(o);
+                  return (
+                    <label
+                      key={o}
+                      className={`inline-flex items-center rounded-full border px-2 py-1 text-[11px] cursor-pointer ${
+                        selected
+                          ? "bg-brand-50 border-brand-500 text-brand-700"
+                          : "bg-gray-50 border-gray-300 text-gray-600"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="mr-1 h-3 w-3"
+                        checked={selected}
+                        onChange={() => {
+                          const current = row.openReqJob ? row.openReqJob.split(",") : [];
+                          const set = new Set(current);
+                          selected ? set.delete(o) : set.add(o);
+                          updateRowField(row.id, "openReqJob", Array.from(set).join(","));
+                        }}
+                      />
+                      {o}
+                    </label>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Roster Job */}
-            <div>
-                <Select
-                value={row.rosterJob}
-                onChange={(e) => updateRowField(row.id, "rosterJob", e.target.value)}
-                className="w-full"
-                >
-                <option value="">Select…</option>
-                {rosterOptions.map((o) => (
-                    <option key={o} value={o}>{o}</option>
-                ))}
-                </Select>
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-2">
+                {rosterOptions.map((o) => {
+                  const selected = row.rosterJob.split(",").includes(o);
+                  return (
+                    <label
+                      key={o}
+                      className={`inline-flex items-center rounded-full border px-2 py-1 text-[11px] cursor-pointer ${
+                        selected
+                          ? "bg-brand-50 border-brand-500 text-brand-700"
+                          : "bg-gray-50 border-gray-300 text-gray-600"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="mr-1 h-3 w-3"
+                        checked={selected}
+                        onChange={() => {
+                          const current = row.rosterJob ? row.rosterJob.split(",") : [];
+                          const set = new Set(current);
+                          selected ? set.delete(o) : set.add(o);
+                          updateRowField(row.id, "rosterJob", Array.from(set).join(","));
+                        }}
+                      />
+                      {o}
+                    </label>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Schedule Job + Delete */}
             <div className="flex items-center gap-3">
-                <Select
-                value={row.scheduleJob}
-                onChange={(e) => updateRowField(row.id, "scheduleJob", e.target.value)}
-                className="w-full"
-                >
-                <option value="">Select…</option>
-                {scheduleOptions.map((o) => (
-                    <option key={o} value={o}>{o}</option>
-                ))}
-                </Select>
-                <button
+              <div className="flex flex-wrap gap-2">
+                {scheduleOptions.map((o) => {
+                  const selected = row.scheduleJob.split(",").includes(o);
+                  return (
+                    <label
+                      key={o}
+                      className={`inline-flex items-center rounded-full border px-2 py-1 text-[11px] cursor-pointer ${
+                        selected
+                          ? "bg-brand-50 border-brand-500 text-brand-700"
+                          : "bg-gray-50 border-gray-300 text-gray-600"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="mr-1 h-3 w-3"
+                        checked={selected}
+                        onChange={() => {
+                          const current = row.scheduleJob
+                            ? row.scheduleJob.split(",")
+                            : [];
+                          const set = new Set(current);
+                          selected ? set.delete(o) : set.add(o);
+                          updateRowField(row.id, "scheduleJob", Array.from(set).join(","));
+                        }}
+                      />
+                      {o}
+                    </label>
+                  );
+                })}
+              </div>
+              <button
                 onClick={() => removeRow(row.id)}
                 className="text-red-500 hover:text-red-700"
-                >
+              >
                 🗑
-                </button>
+              </button>
             </div>
             </div>
             );
