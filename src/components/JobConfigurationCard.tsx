@@ -307,7 +307,7 @@ export default function JobConfigurationCard(props: JobConfigurationAdminProps) 
                     checked={allCampusesSelected}
                     onChange={() => toggleAllCampuses(row.id)}
                     />
-                    Select All
+                    Default
                 </label>
 
                 {allCampuses.map((campus) => {
