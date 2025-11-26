@@ -510,6 +510,11 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
   const formatFullName = (row: ResourceRow) =>
     `${row.first_name || ""} ${row.last_name || ""}`.trim() || "—"
 
+  // Hide columns if availability exists
+  const shouldHideCols = (row: ResourceRow) =>
+    row.availability && row.availability.length > 0;
+
+
   // --- Render ----------------------------------------------------------------
 
   return (
@@ -661,17 +666,32 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
           <table className="min-w-full border border-gray-200 text-sm">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-3 py-2 border text-center">Information</th>
-                <th className="px-3 py-2 border">Cost Center Name</th>
-                <th className="px-3 py-2 border">Employee ID</th>
-                <th className="px-3 py-2 border">Full Name</th>
-                <th className="px-3 py-2 border">Job Name</th>
-                <th className="px-3 py-2 border text-right">Unit FTE</th>
-                <th className="px-3 py-2 border">Shift Group</th>
-                <th className="px-3 py-2 border">Weekend Group</th>
-                <th className="px-3 py-2 border">Availability</th>
+                <th className="px-3 py-2 border text-center w-20">Info</th>
+                <th className="px-3 py-2 border w-40">Cost Center</th>
+
+                {/* Employee ID (conditionally hidden) */}
+                {!shouldHideCols({ availability: [] } as any) && (
+                  <th className="px-3 py-2 border w-28">Employee ID</th>
+                )}
+
+                <th className="px-3 py-2 border w-40">Full Name</th>
+                <th className="px-3 py-2 border w-36">Job Name</th>
+                <th className="px-3 py-2 border w-24 text-right">Unit FTE</th>
+
+                {/* Shift Group (conditionally hidden) */}
+                {!shouldHideCols({ availability: [] } as any) && (
+                  <th className="px-3 py-2 border w-36">Shift Group</th>
+                )}
+
+                {/* Weekend Group (conditionally hidden) */}
+                {!shouldHideCols({ availability: [] } as any) && (
+                  <th className="px-3 py-2 border w-32">Weekend</th>
+                )}
+
+                <th className="px-3 py-2 border w-64">Availability</th>
               </tr>
             </thead>
+
 
             <tbody>
               {filteredRows.map((row, i) => {
@@ -719,21 +739,19 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     </td>
 
                     {/* Employee ID */}
-                    <td className="border px-2 py-1">
-                      <Input
-                        id={`employee_id_${row.id || i}`}
-                        value={row.employee_id || ""}
-                        onChange={(e) =>
-                          handleChange(
-                            rowIndex >= 0 ? rowIndex : i,
-                            "employee_id",
-                            e.target.value
-                          )
-                        }
-                        placeholder="ID"
-                        className="!m-0 !p-1 w-28"
-                      />
-                    </td>
+                    {!shouldHideCols(row) && (
+                      <td className="border px-2 py-1">
+                        <Input
+                          id={`employee_id_${row.id || i}`}
+                          value={row.employee_id || ""}
+                          onChange={(e) =>
+                            handleChange(effectiveIndex, "employee_id", e.target.value)
+                          }
+                          placeholder="ID"
+                          className="!m-0 !p-1 w-28"
+                        />
+                      </td>
+                    )}
 
                     {/* Full Name (read-only, from first/last) */}
                     <td className="border px-2 py-1">
@@ -788,48 +806,44 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     </td>
 
                     {/* Shift Group */}
-                    <td className="border px-2 py-1">
-                      <Select
-                        value={row.shift_group || row.shift}
-                        onChange={(e) =>
-                          handleChange(
-                            rowIndex >= 0 ? rowIndex : i,
-                            "shift_group",
-                            e.target.value
-                          )
-                        }
-                        className="!m-0 !p-1"
-                      >
-                        <option value="">-- Select --</option>
-                        {filteredShifts.map((opt) => (
-                          <option key={opt} value={opt}>
-                            {opt}
-                          </option>
-                        ))}
-                      </Select>
-                    </td>
+                    {!shouldHideCols(row) && (
+                      <td className="border px-2 py-1">
+                        <Select
+                          value={row.shift_group || row.shift}
+                          onChange={(e) =>
+                            handleChange(effectiveIndex, "shift_group", e.target.value)
+                          }
+                          className="!m-0 !p-1"
+                        >
+                          <option value="">-- Select --</option>
+                          {filteredShifts.map((opt) => (
+                            <option key={opt} value={opt}>
+                              {opt}
+                            </option>
+                          ))}
+                        </Select>
+                      </td>
+                    )}
 
                     {/* Weekend Group */}
-                    <td className="border px-2 py-1 text-center">
-                      <Select
-                        value={row.weekend_group}
-                        onChange={(e) =>
-                          handleChange(
-                            rowIndex >= 0 ? rowIndex : i,
-                            "weekend_group",
-                            e.target.value
-                          )
-                        }
-                        className="!m-0 !p-1"
-                      >
-                        <option value="">-- Select --</option>
-                        {weekendGroupList.map((g) => (
-                          <option key={g} value={g}>
-                            {g}
-                          </option>
-                        ))}
-                      </Select>
-                    </td>
+                    {!shouldHideCols(row) && (
+                      <td className="border px-2 py-1 text-center">
+                        <Select
+                          value={row.weekend_group}
+                          onChange={(e) =>
+                            handleChange(effectiveIndex, "weekend_group", e.target.value)
+                          }
+                          className="!m-0 !p-1"
+                        >
+                          <option value="">-- Select --</option>
+                          {weekendGroupList.map((g) => (
+                            <option key={g} value={g}>
+                              {g}
+                            </option>
+                          ))}
+                        </Select>
+                      </td>
+                    )}
 
                     {/* Availability column */}
                     <td className="border px-2 py-1 max-w-[260px] overflow-x-auto whitespace-nowrap">
