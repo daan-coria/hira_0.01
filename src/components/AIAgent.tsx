@@ -123,7 +123,7 @@ export default function AIAgent() {
   // -------------------------------------------------------
   //
   return (
-    <div className="fixed top-4 right-4 z-[9999]">
+    <div className="fixed top-6 right-20 z-[9999]">
 
       {/* Floating chat bubble */}
       {!aiState.isOpen && (
