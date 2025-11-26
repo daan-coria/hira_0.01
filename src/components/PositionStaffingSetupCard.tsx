@@ -34,21 +34,34 @@ const MOCK_CENSUS = 25;
 // ----------------------------------------
 function computeStaffing(row: any, census: number) {
   const min = Number(row.min) || 0;
-  const threshold = Number(row.threshold) || 0;
-  const ratio = Number(row.ratio) || 0;
-  const maxRatio = Number(row.maxRatio) || 0;
+  const ratio5 = Number(row.ratio) || 0;        // Target ratio (ex: 5)
+  const ratio6 = Number(row.maxRatio) || 0;     // Max ratio (ex: 6)
   const fixed = Number(row.fixed) || 0;
 
-  if (!ratio || !maxRatio) return "";
+  if (!ratio5 || !ratio6) return "";
 
-  let ratioBased = census / ratio;
-  let ratioPlusFixed = ratioBased + fixed;
-  const maxAllowed = census / maxRatio;
+  // STAFF BASED ON TARGET RATIO (1:5)
+  const staffAt5 = Math.ceil(census / ratio5);
 
-  let finalRatio = Math.max(ratioPlusFixed, maxAllowed);
-  finalRatio = Math.max(finalRatio, min);
+  // STAFF BASED ON MAX ALLOWABLE RATIO (1:6)
+  const staffAt6 = Math.ceil(census / ratio6);
 
-  return Math.ceil(finalRatio);
+  // The policy says:
+  //   "The target ratio is 1:5 BUT staffing must NEVER exceed 1:6"
+  //
+  // Therefore we choose the HIGHER of the two:
+  //
+  //  - staffAt5 ensures good staffing
+  //  - staffAt6 ensures you do NOT violate the max ratio cap
+  let required = Math.max(staffAt5, staffAt6);
+
+  // Add fixed nurses (free charge)
+  required += fixed;
+
+  // Apply minimum staffing rule
+  required = Math.max(required, min);
+
+  return required;
 }
 
 
