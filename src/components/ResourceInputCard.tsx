@@ -514,6 +514,11 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
   const shouldHideCols = (row: ResourceRow) =>
     row.availability && row.availability.length > 0;
 
+  // If any row has availability → hide these columns globally
+  const hideExtraCols = rows.some(
+    r => r.availability && r.availability.length > 0
+  );
+
 
   // --- Render ----------------------------------------------------------------
 
@@ -669,29 +674,25 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                 <th className="px-3 py-2 border text-center w-20">Info</th>
                 <th className="px-3 py-2 border w-40">Cost Center</th>
 
-                {/* Employee ID (conditionally hidden) */}
-                {!shouldHideCols({ availability: [] } as any) && (
-                  <th className="px-3 py-2 border w-28">Employee ID</th>
+                {!hideExtraCols && (
+                  <th className="px-3 py-2 border w-32">Employee ID</th>
                 )}
 
-                <th className="px-3 py-2 border w-40">Full Name</th>
-                <th className="px-3 py-2 border w-36">Job Name</th>
+                <th className="px-3 py-2 border w-48">Full Name</th>
+                <th className="px-3 py-2 border w-40">Job Name</th>
                 <th className="px-3 py-2 border w-24 text-right">Unit FTE</th>
 
-                {/* Shift Group (conditionally hidden) */}
-                {!shouldHideCols({ availability: [] } as any) && (
+                {!hideExtraCols && (
                   <th className="px-3 py-2 border w-36">Shift Group</th>
                 )}
 
-                {/* Weekend Group (conditionally hidden) */}
-                {!shouldHideCols({ availability: [] } as any) && (
+                {!hideExtraCols && (
                   <th className="px-3 py-2 border w-32">Weekend</th>
                 )}
 
-                <th className="px-3 py-2 border w-64">Availability</th>
+                <th className="px-3 py-2 border w-80">Availability</th>
               </tr>
             </thead>
-
 
             <tbody>
               {filteredRows.map((row, i) => {
@@ -739,16 +740,15 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     </td>
 
                     {/* Employee ID */}
-                    {!shouldHideCols(row) && (
+                    {!hideExtraCols && (
                       <td className="border px-2 py-1">
                         <Input
-                          id={`employee_id_${row.id || i}`}
                           value={row.employee_id || ""}
+                          id=""
                           onChange={(e) =>
                             handleChange(effectiveIndex, "employee_id", e.target.value)
                           }
-                          placeholder="ID"
-                          className="!m-0 !p-1 w-28"
+                          className="!m-0 !p-1 w-32"
                         />
                       </td>
                     )}
@@ -806,7 +806,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     </td>
 
                     {/* Shift Group */}
-                    {!shouldHideCols(row) && (
+                    {!hideExtraCols && (
                       <td className="border px-2 py-1">
                         <Select
                           value={row.shift_group || row.shift}
@@ -817,16 +817,14 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                         >
                           <option value="">-- Select --</option>
                           {filteredShifts.map((opt) => (
-                            <option key={opt} value={opt}>
-                              {opt}
-                            </option>
+                            <option key={opt}>{opt}</option>
                           ))}
                         </Select>
                       </td>
                     )}
 
                     {/* Weekend Group */}
-                    {!shouldHideCols(row) && (
+                    {!hideExtraCols && (
                       <td className="border px-2 py-1 text-center">
                         <Select
                           value={row.weekend_group}
@@ -837,9 +835,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                         >
                           <option value="">-- Select --</option>
                           {weekendGroupList.map((g) => (
-                            <option key={g} value={g}>
-                              {g}
-                            </option>
+                            <option key={g}>{g}</option>
                           ))}
                         </Select>
                       </td>
