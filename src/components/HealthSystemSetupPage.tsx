@@ -99,7 +99,7 @@ export default function HealthSystemSetupPage() {
           key: c.key,
           name: c.name,
           region: c.region,
-          hoursPerWeekFTE: c.hoursPerWeekFTE ?? "",  // leave blank for Option C
+          hoursPerWeekFTE: c.hoursPerWeekFTE ?? 40,  
         }))
 
         const storedCampusesRaw = window.localStorage.getItem(STORAGE_KEY_CAMPUSES)
@@ -111,7 +111,7 @@ export default function HealthSystemSetupPage() {
           const parsed = JSON.parse(storedCampusesRaw)
           initialCampuses = parsed.map((c: any) => ({
             ...c,
-            hoursPerWeekFTE: c.hoursPerWeekFTE ?? "",
+            hoursPerWeekFTE: c.hoursPerWeekFTE ?? 40,
           }))
         } else {
           initialCampuses = sortAlphabetical(baseCampuses)
