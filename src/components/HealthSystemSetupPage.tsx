@@ -13,7 +13,7 @@ type Campus = {
   key: string
   name: string
   region: string
-  hoursPerWeekFTE: number | ""   
+  hoursPerWeekFTE: number       
 }
 
 type SortMode = "alphabetical" | "region" | "custom"
@@ -71,11 +71,12 @@ export default function HealthSystemSetupPage() {
 
   const [campusDrawerOpen, setCampusDrawerOpen] = useState(false)
   const [editingCampusKey, setEditingCampusKey] = useState<string | null>(null)
+
   const [campusForm, setCampusForm] = useState<Campus>({
     key: "",
     name: "",
     region: regions[0] || "",
-    hoursPerWeekFTE: "",      
+    hoursPerWeekFTE: 40     // FIXED: default preset
   })
 
   const [regionChanged, setRegionChanged] = useState(false)
@@ -99,7 +100,7 @@ export default function HealthSystemSetupPage() {
           key: c.key,
           name: c.name,
           region: c.region,
-          hoursPerWeekFTE: c.hoursPerWeekFTE ?? 40,  
+          hoursPerWeekFTE: c.hoursPerWeekFTE ?? 40,
         }))
 
         const storedCampusesRaw = window.localStorage.getItem(STORAGE_KEY_CAMPUSES)
@@ -192,7 +193,7 @@ export default function HealthSystemSetupPage() {
       key: "",
       name: "",
       region: regions[0] || "",
-      hoursPerWeekFTE: "",
+      hoursPerWeekFTE: 40    // FIXED: always start new campus at 40
     })
     setCampusDrawerOpen(true)
   }
@@ -231,14 +232,13 @@ export default function HealthSystemSetupPage() {
       return
     }
 
-    if (hoursPerWeekFTE === "" || Number(hoursPerWeekFTE) <= 0) {
+    if (!hoursPerWeekFTE || Number(hoursPerWeekFTE) <= 0) {
       toast.error("Hours/Week for FTE is required.")
       return
     }
 
     const numericHours = Number(hoursPerWeekFTE)
 
-    // Ensure region exists
     if (!regions.includes(region)) {
       setRegions((prev) =>
         [...prev, region].sort((a, b) => a.localeCompare(b))
@@ -396,9 +396,7 @@ export default function HealthSystemSetupPage() {
                   <td className="px-4 py-2">{c.name}</td>
                   <td className="px-4 py-2">{c.region}</td>
 
-                  <td className="px-4 py-2">
-                    {c.hoursPerWeekFTE === "" ? "—" : c.hoursPerWeekFTE}
-                  </td>
+                  <td className="px-4 py-2">{c.hoursPerWeekFTE}</td>
 
                   <td className="px-3 py-2 pr-3 text-right">
                     <div className="flex justify-end gap-1.5 group">
@@ -564,11 +562,10 @@ export default function HealthSystemSetupPage() {
                     onChange={(e) =>
                       handleCampusFormChange(
                         "hoursPerWeekFTE",
-                        e.target.value === "" ? "" : Number(e.target.value)
+                        Number(e.target.value)
                       )
                     }
                     className="w-full border rounded-lg px-3 py-1.5 text-sm"
-                    placeholder="Required"
                   />
                 </div>
 
