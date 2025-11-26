@@ -1,18 +1,20 @@
 import { useState, useMemo } from "react";
+import { useApp } from "@/store/AppContext";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 
 // ----------------------------------------
-// MOCK DATA
+// MOCK DATA 
 // ----------------------------------------
 const MOCK_UNITS = [
-  { id: "5E-ICU", name: "5E ICU" },
-  { id: "5W", name: "5W" },
-  { id: "6E", name: "6E" },
+  { id: "5E-ICU", name: "5E ICU", campus: "Bay" },
+  { id: "5W", name: "5W", campus: "Bay" },
+  { id: "6E", name: "6E", campus: "Lansing" },
+  { id: "4N", name: "4N Med Surg", campus: "Lansing" },
 ];
 
-const MOCK_RESOURCE_TYPES = ["Nurse", "NA/UC"];
+const MOCK_RESOURCE_TYPES = ["Nurse", "NA/UC", "LPN", "Clerk"];
 
 const MOCK_SHIFTS = [
   { value: "shift1", label: "Weekday 7A-7P" },
@@ -21,8 +23,10 @@ const MOCK_SHIFTS = [
   { value: "shift4", label: "Weekday 7P-7A No Lunch" }
 ];
 
-// For now, we use a constant census from your PDF example
+// We use a constant census
 const MOCK_CENSUS = 25;
+
+
 
 
 // ----------------------------------------
@@ -37,20 +41,13 @@ function computeStaffing(row: any, census: number) {
 
   if (!ratio || !maxRatio) return "";
 
-  // Step 1: ratio-based
   let ratioBased = census / ratio;
-
-  // Step 2: add fixed
   let ratioPlusFixed = ratioBased + fixed;
-
-  // Step 3: max ratio cap
   const maxAllowed = census / maxRatio;
-  let finalRatio = Math.max(ratioPlusFixed, maxAllowed);
 
-  // Step 4: minimum staffing
+  let finalRatio = Math.max(ratioPlusFixed, maxAllowed);
   finalRatio = Math.max(finalRatio, min);
 
-  // Step 5: round up
   return Math.ceil(finalRatio);
 }
 
@@ -60,12 +57,23 @@ function computeStaffing(row: any, census: number) {
 // COMPONENT
 // ----------------------------------------
 export default function PositionStaffingSetupCard() {
+  const { master } = useApp();
+  const selectedCampus = master.facility;
+
+  // Filter department options based on campus filter
+  const filteredUnits = useMemo(() => {
+    if (!selectedCampus) return MOCK_UNITS;
+    return MOCK_UNITS.filter((u) => u.campus === selectedCampus);
+  }, [selectedCampus]);
+
+
+  // Initialize rows with empty departmentName + resourceType
   const [rows, setRows] = useState(() =>
     MOCK_UNITS.map((u) => ({
       id: u.id,
-      unitName: u.name,
+      unitName: "",
       active: false,
-      resourceType: "Nurse",
+      resourceType: "",
       min: "",
       threshold: "",
       ratio: "",
@@ -76,17 +84,13 @@ export default function PositionStaffingSetupCard() {
   );
 
   const updateRow = (id: string, patch: any) => {
-    setRows((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, ...patch } : r))
-    );
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   };
 
 
   return (
     <Card className="mt-4">
-      <h2 className="text-sm font-semibold mb-4">
-        Staffing Needs
-      </h2>
+      <h2 className="text-sm font-semibold mb-4">Staffing Needs</h2>
 
       {/* Column headers */}
       <div className="grid grid-cols-[auto,1.5fr,1.2fr,repeat(5,minmax(0,1fr)),1fr] gap-3 text-xs font-semibold text-gray-500 mb-2">
@@ -123,23 +127,37 @@ export default function PositionStaffingSetupCard() {
                 />
               </div>
 
-              {/* Unit Name */}
-              <div>{row.unitName}</div>
-
-              {/* Resource Type */}
-              <div className="flex items-center gap-4">
-                {MOCK_RESOURCE_TYPES.map((rt) => (
-                  <label key={rt} className="inline-flex items-center gap-1">
-                    <input
-                      type="radio"
-                      className="h-4 w-4"
-                      checked={row.resourceType === rt}
-                      onChange={() => updateRow(row.id, { resourceType: rt })}
-                    />
-                    <span className="text-xs">{rt}</span>
-                  </label>
+              {/* Department Name (Filtered dropdown) */}
+              <Select
+                ariaLabel="Select Department"
+                value={row.unitName}
+                onChange={(e) =>
+                  updateRow(row.id, { unitName: e.target.value })
+                }
+              >
+                <option value="">Select Department</option>
+                {filteredUnits.map((u) => (
+                  <option key={u.id} value={u.name}>
+                    {u.name}
+                  </option>
                 ))}
-              </div>
+              </Select>
+
+              {/* Resource Type (Single dropdown) */}
+              <Select
+                ariaLabel="Select Resource Type"
+                value={row.resourceType}
+                onChange={(e) =>
+                  updateRow(row.id, { resourceType: e.target.value })
+                }
+              >
+                <option value="">Resource Type</option>
+                {MOCK_RESOURCE_TYPES.map((rt) => (
+                  <option key={rt} value={rt}>
+                    {rt}
+                  </option>
+                ))}
+              </Select>
 
               {/* Minimum */}
               <Input
@@ -152,7 +170,9 @@ export default function PositionStaffingSetupCard() {
               <Input
                 value={row.threshold}
                 id=""
-                onChange={(e) => updateRow(row.id, { threshold: e.target.value })}
+                onChange={(e) =>
+                  updateRow(row.id, { threshold: e.target.value })
+                }
               />
 
               {/* Ratio */}
@@ -164,15 +184,17 @@ export default function PositionStaffingSetupCard() {
 
               {/* Max Ratio */}
               <Input
-                id=""
                 value={row.maxRatio}
-                onChange={(e) => updateRow(row.id, { maxRatio: e.target.value })}
+                id=""
+                onChange={(e) =>
+                  updateRow(row.id, { maxRatio: e.target.value })
+                }
               />
 
               {/* Fixed */}
               <Input
-                id=""
                 value={row.fixed}
+                id=""
                 onChange={(e) => updateRow(row.id, { fixed: e.target.value })}
               />
 
