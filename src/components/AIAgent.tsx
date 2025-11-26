@@ -3,6 +3,7 @@ import { useApp } from "@/store/AppContext"
 import Button from "@/components/ui/Button"
 import Input from "@/components/ui/Input"
 import { MessageCircle, X } from "lucide-react"
+import { useLocation } from "react-router-dom";
 
 export default function AIAgent() {
   const { aiState, setAIState, getFrontendSnapshot } = useApp()
@@ -10,6 +11,13 @@ export default function AIAgent() {
   const [loading, setLoading] = useState(false)
   const bottomRef = useRef<HTMLDivElement | null>(null)
   const prevHistoryLenRef = useRef<number>(0)
+  const location = useLocation();
+
+  // Hide on login and welcome pages
+  const hiddenRoutes = ["/", "/welcome", "/login", "/home"];
+  const shouldHide = hiddenRoutes.includes(location.pathname);
+
+  if (shouldHide) return null;
 
   const API_BASE =
     import.meta.env.MODE === "development"
