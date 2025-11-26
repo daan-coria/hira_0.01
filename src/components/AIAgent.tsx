@@ -117,13 +117,35 @@ export default function AIAgent() {
     }
   }
 
+  // Detect UI overlays from DOM:
+  const rightDrawerExists =
+    document.querySelector(".drawer-right, .drawer-slide-right") !== null;
+
+  const leftDrawerExists =
+    document.querySelector(".drawer-left, .drawer-slide-left") !== null;
+
+  const centerModalExists =
+    document.querySelector(".modal-center, .mantine-Modal-root") !== null;
+
+  // Compute safe position:
+  let positionClass = "bottom-4 right-4"; // Default
+
+  if (rightDrawerExists) {
+    positionClass = "top-6 left-6";
+  } else if (leftDrawerExists) {
+    positionClass = "top-6 right-6";
+  } else if (centerModalExists) {
+    positionClass = "top-6 right-24";
+  }
+
+
   //
   // -------------------------------------------------------
   // UI
   // -------------------------------------------------------
   //
   return (
-    <div className="fixed top-6 right-20 z-[9999]">
+    <div className={`fixed z-[9999] ${positionClass}`}>
 
       {/* Floating chat bubble */}
       {!aiState.isOpen && (
