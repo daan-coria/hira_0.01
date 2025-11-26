@@ -145,7 +145,7 @@ export default function AIAgent() {
   // -------------------------------------------------------
   //
   return (
-    <div className={`fixed z-[9999] ${positionClass}`}>
+    <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[9999]">
 
       {/* Floating chat bubble */}
       {!aiState.isOpen && (
@@ -153,10 +153,10 @@ export default function AIAgent() {
           onClick={() =>
             setAIState((prev) => ({ ...prev, isOpen: true }))
           }
-          className="bg-green-600 hover:bg-green-700 text-white rounded-full p-4 shadow-lg transition-transform transform hover:scale-105 focus:outline-none"
+          className="bg-green-600 hover:bg-green-700 text-white rounded-full p-3 shadow-lg transition-transform transform hover:scale-105 focus:outline-none"
           aria-label="Open AI Assistant"
         >
-          <MessageCircle size={22} />
+          <MessageCircle size={18} />
         </button>
       )}
 
