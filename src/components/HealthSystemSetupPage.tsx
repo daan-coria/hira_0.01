@@ -216,8 +216,10 @@ export default function HealthSystemSetupPage() {
 
     if (!key.trim() || !name.trim()) return toast.error("Key and Name required.")
     if (!region.trim()) return toast.error("Region required.")
-    if (!hoursPerWeekFTE || Number(hoursPerWeekFTE) <= 40)
-      return toast.error("Hours/Week for FTE required.")
+
+    // FIXED VALIDATION — allow 40, allow under/over, only disallow empty
+    if (!hoursPerWeekFTE && hoursPerWeekFTE !== 0)
+      return toast.error("Hours/Week for FTE required.");
 
     const numericHours = Number(hoursPerWeekFTE)
 
