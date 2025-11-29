@@ -186,10 +186,10 @@ export default function ResourceRowItem({
         >
           <Input
             type="number"
+            id=""
             min={0}
             step={0.1}
             value={row.unit_fte}
-            id=""
             onChange={(e) =>
               handleChange(effectiveIndex, "unit_fte", Number(e.target.value))
             }
@@ -221,8 +221,8 @@ export default function ResourceRowItem({
             className="!m-0 !p-1"
           >
             <option value="">-- Select --</option>
-            {filteredShifts.map((s) => (
-              <option key={s}>{s}</option>
+            {filteredShifts.map((opt) => (
+              <option key={opt}>{opt}</option>
             ))}
           </Select>
 
@@ -263,7 +263,7 @@ export default function ResourceRowItem({
         </td>
       )}
 
-      {/* AVAILABILITY (NO SCROLL HERE) */}
+      {/* AVAILABILITY CELL (CLIPPED VIEWPORT) */}
       {colVisible.availability && (
         <td
           style={{
@@ -273,18 +273,24 @@ export default function ResourceRowItem({
           }}
           className="relative border px-2 py-1 whitespace-nowrap"
         >
-          {/* FIXED-WIDTH STRIP ONLY */}
           <div
-            className="availability-strip"
-            style={{ width: TOTAL_WEEKS_WIDTH, overflow: "hidden" }}
+            className="availability-row overflow-hidden"
+            style={{
+              width: "100%",
+            }}
           >
-            <WeeklyFTEBar
-              baseFTE={row.unit_fte}
-              availability={row.availability || []}
-              onWeekClick={(weekStart) =>
-                openAvailabilityForRow(effectiveIndex, weekStart)
-              }
-            />
+            <div
+              className="availability-strip"
+              style={{ width: TOTAL_WEEKS_WIDTH }}
+            >
+              <WeeklyFTEBar
+                baseFTE={row.unit_fte}
+                availability={row.availability || []}
+                onWeekClick={(weekStart) =>
+                  openAvailabilityForRow(effectiveIndex, weekStart)
+                }
+              />
+            </div>
           </div>
 
           <div

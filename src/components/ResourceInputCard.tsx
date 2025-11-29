@@ -20,10 +20,10 @@ import AvailabilityDrawer from "@/components/AvailabilityDrawer"
 import { AvailabilityEntry } from "@/utils/useAvailabilityCalculator"
 import { ResourceRow } from "@/types/ResourceRow"
 
-type Props = { onNext?: () => void; onPrev?: () => void }
-
 const WEEK_WIDTH = 100
 const TOTAL_WEEKS_WIDTH = WEEK_WIDTH * 52
+
+type Props = { onNext?: () => void; onPrev?: () => void }
 
 export default function ResourceInputCard({ onNext, onPrev }: Props) {
   const { data, updateData } = useApp()
