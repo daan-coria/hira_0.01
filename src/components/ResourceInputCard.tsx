@@ -215,7 +215,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // --- NEW: recompute table scroll width whenever structure changes ---
+  // Recompute table scroll width whenever structure changes ---
   useEffect(() => {
     if (tableScrollRef.current) {
       setTableScrollWidth(tableScrollRef.current.scrollWidth)
@@ -584,7 +584,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     </span>
   )
 
-  // --- NEW: Availability header scrollbar → sync all row availability viewports ---
+  // Availability header scrollbar → sync all row availability viewports ---
   const handleAvailabilityHeaderScroll = (
     e: React.UIEvent<HTMLDivElement, UIEvent>
   ) => {
