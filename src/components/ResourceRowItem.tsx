@@ -1,11 +1,8 @@
-import { useRef } from "react"
+import { ResourceRow } from "@/types/ResourceRow"
 import Button from "@/components/ui/Button"
 import Input from "@/components/ui/Input"
 import Select from "@/components/ui/Select"
 import WeeklyFTEBar from "@/components/WeeklyFTEBar"
-import { AvailabilityEntry } from "@/utils/useAvailabilityCalculator"
-import { ResourceRow } from "@/types/ResourceRow"
-
 
 type Props = {
   row: ResourceRow
@@ -40,10 +37,8 @@ export default function ResourceRowItem({
   openDrawerForRow,
   openAvailabilityForRow,
 }: Props) {
-
   return (
     <tr className="odd:bg-white even:bg-gray-50 hover:bg-gray-100">
-
       {/* INFO */}
       {colVisible.info && (
         <td
@@ -52,7 +47,7 @@ export default function ResourceRowItem({
             minWidth: colWidth.info,
             maxWidth: colWidth.info,
           }}
-          className="relative border px-2 py-1 text-center"
+          className="relative border px-2 py-1 text-center overflow-hidden"
         >
           <Button
             variant="ghost"
@@ -61,7 +56,6 @@ export default function ResourceRowItem({
           >
             ««
           </Button>
-
           <div
             className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
             onMouseDown={(e) => startResizing(e, "info")}
@@ -77,17 +71,16 @@ export default function ResourceRowItem({
             minWidth: colWidth.cost_center_name,
             maxWidth: colWidth.cost_center_name,
           }}
-          className="relative border px-2 py-1"
+          className="relative border px-2 py-1 overflow-hidden"
         >
           <Input
             value={row.cost_center_name || ""}
             id=""
             onChange={(e) =>
-              handleChange(rowIndex, "cost_center_name", e.target.value)
+              handleChange(effectiveIndex, "cost_center_name", e.target.value)
             }
-            className="!m-0 !p-1"
+            className="!m-0 !p-1 w-full"
           />
-
           <div
             className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
             onMouseDown={(e) => startResizing(e, "cost_center_name")}
@@ -103,17 +96,16 @@ export default function ResourceRowItem({
             minWidth: colWidth.employee_id,
             maxWidth: colWidth.employee_id,
           }}
-          className="relative border px-2 py-1"
+          className="relative border px-2 py-1 overflow-hidden"
         >
           <Input
             value={row.employee_id || ""}
             id=""
             onChange={(e) =>
-              handleChange(rowIndex, "employee_id", e.target.value)
+              handleChange(effectiveIndex, "employee_id", e.target.value)
             }
             className="!m-0 !p-1 w-full"
           />
-
           <div
             className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
             onMouseDown={(e) => startResizing(e, "employee_id")}
@@ -129,12 +121,11 @@ export default function ResourceRowItem({
             minWidth: colWidth.full_name,
             maxWidth: colWidth.full_name,
           }}
-          className="relative border px-2 py-1"
+          className="relative border px-2 py-1 overflow-hidden"
         >
           <div className="px-2 py-1 bg-white rounded border border-gray-200 text-gray-800 text-sm">
             {formatFullName(row)}
           </div>
-
           <div
             className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
             onMouseDown={(e) => startResizing(e, "full_name")}
@@ -150,12 +141,12 @@ export default function ResourceRowItem({
             minWidth: colWidth.job_name,
             maxWidth: colWidth.job_name,
           }}
-          className="relative border px-2 py-1"
+          className="relative border px-2 py-1 overflow-hidden"
         >
           <Select
             value={row.job_name || row.position}
             onChange={(e) =>
-              handleChange(rowIndex, "job_name", e.target.value)
+              handleChange(effectiveIndex, "job_name", e.target.value)
             }
             className="!m-0 !p-1"
           >
@@ -188,7 +179,7 @@ export default function ResourceRowItem({
             minWidth: colWidth.unit_fte,
             maxWidth: colWidth.unit_fte,
           }}
-          className="relative border px-2 py-1 text-right"
+          className="relative border px-2 py-1 text-right overflow-hidden"
         >
           <Input
             type="number"
@@ -197,11 +188,10 @@ export default function ResourceRowItem({
             value={row.unit_fte}
             id=""
             onChange={(e) =>
-              handleChange(rowIndex, "unit_fte", Number(e.target.value))
+              handleChange(effectiveIndex, "unit_fte", Number(e.target.value))
             }
             className="!m-0 !p-1 w-full text-right"
           />
-
           <div
             className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
             onMouseDown={(e) => startResizing(e, "unit_fte")}
@@ -217,12 +207,12 @@ export default function ResourceRowItem({
             minWidth: colWidth.shift_group,
             maxWidth: colWidth.shift_group,
           }}
-          className="relative border px-2 py-1"
+          className="relative border px-2 py-1 overflow-hidden"
         >
           <Select
-            value={row.shift_group || row.shift}
+            value={row.shift_group}
             onChange={(e) =>
-              handleChange(rowIndex, "shift_group", e.target.value)
+              handleChange(effectiveIndex, "shift_group", e.target.value)
             }
             className="!m-0 !p-1"
           >
@@ -247,12 +237,12 @@ export default function ResourceRowItem({
             minWidth: colWidth.weekend_group,
             maxWidth: colWidth.weekend_group,
           }}
-          className="relative border px-2 py-1 text-center"
+          className="relative border px-2 py-1 text-center overflow-hidden"
         >
           <Select
             value={row.weekend_group}
             onChange={(e) =>
-              handleChange(rowIndex, "weekend_group", e.target.value)
+              handleChange(effectiveIndex, "weekend_group", e.target.value)
             }
             className="!m-0 !p-1"
           >
@@ -277,24 +267,25 @@ export default function ResourceRowItem({
             minWidth: colWidth.availability,
             maxWidth: colWidth.availability,
           }}
-          className="relative border px-2 py-1 whitespace-nowrap"
+          className="relative border px-2 py-1 whitespace-nowrap overflow-hidden"
         >
-            <div className="availability-weeks">
-                <WeeklyFTEBar
-                    baseFTE={row.unit_fte}
-                    availability={row.availability || []}
-                    onWeekClick={(weekStart) => openAvailabilityForRow(rowIndex, weekStart)}
-                />
-            </div>
+          {/* ROW-WIDE WEEK STRIP */}
+          <div className="availability-row overflow-hidden">
+            <WeeklyFTEBar
+              baseFTE={row.unit_fte}
+              availability={row.availability || []}
+              onWeekClick={(weekStart) =>
+                openAvailabilityForRow(effectiveIndex, weekStart)
+              }
+            />
+          </div>
 
-          {/* Resize handle */}
           <div
             className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
             onMouseDown={(e) => startResizing(e, "availability")}
           />
         </td>
       )}
-
     </tr>
   )
 }

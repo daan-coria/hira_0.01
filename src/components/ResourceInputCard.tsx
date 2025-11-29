@@ -60,15 +60,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
   // Availability scroll refs
   const availabilityBigScrollRef = useRef<HTMLDivElement>(null)
   const availabilityBottomRef = useRef<HTMLDivElement>(null)
-
-
-  // Scroll sync logic
-  const syncBottomScrollbar = () => {
-    if (!availabilityBigScrollRef.current || !availabilityBottomRef.current) return
-    availabilityBottomRef.current.scrollLeft =
-      availabilityBigScrollRef.current.scrollLeft
-  }
-
+  
   const syncAvailabilityTop = () => {
     if (!availabilityBigScrollRef.current || !availabilityBottomRef.current) return
     availabilityBigScrollRef.current.scrollLeft =
@@ -219,6 +211,21 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  useEffect(() => {
+    if (!availabilityBigScrollRef.current) return
+
+    const syncAllRows = () => {
+      const nodes = document.querySelectorAll(".availability-row")
+      nodes.forEach((node: any) => {
+        node.scrollLeft = availabilityBigScrollRef.current!.scrollLeft
+      })
+    }
+
+    availabilityBigScrollRef.current.addEventListener("scroll", syncAllRows)
+    return () =>
+      availabilityBigScrollRef.current?.removeEventListener("scroll", syncAllRows)
+  }, [])
+
   // Positions
   const positions =
     Array.isArray(data?.staffingConfig) && data.staffingConfig.length > 0
@@ -234,6 +241,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
 
   const [weekendGroupList, setWeekendGroupList] =
     useState<string[]>(weekendGroups)
+
   useEffect(() => {
     if (Array.isArray(data?.staffingConfig)) {
       const groups = Array.from(
@@ -792,12 +800,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
         <div className="overflow-x-auto">
 
           {/* SHARED AVAILABILITY SCROLL CONTAINER */}
-          <div
-            id="availabilityScrollContainer"
-            className="overflow-x-auto w-full"
-            ref={availabilityBigScrollRef}
-            onScroll={syncBottomScrollbar}
-          >
 
             <table
               className="border border-gray-200 text-sm"
@@ -1091,18 +1093,15 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
               </tbody>
 
             </table>
-          </div>
 
-          {/* SHARED BOTTOM AVAILABILITY SCROLLBAR */}
+          {/* Shared Availability scrollbar */}
           <div
-            id="availabilitySharedScrollbar"
-            className="h-4 overflow-x-auto bg-gray-50 border-t"
             ref={availabilityBottomRef}
+            className="h-4 overflow-x-auto bg-gray-50"
             onScroll={syncAvailabilityTop}
           >
             <div style={{ width: 52 * 100 }} />
           </div>
-
         </div>
       )}
 
