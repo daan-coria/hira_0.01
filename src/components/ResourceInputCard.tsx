@@ -90,6 +90,22 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     weekend_group: "",
   })
 
+  const availabilityScrollRef = useRef<HTMLDivElement>(null);
+  const availabilityBottomBarRef = useRef<HTMLDivElement>(null);
+
+  // Compute width: 52 weeks * 88px per button + gaps
+  const totalWeeksWidth = 52 * 100; // adjust if needed
+
+  const syncAvailabilityBottom = () => {
+    if (!availabilityScrollRef.current || !availabilityBottomBarRef.current) return;
+    availabilityBottomBarRef.current.scrollLeft = availabilityScrollRef.current.scrollLeft;
+  };
+
+  const syncAvailabilityTop = () => {
+    if (!availabilityScrollRef.current || !availabilityBottomBarRef.current) return;
+    availabilityScrollRef.current.scrollLeft = availabilityBottomBarRef.current.scrollLeft;
+  };
+
   // ------------------------------
   // COLUMN WIDTH / RESIZE SYSTEM
   // ------------------------------
@@ -1364,39 +1380,50 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                           width: colWidth.availability,
                           minWidth: colWidth.availability,
                           maxWidth: colWidth.availability,
-                          display: colVisible.availability
-                            ? "table-cell"
-                            : "none",
+                          display: colVisible.availability ? "table-cell" : "none",
                         }}
-                        className="relative border px-2 py-1 overflow-x-auto whitespace-nowrap overflow-hidden"
+                        className="relative border px-2 py-1 whitespace-nowrap overflow-hidden"
                       >
-                        {row.availability && row.availability.length > 0 ? (
-                          <WeeklyFTEBar
-                            baseFTE={row.unit_fte}
-                            availability={row.availability}
-                            onWeekClick={(weekStart) =>
-                              openAvailabilityForRow(
-                                effectiveIndex,
-                                weekStart
-                              )
-                            }
-                          />
-                        ) : (
-                          <Button
-                            variant="ghost"
-                            className="!px-3 !py-1 text-xs"
-                            onClick={() =>
-                              openAvailabilityForRow(effectiveIndex)
-                            }
-                          >
-                            Edit Availability
-                          </Button>
-                        )}
+
+                        {/* Availability scroll viewport */}
+                        <div
+                          ref={availabilityScrollRef}
+                          className="overflow-x-auto w-full"
+                          onScroll={syncAvailabilityBottom}
+                        >
+                          {row.availability && row.availability.length > 0 ? (
+                            <WeeklyFTEBar
+                              baseFTE={row.unit_fte}
+                              availability={row.availability}
+                              onWeekClick={(weekStart) =>
+                                openAvailabilityForRow(effectiveIndex, weekStart)
+                              }
+                            />
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              className="!px-3 !py-1 text-xs"
+                              onClick={() => openAvailabilityForRow(effectiveIndex)}
+                            >
+                              Edit Availability
+                            </Button>
+                          )}
+                        </div>
+
+                        {/* Availability bottom scrollbar */}
+                        <div
+                          ref={availabilityBottomBarRef}
+                          className="h-3 overflow-x-auto mt-1"
+                          onScroll={syncAvailabilityTop}
+                        >
+                          {/* dynamic width representing 52 weeks */}
+                          <div style={{ width: totalWeeksWidth }} />
+                        </div>
+
+                        {/* resize handle */}
                         <div
                           className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                          onMouseDown={(e) =>
-                            startResizing(e, "availability")
-                          }
+                          onMouseDown={(e) => startResizing(e, "availability")}
                         />
                       </td>
                     )}

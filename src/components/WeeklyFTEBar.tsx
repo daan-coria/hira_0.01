@@ -28,40 +28,40 @@ import {
     }
 
     return (
-        <div className="flex gap-2 overflow-x-auto py-1 whitespace-nowrap max-w-full">
-        {weeklyPoints.map((point) => {
+        <div className="flex gap-2 py-1 whitespace-nowrap">
+            {weeklyPoints.map((point) => {
             // Build tooltip text using reasons returned by computeWeeklyFTE
             let tooltip: string
 
             if (!point.reasons || point.reasons.length === 0) {
-            tooltip = `Base FTE: ${baseFTE}\nNo availability adjustments this week`
+                tooltip = `Base FTE: ${baseFTE}\nNo availability adjustments this week`
             } else {
-            tooltip = point.reasons
+                tooltip = point.reasons
                 .map((r) => {
-                const range =
+                    const range =
                     r.end && r.end.trim()
-                    ? `${r.start} — ${r.end}`
-                    : `${r.start} — Ongoing`
-                return `${r.type}: ${range}`
+                        ? `${r.start} — ${r.end}`
+                        : `${r.start} — Ongoing`
+                    return `${r.type}: ${range}`
                 })
                 .join("\n")
             }
 
             return (
-            <button
+                <button
                 key={point.weekStart}
                 type="button"
                 title={tooltip}
                 onClick={() => onWeekClick?.(point.weekStart)}
                 className="min-w-[88px] rounded-lg border border-gray-300 px-2 py-1 text-xs bg-white hover:bg-gray-50 flex flex-col items-center"
-            >
+                >
                 <span className="text-[10px] text-gray-500">
-                {dayjs(point.weekStart).format("M/D/YYYY")}
+                    {dayjs(point.weekStart).format("M/D/YYYY")}
                 </span>
                 <span className="font-semibold">{point.fte.toFixed(1)}</span>
-            </button>
+                </button>
             )
-        })}
+            })}
         </div>
-    )
+        )
     }
