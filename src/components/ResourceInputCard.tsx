@@ -1,4 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from "react"
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  MouseEvent as ReactMouseEvent,
+} from "react"
 import { useApp } from "@/store/AppContext"
 import * as XLSX from "xlsx"
 import Card from "@/components/ui/Card"
@@ -67,7 +73,8 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
   const [activeInfoRow, setActiveInfoRow] = useState<number | null>(null)
   const [drawerRow, setDrawerRow] = useState<ResourceRow | null>(null)
   const [drawerMode, setDrawerMode] = useState<"view" | "edit">("view")
-  const [drawerOriginalRow, setDrawerOriginalRow] = useState<ResourceRow | null>(null)
+  const [drawerOriginalRow, setDrawerOriginalRow] =
+    useState<ResourceRow | null>(null)
   const [drawerIsNew, setDrawerIsNew] = useState(false)
 
   // Availability drawer state (right side)
@@ -89,6 +96,78 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     shift_group: "",
     weekend_group: "",
   })
+
+  // ------------------------------
+  // COLUMN WIDTH / RESIZE SYSTEM
+  // ------------------------------
+  const [colWidth, setColWidth] = useState({
+    info: 70,
+    cost_center_name: 150,
+    employee_id: 130,
+    full_name: 200,
+    job_name: 160,
+    unit_fte: 90,
+    shift_group: 150,
+    weekend_group: 120,
+    availability: 260,
+  })
+
+  const startResizing = (
+    e: ReactMouseEvent<HTMLDivElement>,
+    key: keyof typeof colWidth
+  ) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    const startX = e.clientX
+    const startWidth = colWidth[key]
+
+    const handleMouseMove = (ev: MouseEvent) => {
+      const newWidth = Math.max(60, startWidth + (ev.clientX - startX))
+      setColWidth((prev) => ({ ...prev, [key]: newWidth }))
+    }
+
+    const handleMouseUp = () => {
+      window.removeEventListener("mousemove", handleMouseMove)
+      window.removeEventListener("mouseup", handleMouseUp)
+    }
+
+    window.addEventListener("mousemove", handleMouseMove)
+    window.addEventListener("mouseup", handleMouseUp)
+  }
+
+  // ------------------------------
+  // COLUMN VISIBILITY STATE
+  // ------------------------------
+  const [colVisible, setColVisible] = useState({
+    info: true,
+    cost_center_name: true,
+    employee_id: true,
+    full_name: true,
+    job_name: true,
+    unit_fte: true,
+    shift_group: true,
+    weekend_group: true,
+    availability: true,
+  })
+
+  const toggleColumn = (key: keyof typeof colVisible) => {
+    setColVisible((prev) => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  const COLUMN_CONFIG: { key: keyof typeof colVisible; label: string }[] = [
+    { key: "info", label: "Info" },
+    { key: "cost_center_name", label: "Cost Center" },
+    { key: "employee_id", label: "Employee ID" },
+    { key: "full_name", label: "Full Name" },
+    { key: "job_name", label: "Job Name" },
+    { key: "unit_fte", label: "Unit FTE" },
+    { key: "shift_group", label: "Shift Group" },
+    { key: "weekend_group", label: "Weekend Group" },
+    { key: "availability", label: "Availability" },
+  ]
+
+  const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false)
 
   // Debounced autosave
   const debouncedSave = useCallback(
@@ -174,7 +253,8 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
   }
 
   // Weekend group list
-  const [weekendGroupList, setWeekendGroupList] = useState<string[]>(weekendGroups)
+  const [weekendGroupList, setWeekendGroupList] =
+    useState<string[]>(weekendGroups)
   useEffect(() => {
     if (Array.isArray(data?.staffingConfig)) {
       const groups = Array.from(
@@ -189,7 +269,11 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
   }, [data?.staffingConfig])
 
   // Generic table cell change handler
-  const handleChange = async (index: number, field: keyof ResourceRow, value: any) => {
+  const handleChange = async (
+    index: number,
+    field: keyof ResourceRow,
+    value: any
+  ) => {
     const updated = [...rows]
     const prevValue = updated[index][field]
     updated[index] = { ...updated[index], [field]: value }
@@ -216,7 +300,11 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
           })
           if (result.isConfirmed) {
             updated[duplicateIndex] = { ...current }
-            Swal.fire("Overwritten", "Existing record updated successfully.", "success")
+            Swal.fire(
+              "Overwritten",
+              "Existing record updated successfully.",
+              "success"
+            )
           } else {
             if (typeof prevValue !== "undefined") {
               ;(updated[index] as Record<string, any>)[field] = prevValue
@@ -230,43 +318,13 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     debouncedSave(updated)
   }
 
-  // Column width / Resize system 
-  const [colWidth, setColWidth] = useState({
-    info: 70,
-    cost_center_name: 150,
-    employee_id: 130,
-    full_name: 200,
-    job_name: 150,
-    unit_fte: 90,
-    shift_group: 150,
-    weekend_group: 120,
-    availability: 260,
-  })
+  // --- Drawer helpers --------------------------------------------------------
 
-  const startResizing = (e: React.MouseEvent, key: keyof typeof colWidth) => {
-    e.preventDefault()
-    e.stopPropagation()
-
-    const startX = e.clientX
-    const startWidth = colWidth[key]
-
-    const handleMouseMove = (ev: MouseEvent) => {
-      const newWidth = Math.max(60, startWidth + (ev.clientX - startX))
-      setColWidth((prev) => ({ ...prev, [key]: newWidth }))
-    }
-
-    const handleMouseUp = () => {
-      window.removeEventListener("mousemove", handleMouseMove)
-      window.removeEventListener("mouseup", handleMouseUp)
-    }
-
-    window.addEventListener("mousemove", handleMouseMove)
-    window.addEventListener("mouseup", handleMouseUp)
-}
-
-  // Drawer helpers 
-
-  const openDrawerForRow = (rowIndex: number, mode: "view" | "edit", isNew = false) => {
+  const openDrawerForRow = (
+    rowIndex: number,
+    mode: "view" | "edit",
+    isNew = false
+  ) => {
     const baseRow = rows[rowIndex]
     setActiveInfoRow(rowIndex)
     setDrawerRow({ ...baseRow })
@@ -321,7 +379,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     setDrawerRow((prev) => (prev ? { ...prev, [field]: value } : prev))
   }
 
-  // Availability drawer helpers 
+  // --- Availability drawer helpers -------------------------------------
 
   const openAvailabilityForRow = (rowIndex: number, weekStart?: string) => {
     setAvailabilityRowIndex(rowIndex)
@@ -355,7 +413,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
   const currentAvailabilityRow =
     availabilityRowIndex !== null ? rows[availabilityRowIndex] : null
 
-  // Add / Remove rows 
+  // --- Add / Remove rows -----------------------------------------------------
 
   const addRow = () => {
     const newRow: ResourceRow = {
@@ -383,7 +441,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     openDrawerForRow(newIndex, "edit", true)
   }
 
-  // CSV Upload / Export 
+  // --- CSV Upload / Export ---------------------------------------------------
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -508,7 +566,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     URL.revokeObjectURL(url)
   }
 
-  // Filtering 
+  // --- Filtering -------------------------------------------------------------
 
   const filteredRows = rows.filter((r) => {
     return (
@@ -544,16 +602,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
   const formatFullName = (row: ResourceRow) =>
     `${row.first_name || ""} ${row.last_name || ""}`.trim() || "—"
 
-  // Hide columns if availability exists
-  const shouldHideCols = (row: ResourceRow) =>
-    row.availability && row.availability.length > 0;
-
-  // If any row has availability → hide these columns globally
-  const hideExtraCols = rows.some(
-    r => r.availability && r.availability.length > 0
-  );
-
-  // Render 
+  // --- Render ----------------------------------------------------------------
 
   return (
     <Card className="p-4 space-y-4">
@@ -611,7 +660,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
         </div>
       </div>
 
-      {/* Filter Bar */}
+      {/* Filter Bar + Manage Columns */}
       <div className="flex flex-wrap gap-3 items-center mb-3">
         <Select
           value={filters.campus}
@@ -647,7 +696,9 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
 
         <Select
           value={filters.job_name}
-          onChange={(e) => setFilters({ ...filters, job_name: e.target.value })}
+          onChange={(e) =>
+            setFilters({ ...filters, job_name: e.target.value })
+          }
         >
           <option value="">All Job Names</option>
           {jobNames.map((j) => (
@@ -694,6 +745,46 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
         >
           Clear Filters
         </Button>
+
+        {/* Manage Columns */}
+        <div className="ml-auto relative">
+          <Button
+            variant="ghost"
+            onClick={() => setIsColumnMenuOpen((open) => !open)}
+          >
+            Manage Columns
+          </Button>
+
+          {isColumnMenuOpen && (
+            <>
+              {/* Click-away backdrop */}
+              <div
+                className="fixed inset-0 z-30"
+                onClick={() => setIsColumnMenuOpen(false)}
+              />
+              <div className="absolute right-0 z-40 mt-2 w-60 rounded-md bg-white shadow-lg border p-3">
+                <p className="text-xs font-semibold text-gray-500 mb-2">
+                  Show / hide columns
+                </p>
+                <div className="space-y-1 max-h-64 overflow-y-auto">
+                  {COLUMN_CONFIG.map((col) => (
+                    <label
+                      key={col.key}
+                      className="flex items-center gap-2 text-sm"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={colVisible[col.key]}
+                        onChange={() => toggleColumn(col.key)}
+                      />
+                      <span>{col.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Table */}
@@ -704,104 +795,194 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
           <table className="min-w-full border border-gray-200 text-sm">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-3 py-2 border text-center w-20">Info</th>
-                <th
-                  style={{ width: colWidth.cost_center_name }}
-                  className="relative px-3 py-2 border bg-gray-50"
-                >
-                  Cost Center
-                  <div
-                    className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
-                    onMouseDown={(e) => startResizing(e, "cost_center_name")}
-                  />
-                </th>
+                {colVisible.info && (
+                  <th
+                    style={{ width: colWidth.info }}
+                    className="relative px-3 py-2 border text-center"
+                  >
+                    <button
+                      type="button"
+                      className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
+                      onClick={() => toggleColumn("info")}
+                      title="Hide column"
+                    >
+                      ⇤
+                    </button>
+                    Info
+                    <div
+                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
+                      onMouseDown={(e) => startResizing(e, "info")}
+                    />
+                  </th>
+                )}
 
-                {!hideExtraCols && (
+                {colVisible.cost_center_name && (
+                  <th
+                    style={{ width: colWidth.cost_center_name }}
+                    className="relative px-3 py-2 border"
+                  >
+                    <button
+                      type="button"
+                      className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
+                      onClick={() => toggleColumn("cost_center_name")}
+                      title="Hide column"
+                    >
+                      ⇤
+                    </button>
+                    Cost Center
+                    <div
+                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
+                      onMouseDown={(e) => startResizing(e, "cost_center_name")}
+                    />
+                  </th>
+                )}
+
+                {colVisible.employee_id && (
                   <th
                     style={{ width: colWidth.employee_id }}
-                    className="relative px-3 py-2 border bg-gray-50"
+                    className="relative px-3 py-2 border"
                   >
+                    <button
+                      type="button"
+                      className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
+                      onClick={() => toggleColumn("employee_id")}
+                      title="Hide column"
+                    >
+                      ⇤
+                    </button>
                     Employee ID
                     <div
-                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
+                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
                       onMouseDown={(e) => startResizing(e, "employee_id")}
                     />
                   </th>
-
                 )}
 
-                <th
-                  style={{ width: colWidth.full_name }}
-                  className="relative px-3 py-2 border bg-gray-50"
-                >
-                  Full Name
-                  <div
-                    className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
-                    onMouseDown={(e) => startResizing(e, "full_name")}
-                  />
-                </th>
+                {colVisible.full_name && (
+                  <th
+                    style={{ width: colWidth.full_name }}
+                    className="relative px-3 py-2 border"
+                  >
+                    <button
+                      type="button"
+                      className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
+                      onClick={() => toggleColumn("full_name")}
+                      title="Hide column"
+                    >
+                      ⇤
+                    </button>
+                    Full Name
+                    <div
+                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
+                      onMouseDown={(e) => startResizing(e, "full_name")}
+                    />
+                  </th>
+                )}
 
-                <th
-                  style={{ width: colWidth.job_name }}
-                  className="relative px-3 py-2 border bg-gray-50"
-                >
-                  Job Name
-                  <div
-                    className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
-                    onMouseDown={(e) => startResizing(e, "job_name")}
-                  />
-                </th>
+                {colVisible.job_name && (
+                  <th
+                    style={{ width: colWidth.job_name }}
+                    className="relative px-3 py-2 border"
+                  >
+                    <button
+                      type="button"
+                      className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
+                      onClick={() => toggleColumn("job_name")}
+                      title="Hide column"
+                    >
+                      ⇤
+                    </button>
+                    Job Name
+                    <div
+                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
+                      onMouseDown={(e) => startResizing(e, "job_name")}
+                    />
+                  </th>
+                )}
 
-                <th
-                  style={{ width: colWidth.unit_fte }}
-                  className="relative px-3 py-2 border bg-gray-50"
-                >
-                  Unit FTE
-                  <div
-                    className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
-                    onMouseDown={(e) => startResizing(e, "unit_fte")}
-                  />
-                </th>
+                {colVisible.unit_fte && (
+                  <th
+                    style={{ width: colWidth.unit_fte }}
+                    className="relative px-3 py-2 border text-right"
+                  >
+                    <button
+                      type="button"
+                      className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
+                      onClick={() => toggleColumn("unit_fte")}
+                      title="Hide column"
+                    >
+                      ⇤
+                    </button>
+                    Unit FTE
+                    <div
+                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
+                      onMouseDown={(e) => startResizing(e, "unit_fte")}
+                    />
+                  </th>
+                )}
 
-                {!hideExtraCols && (
+                {colVisible.shift_group && (
                   <th
                     style={{ width: colWidth.shift_group }}
-                    className="relative px-3 py-2 border bg-gray-50"
+                    className="relative px-3 py-2 border"
                   >
+                    <button
+                      type="button"
+                      className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
+                      onClick={() => toggleColumn("shift_group")}
+                      title="Hide column"
+                    >
+                      ⇤
+                    </button>
                     Shift Group
                     <div
-                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
+                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
                       onMouseDown={(e) => startResizing(e, "shift_group")}
                     />
                   </th>
-
                 )}
 
-                {!hideExtraCols && (
+                {colVisible.weekend_group && (
                   <th
                     style={{ width: colWidth.weekend_group }}
-                    className="relative px-3 py-2 border bg-gray-50"
+                    className="relative px-3 py-2 border"
                   >
-                    Weekend Group
+                    <button
+                      type="button"
+                      className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
+                      onClick={() => toggleColumn("weekend_group")}
+                      title="Hide column"
+                    >
+                      ⇤
+                    </button>
+                    Weekend
                     <div
-                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
+                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
                       onMouseDown={(e) => startResizing(e, "weekend_group")}
                     />
                   </th>
-
                 )}
 
-                <th
-                  style={{ width: colWidth.availability }}
-                  className="relative px-3 py-2 border bg-gray-50"
-                >
-                  Availability
-                  <div
-                    className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500"
-                    onMouseDown={(e) => startResizing(e, "availability")}
-                  />
-                </th>
-
+                {colVisible.availability && (
+                  <th
+                    style={{ width: colWidth.availability }}
+                    className="relative px-3 py-2 border"
+                  >
+                    <button
+                      type="button"
+                      className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
+                      onClick={() => toggleColumn("availability")}
+                      title="Hide column"
+                    >
+                      ⇤
+                    </button>
+                    Availability
+                    <div
+                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
+                      onMouseDown={(e) => startResizing(e, "availability")}
+                    />
+                  </th>
+                )}
               </tr>
             </thead>
 
@@ -817,49 +998,63 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     className="odd:bg-white even:bg-gray-50 hover:bg-gray-100"
                   >
                     {/* Information icon (≪) */}
-                    <td className="border px-2 py-1 text-center">
-                      <Button
-                        variant="ghost"
-                        className="!px-2 !py-1 text-xl font-bold text-gray-700"
-                        onClick={() =>
-                          openDrawerForRow(
-                            rowIndex >= 0 ? rowIndex : i,
-                            "view",
-                            false
-                          )
-                        }
+                    {colVisible.info && (
+                      <td
+                        style={{ width: colWidth.info }}
+                        className="relative border px-2 py-1 text-center"
                       >
-                        ««
-                      </Button>
-                    </td>
+                        <Button
+                          variant="ghost"
+                          className="!px-2 !py-1 text-xl font-bold text-gray-700"
+                          onClick={() =>
+                            openDrawerForRow(
+                              rowIndex >= 0 ? rowIndex : i,
+                              "view",
+                              false
+                            )
+                          }
+                        >
+                          ««
+                        </Button>
+
+                        <div
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
+                          onMouseDown={(e) => startResizing(e, "info")}
+                        />
+                      </td>
+                    )}
 
                     {/* Cost Center Name */}
-                    <td
-                      style={{ width: colWidth.cost_center_name }}
-                      className="relative border px-2 py-1"
-                    >
-                      <Input
-                        id={`cost_center_${row.id ?? i}`}
-                        value={row.cost_center_name || ""}
-                        onChange={(e) =>
-                          handleChange(
-                            rowIndex >= 0 ? rowIndex : i,
-                            "cost_center_name",
-                            e.target.value
-                          )
-                        }
-                        placeholder="Cost Center"
-                        className="!m-0 !p-1"
-                      />
+                    {colVisible.cost_center_name && (
+                      <td
+                        style={{ width: colWidth.cost_center_name }}
+                        className="relative border px-2 py-1"
+                      >
+                        <Input
+                          id={`cost_center_${row.id ?? i}`}
+                          value={row.cost_center_name || ""}
+                          onChange={(e) =>
+                            handleChange(
+                              rowIndex >= 0 ? rowIndex : i,
+                              "cost_center_name",
+                              e.target.value
+                            )
+                          }
+                          placeholder="Cost Center"
+                          className="!m-0 !p-1"
+                        />
 
-                      <div
-                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                        onMouseDown={(e) => startResizing(e, "cost_center_name")}
-                      />
-                    </td>
+                        <div
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
+                          onMouseDown={(e) =>
+                            startResizing(e, "cost_center_name")
+                          }
+                        />
+                      </td>
+                    )}
 
                     {/* Employee ID */}
-                    {!hideExtraCols && (
+                    {colVisible.employee_id && (
                       <td
                         style={{ width: colWidth.employee_id }}
                         className="relative border px-2 py-1"
@@ -868,96 +1063,112 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                           value={row.employee_id || ""}
                           id=""
                           onChange={(e) =>
-                            handleChange(effectiveIndex, "employee_id", e.target.value)
+                            handleChange(
+                              effectiveIndex,
+                              "employee_id",
+                              e.target.value
+                            )
                           }
                           className="!m-0 !p-1 w-full"
                         />
 
                         <div
                           className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                          onMouseDown={(e) => startResizing(e, "employee_id")}
+                          onMouseDown={(e) =>
+                            startResizing(e, "employee_id")
+                          }
                         />
                       </td>
                     )}
 
                     {/* Full Name (read-only, from first/last) */}
-                    <td
-                      style={{ width: colWidth.full_name }}
-                      className="relative border px-2 py-1"
-                    >
-                      <div className="px-2 py-1 bg-white rounded border border-gray-200 text-gray-800 text-sm">
-                        {formatFullName(row)}
-                      </div>
+                    {colVisible.full_name && (
+                      <td
+                        style={{ width: colWidth.full_name }}
+                        className="relative border px-2 py-1"
+                      >
+                        <div className="px-2 py-1 bg-white rounded border border-gray-200 text-gray-800 text-sm">
+                          {formatFullName(row)}
+                        </div>
 
-                      <div
-                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                        onMouseDown={(e) => startResizing(e, "full_name")}
-                      />
-                    </td>
+                        <div
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
+                          onMouseDown={(e) => startResizing(e, "full_name")}
+                        />
+                      </td>
+                    )}
 
                     {/* Job Name */}
-                    <td
-                      style={{ width: colWidth.job_name }}
-                      className="relative border px-2 py-1"
-                    >
-                      <Select
-                        value={row.job_name || row.position}
-                        onChange={(e) =>
-                          handleChange(
-                            rowIndex >= 0 ? rowIndex : i,
-                            "job_name",
-                            e.target.value
-                          )
-                        }
-                        className="!m-0 !p-1"
+                    {colVisible.job_name && (
+                      <td
+                        style={{ width: colWidth.job_name }}
+                        className="relative border px-2 py-1"
                       >
-                        <option value="">-- Select --</option>
-                        {jobNames.concat(
-                          positions.filter(
-                            (p) => !jobNames.includes(p) && p !== (row.job_name || "")
-                          )
-                        ).map((p) => (
-                          <option key={p} value={p}>
-                            {p}
-                          </option>
-                        ))}
-                      </Select>
-                      
-                      <div
-                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                        onMouseDown={(e) => startResizing(e, "job_name")}
-                      />
-                    </td>
+                        <Select
+                          value={row.job_name || row.position}
+                          onChange={(e) =>
+                            handleChange(
+                              rowIndex >= 0 ? rowIndex : i,
+                              "job_name",
+                              e.target.value
+                            )
+                          }
+                          className="!m-0 !p-1"
+                        >
+                          <option value="">-- Select --</option>
+                          {jobNames
+                            .concat(
+                              positions.filter(
+                                (p) =>
+                                  !jobNames.includes(p) &&
+                                  p !== (row.job_name || "")
+                              )
+                            )
+                            .map((p) => (
+                              <option key={p} value={p}>
+                                {p}
+                              </option>
+                            ))}
+                        </Select>
+
+                        <div
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
+                          onMouseDown={(e) => startResizing(e, "job_name")}
+                        />
+                      </td>
+                    )}
 
                     {/* Unit FTE */}
-                    <td
-                      style={{ width: colWidth.unit_fte }}
-                      className="relative border px-2 py-1 text-right"
-                    >
-                      <Input
-                        id={`unit_fte_${row.id || i}`}
-                        type="number"
-                        min={0}
-                        step={0.1}
-                        value={row.unit_fte}
-                        onChange={(e) =>
-                          handleChange(
-                            rowIndex >= 0 ? rowIndex : i,
-                            "unit_fte",
-                            Number(e.target.value)
-                          )
-                        }
-                        className="!m-0 !p-1 w-full text-right"
-                      />
+                    {colVisible.unit_fte && (
+                      <td
+                        style={{ width: colWidth.unit_fte }}
+                        className="relative border px-2 py-1 text-right"
+                      >
+                        <Input
+                          id={`unit_fte_${row.id || i}`}
+                          type="number"
+                          min={0}
+                          step={0.1}
+                          value={row.unit_fte}
+                          onChange={(e) =>
+                            handleChange(
+                              rowIndex >= 0 ? rowIndex : i,
+                              "unit_fte",
+                              Number(e.target.value)
+                            )
+                          }
+                          className="!m-0 !p-1 w-full text-right"
+                        />
 
-                      <div
-                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                        onMouseDown={(e) => startResizing(e, "unit_fte")}
-                      />
-                    </td>
+                        <div
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
+                          onMouseDown={(e) => startResizing(e, "unit_fte")}
+                        />
+                      </td>
+                    )}
 
                     {/* Shift Group */}
-                    {!hideExtraCols && (
+                    {colVisible.shift_group && (
                       <td
                         style={{ width: colWidth.shift_group }}
                         className="relative border px-2 py-1"
@@ -965,7 +1176,11 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                         <Select
                           value={row.shift_group || row.shift}
                           onChange={(e) =>
-                            handleChange(effectiveIndex, "shift_group", e.target.value)
+                            handleChange(
+                              effectiveIndex,
+                              "shift_group",
+                              e.target.value
+                            )
                           }
                           className="!m-0 !p-1"
                         >
@@ -977,13 +1192,15 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
 
                         <div
                           className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                          onMouseDown={(e) => startResizing(e, "shift_group")}
+                          onMouseDown={(e) =>
+                            startResizing(e, "shift_group")
+                          }
                         />
                       </td>
                     )}
 
                     {/* Weekend Group */}
-                    {!hideExtraCols && (
+                    {colVisible.weekend_group && (
                       <td
                         style={{ width: colWidth.weekend_group }}
                         className="relative border px-2 py-1 text-center"
@@ -991,7 +1208,11 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                         <Select
                           value={row.weekend_group}
                           onChange={(e) =>
-                            handleChange(effectiveIndex, "weekend_group", e.target.value)
+                            handleChange(
+                              effectiveIndex,
+                              "weekend_group",
+                              e.target.value
+                            )
                           }
                           className="!m-0 !p-1"
                         >
@@ -1003,43 +1224,50 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
 
                         <div
                           className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                          onMouseDown={(e) => startResizing(e, "weekend_group")}
+                          onMouseDown={(e) =>
+                            startResizing(e, "weekend_group")
+                          }
                         />
                       </td>
                     )}
 
                     {/* Availability column */}
-                    <td
-                      style={{ width: colWidth.availability }}
-                      className="relative border px-2 py-1 overflow-x-auto whitespace-nowrap"
-                    >
-                      {row.availability && row.availability.length > 0 ? (
-                        <WeeklyFTEBar
-                          baseFTE={row.unit_fte}
-                          availability={row.availability}
-                          onWeekClick={(weekStart) =>
-                            openAvailabilityForRow(
-                              effectiveIndex,
-                              weekStart
-                            )
+                    {colVisible.availability && (
+                      <td
+                        style={{ width: colWidth.availability }}
+                        className="relative border px-2 py-1 overflow-x-auto whitespace-nowrap"
+                      >
+                        {row.availability && row.availability.length > 0 ? (
+                          <WeeklyFTEBar
+                            baseFTE={row.unit_fte}
+                            availability={row.availability}
+                            onWeekClick={(weekStart) =>
+                              openAvailabilityForRow(
+                                effectiveIndex,
+                                weekStart
+                              )
+                            }
+                          />
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            className="!px-3 !py-1 text-xs"
+                            onClick={() =>
+                              openAvailabilityForRow(effectiveIndex)
+                            }
+                          >
+                            Edit Availability
+                          </Button>
+                        )}
+
+                        <div
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
+                          onMouseDown={(e) =>
+                            startResizing(e, "availability")
                           }
                         />
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          className="!px-3 !py-1 text-xs"
-                          onClick={() => openAvailabilityForRow(effectiveIndex)}
-                        >
-                          Edit Availability
-                        </Button>
-                      )}
-
-                      {/* Resize handle */}
-                      <div
-                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                        onMouseDown={(e) => startResizing(e, "availability")}
-                      />
-                    </td>
+                      </td>
+                    )}
                   </tr>
                 )
               })}
@@ -1058,7 +1286,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
 
           {/* LEFT SIDE DRAWER */}
           <div className="fixed inset-y-0 left-0 z-50 w-full max-w-md bg-white shadow-2xl flex flex-col">
-
             {/* HEADER */}
             <div className="px-5 py-4 border-b flex items-center justify-between">
               {/* LEFT = trash delete button */}
@@ -1107,7 +1334,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
             </div>
 
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-2 text-sm text-gray-700">
-
               {/* ====== MAIN TABLE FIELDS (Top of Drawer) ====== */}
 
               <div>
@@ -1148,17 +1374,24 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       id={`drawer_first_name_${drawerRow.id || "new"}`}
                       placeholder="First name"
                       value={drawerRow.first_name}
-                      onChange={(e) => updateDrawerField("first_name", e.target.value)}
+                      onChange={(e) =>
+                        updateDrawerField("first_name", e.target.value)
+                      }
                     />
                     <Input
                       id={`drawer_last_name_${drawerRow.id || "new"}`}
                       placeholder="Last name"
                       value={drawerRow.last_name}
-                      onChange={(e) => updateDrawerField("last_name", e.target.value)}
+                      onChange={(e) =>
+                        updateDrawerField("last_name", e.target.value)
+                      }
                     />
                   </div>
                 ) : (
-                  <p>{`${drawerRow.first_name} ${drawerRow.last_name}`.trim() || "—"}</p>
+                  <p>
+                    {`${drawerRow.first_name} ${drawerRow.last_name}`.trim() ||
+                      "—"}
+                  </p>
                 )}
               </div>
 
@@ -1167,7 +1400,9 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                 {drawerMode === "edit" ? (
                   <Select
                     value={drawerRow.job_name || drawerRow.position}
-                    onChange={(e) => updateDrawerField("job_name", e.target.value)}
+                    onChange={(e) =>
+                      updateDrawerField("job_name", e.target.value)
+                    }
                   >
                     <option value="">-- Select --</option>
                     {jobNames.map((j) => (
@@ -1204,7 +1439,9 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                 {drawerMode === "edit" ? (
                   <Select
                     value={drawerRow.shift_group || drawerRow.shift}
-                    onChange={(e) => updateDrawerField("shift_group", e.target.value)}
+                    onChange={(e) =>
+                      updateDrawerField("shift_group", e.target.value)
+                    }
                   >
                     <option value="">-- Select --</option>
                     {getFilteredShifts(drawerRow.position || "").map((opt) => (
@@ -1223,7 +1460,9 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                 {drawerMode === "edit" ? (
                   <Select
                     value={drawerRow.weekend_group}
-                    onChange={(e) => updateDrawerField("weekend_group", e.target.value)}
+                    onChange={(e) =>
+                      updateDrawerField("weekend_group", e.target.value)
+                    }
                   >
                     <option value="">-- Select --</option>
                     {weekendGroupList.map((g) => (
@@ -1244,7 +1483,9 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     id={`drawer_start_date_${drawerRow.id || "new"}`}
                     type="date"
                     value={drawerRow.start_date || ""}
-                    onChange={(e) => updateDrawerField("start_date", e.target.value)}
+                    onChange={(e) =>
+                      updateDrawerField("start_date", e.target.value)
+                    }
                   />
                 ) : (
                   <p>{drawerRow.start_date || "—"}</p>
@@ -1258,7 +1499,9 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     id={`drawer_end_date_${drawerRow.id || "new"}`}
                     type="date"
                     value={drawerRow.end_date || ""}
-                    onChange={(e) => updateDrawerField("end_date", e.target.value)}
+                    onChange={(e) =>
+                      updateDrawerField("end_date", e.target.value)
+                    }
                   />
                 ) : (
                   <p>{drawerRow.end_date || "—"}</p>
@@ -1287,7 +1530,9 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                   <Input
                     id={`ehr_id_${drawerRow.id || "new"}`}
                     value={drawerRow.ehr_id || ""}
-                    onChange={(e) => updateDrawerField("ehr_id", e.target.value)}
+                    onChange={(e) =>
+                      updateDrawerField("ehr_id", e.target.value)
+                    }
                   />
                 ) : (
                   <p>{drawerRow.ehr_id || "—"}</p>
@@ -1301,7 +1546,10 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     id={`primary_cost_center_id_${drawerRow.id || "new"}`}
                     value={drawerRow.primary_cost_center_id || ""}
                     onChange={(e) =>
-                      updateDrawerField("primary_cost_center_id", e.target.value)
+                      updateDrawerField(
+                        "primary_cost_center_id",
+                        e.target.value
+                      )
                     }
                   />
                 ) : (
@@ -1352,7 +1600,10 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     id={`primary_job_code_id_${drawerRow.id || "new"}`}
                     value={drawerRow.primary_job_code_id || ""}
                     onChange={(e) =>
-                      updateDrawerField("primary_job_code_id", e.target.value)
+                      updateDrawerField(
+                        "primary_job_code_id",
+                        e.target.value
+                      )
                     }
                   />
                 ) : (
@@ -1544,7 +1795,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
           </div>
         </>
       )}
-      
+
       {/* Availability Drawer (RIGHT side) */}
       {isAvailabilityOpen && currentAvailabilityRow && (
         <AvailabilityDrawer
