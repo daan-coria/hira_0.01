@@ -56,6 +56,25 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     weekend_group: "",
   })
 
+
+  // Availability scroll refs
+  const availabilityBigScrollRef = useRef<HTMLDivElement>(null)
+  const availabilityBottomRef = useRef<HTMLDivElement>(null)
+
+
+  // Scroll sync logic
+  const syncBottomScrollbar = () => {
+    if (!availabilityBigScrollRef.current || !availabilityBottomRef.current) return
+    availabilityBottomRef.current.scrollLeft =
+      availabilityBigScrollRef.current.scrollLeft
+  }
+
+  const syncAvailabilityTop = () => {
+    if (!availabilityBigScrollRef.current || !availabilityBottomRef.current) return
+    availabilityBigScrollRef.current.scrollLeft =
+      availabilityBottomRef.current.scrollLeft
+  }
+
   // Compute width: 52 weeks * 88px per button + gaps
   const totalWeeksWidth = 52 * 100; // adjust if needed
 
@@ -771,297 +790,319 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
         <p className="text-gray-500">No resource data yet.</p>
       ) : (
         <div className="overflow-x-auto">
-          <table
-            className="border border-gray-200 text-sm"
-            style={{ tableLayout: "fixed", width: "max-content" }}
+
+          {/* SHARED AVAILABILITY SCROLL CONTAINER */}
+          <div
+            id="availabilityScrollContainer"
+            className="overflow-x-auto w-full"
+            ref={availabilityBigScrollRef}
+            onScroll={syncBottomScrollbar}
           >
-            <thead className="bg-gray-50">
-              <tr>
-                {colVisible.info && (
-                  <th
-                    style={{
-                      width: colWidth.info,
-                      minWidth: colWidth.info,
-                      maxWidth: colWidth.info,
-                      display: colVisible.info ? "table-cell" : "none",
-                    }}
-                    className="relative px-3 py-2 border text-center overflow-hidden whitespace-nowrap"
-                  >
-                    <button
-                      type="button"
-                      className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
-                      onClick={() => toggleColumn("info")}
-                      title="Hide column"
+
+            <table
+              className="border border-gray-200 text-sm"
+              style={{ tableLayout: "fixed", width: "max-content" }}
+            >
+              <thead className="bg-gray-50">
+                <tr>
+                  {colVisible.info && (
+                    <th
+                      style={{
+                        width: colWidth.info,
+                        minWidth: colWidth.info,
+                        maxWidth: colWidth.info,
+                        display: colVisible.info ? "table-cell" : "none",
+                      }}
+                      className="relative px-3 py-2 border text-center overflow-hidden whitespace-nowrap"
                     >
-                      ⇤
-                    </button>
-                    {headerLabel("Info")}
-                    <div
-                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                      onMouseDown={(e) => startResizing(e, "info")}
-                    />
-                  </th>
-                )}
+                      <button
+                        type="button"
+                        className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
+                        onClick={() => toggleColumn("info")}
+                        title="Hide column"
+                      >
+                        ⇤
+                      </button>
+                      {headerLabel("Info")}
+                      <div
+                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
+                        onMouseDown={(e) => startResizing(e, "info")}
+                      />
+                    </th>
+                  )}
 
-                {colVisible.cost_center_name && (
-                  <th
-                    style={{
-                      width: colWidth.cost_center_name,
-                      minWidth: colWidth.cost_center_name,
-                      maxWidth: colWidth.cost_center_name,
-                      display: colVisible.cost_center_name
-                        ? "table-cell"
-                        : "none",
-                    }}
-                    className="relative px-3 py-2 border overflow-hidden whitespace-nowrap"
-                  >
-                    <button
-                      type="button"
-                      className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
-                      onClick={() => toggleColumn("cost_center_name")}
-                      title="Hide column"
+                  {colVisible.cost_center_name && (
+                    <th
+                      style={{
+                        width: colWidth.cost_center_name,
+                        minWidth: colWidth.cost_center_name,
+                        maxWidth: colWidth.cost_center_name,
+                        display: colVisible.cost_center_name
+                          ? "table-cell"
+                          : "none",
+                      }}
+                      className="relative px-3 py-2 border overflow-hidden whitespace-nowrap"
                     >
-                      ⇤
-                    </button>
-                    {headerLabel("Cost Center")}
-                    <div
-                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                      onMouseDown={(e) =>
-                        startResizing(e, "cost_center_name")
-                      }
-                    />
-                  </th>
-                )}
+                      <button
+                        type="button"
+                        className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
+                        onClick={() => toggleColumn("cost_center_name")}
+                        title="Hide column"
+                      >
+                        ⇤
+                      </button>
+                      {headerLabel("Cost Center")}
+                      <div
+                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
+                        onMouseDown={(e) =>
+                          startResizing(e, "cost_center_name")
+                        }
+                      />
+                    </th>
+                  )}
 
-                {colVisible.employee_id && (
-                  <th
-                    style={{
-                      width: colWidth.employee_id,
-                      minWidth: colWidth.employee_id,
-                      maxWidth: colWidth.employee_id,
-                      display: colVisible.employee_id
-                        ? "table-cell"
-                        : "none",
-                    }}
-                    className="relative px-3 py-2 border overflow-hidden whitespace-nowrap"
-                  >
-                    <button
-                      type="button"
-                      className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
-                      onClick={() => toggleColumn("employee_id")}
-                      title="Hide column"
+                  {colVisible.employee_id && (
+                    <th
+                      style={{
+                        width: colWidth.employee_id,
+                        minWidth: colWidth.employee_id,
+                        maxWidth: colWidth.employee_id,
+                        display: colVisible.employee_id
+                          ? "table-cell"
+                          : "none",
+                      }}
+                      className="relative px-3 py-2 border overflow-hidden whitespace-nowrap"
                     >
-                      ⇤
-                    </button>
-                    {headerLabel("Employee ID")}
-                    <div
-                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                      onMouseDown={(e) =>
-                        startResizing(e, "employee_id")
-                      }
-                    />
-                  </th>
-                )}
+                      <button
+                        type="button"
+                        className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
+                        onClick={() => toggleColumn("employee_id")}
+                        title="Hide column"
+                      >
+                        ⇤
+                      </button>
+                      {headerLabel("Employee ID")}
+                      <div
+                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
+                        onMouseDown={(e) =>
+                          startResizing(e, "employee_id")
+                        }
+                      />
+                    </th>
+                  )}
 
-                {colVisible.full_name && (
-                  <th
-                    style={{
-                      width: colWidth.full_name,
-                      minWidth: colWidth.full_name,
-                      maxWidth: colWidth.full_name,
-                      display: colVisible.full_name ? "table-cell" : "none",
-                    }}
-                    className="relative px-3 py-2 border overflow-hidden whitespace-nowrap"
-                  >
-                    <button
-                      type="button"
-                      className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
-                      onClick={() => toggleColumn("full_name")}
-                      title="Hide column"
+                  {colVisible.full_name && (
+                    <th
+                      style={{
+                        width: colWidth.full_name,
+                        minWidth: colWidth.full_name,
+                        maxWidth: colWidth.full_name,
+                        display: colVisible.full_name ? "table-cell" : "none",
+                      }}
+                      className="relative px-3 py-2 border overflow-hidden whitespace-nowrap"
                     >
-                      ⇤
-                    </button>
-                    {headerLabel("Full Name")}
-                    <div
-                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                      onMouseDown={(e) =>
-                        startResizing(e, "full_name")
-                      }
-                    />
-                  </th>
-                )}
+                      <button
+                        type="button"
+                        className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
+                        onClick={() => toggleColumn("full_name")}
+                        title="Hide column"
+                      >
+                        ⇤
+                      </button>
+                      {headerLabel("Full Name")}
+                      <div
+                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
+                        onMouseDown={(e) =>
+                          startResizing(e, "full_name")
+                        }
+                      />
+                    </th>
+                  )}
 
-                {colVisible.job_name && (
-                  <th
-                    style={{
-                      width: colWidth.job_name,
-                      minWidth: colWidth.job_name,
-                      maxWidth: colWidth.job_name,
-                      display: colVisible.job_name ? "table-cell" : "none",
-                    }}
-                    className="relative px-3 py-2 border overflow-hidden whitespace-nowrap"
-                  >
-                    <button
-                      type="button"
-                      className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
-                      onClick={() => toggleColumn("job_name")}
-                      title="Hide column"
+                  {colVisible.job_name && (
+                    <th
+                      style={{
+                        width: colWidth.job_name,
+                        minWidth: colWidth.job_name,
+                        maxWidth: colWidth.job_name,
+                        display: colVisible.job_name ? "table-cell" : "none",
+                      }}
+                      className="relative px-3 py-2 border overflow-hidden whitespace-nowrap"
                     >
-                      ⇤
-                    </button>
-                    {headerLabel("Job Name")}
-                    <div
-                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                      onMouseDown={(e) => startResizing(e, "job_name")}
-                    />
-                  </th>
-                )}
+                      <button
+                        type="button"
+                        className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
+                        onClick={() => toggleColumn("job_name")}
+                        title="Hide column"
+                      >
+                        ⇤
+                      </button>
+                      {headerLabel("Job Name")}
+                      <div
+                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
+                        onMouseDown={(e) => startResizing(e, "job_name")}
+                      />
+                    </th>
+                  )}
 
-                {colVisible.unit_fte && (
-                  <th
-                    style={{
-                      width: colWidth.unit_fte,
-                      minWidth: colWidth.unit_fte,
-                      maxWidth: colWidth.unit_fte,
-                      display: colVisible.unit_fte ? "table-cell" : "none",
-                    }}
-                    className="relative px-3 py-2 border text-right overflow-hidden whitespace-nowrap"
-                  >
-                    <button
-                      type="button"
-                      className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
-                      onClick={() => toggleColumn("unit_fte")}
-                      title="Hide column"
+                  {colVisible.unit_fte && (
+                    <th
+                      style={{
+                        width: colWidth.unit_fte,
+                        minWidth: colWidth.unit_fte,
+                        maxWidth: colWidth.unit_fte,
+                        display: colVisible.unit_fte ? "table-cell" : "none",
+                      }}
+                      className="relative px-3 py-2 border text-right overflow-hidden whitespace-nowrap"
                     >
-                      ⇤
-                    </button>
-                    {headerLabel("Unit FTE")}
-                    <div
-                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                      onMouseDown={(e) => startResizing(e, "unit_fte")}
-                    />
-                  </th>
-                )}
+                      <button
+                        type="button"
+                        className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
+                        onClick={() => toggleColumn("unit_fte")}
+                        title="Hide column"
+                      >
+                        ⇤
+                      </button>
+                      {headerLabel("Unit FTE")}
+                      <div
+                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
+                        onMouseDown={(e) => startResizing(e, "unit_fte")}
+                      />
+                    </th>
+                  )}
 
-                {colVisible.shift_group && (
-                  <th
-                    style={{
-                      width: colWidth.shift_group,
-                      minWidth: colWidth.shift_group,
-                      maxWidth: colWidth.shift_group,
-                      display: colVisible.shift_group ? "table-cell" : "none",
-                    }}
-                    className="relative px-3 py-2 border overflow-hidden whitespace-nowrap"
-                  >
-                    <button
-                      type="button"
-                      className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
-                      onClick={() => toggleColumn("shift_group")}
-                      title="Hide column"
+                  {colVisible.shift_group && (
+                    <th
+                      style={{
+                        width: colWidth.shift_group,
+                        minWidth: colWidth.shift_group,
+                        maxWidth: colWidth.shift_group,
+                        display: colVisible.shift_group ? "table-cell" : "none",
+                      }}
+                      className="relative px-3 py-2 border overflow-hidden whitespace-nowrap"
                     >
-                      ⇤
-                    </button>
-                    {headerLabel("Shift Group")}
-                    <div
-                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                      onMouseDown={(e) =>
-                        startResizing(e, "shift_group")
-                      }
-                    />
-                  </th>
-                )}
+                      <button
+                        type="button"
+                        className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
+                        onClick={() => toggleColumn("shift_group")}
+                        title="Hide column"
+                      >
+                        ⇤
+                      </button>
+                      {headerLabel("Shift Group")}
+                      <div
+                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
+                        onMouseDown={(e) =>
+                          startResizing(e, "shift_group")
+                        }
+                      />
+                    </th>
+                  )}
 
-                {colVisible.weekend_group && (
-                  <th
-                    style={{
-                      width: colWidth.weekend_group,
-                      minWidth: colWidth.weekend_group,
-                      maxWidth: colWidth.weekend_group,
-                      display: colVisible.weekend_group
-                        ? "table-cell"
-                        : "none",
-                    }}
-                    className="relative px-3 py-2 border overflow-hidden whitespace-nowrap"
-                  >
-                    <button
-                      type="button"
-                      className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
-                      onClick={() => toggleColumn("weekend_group")}
-                      title="Hide column"
+                  {colVisible.weekend_group && (
+                    <th
+                      style={{
+                        width: colWidth.weekend_group,
+                        minWidth: colWidth.weekend_group,
+                        maxWidth: colWidth.weekend_group,
+                        display: colVisible.weekend_group
+                          ? "table-cell"
+                          : "none",
+                      }}
+                      className="relative px-3 py-2 border overflow-hidden whitespace-nowrap"
                     >
-                      ⇤
-                    </button>
-                    {headerLabel("Weekend")}
-                    <div
-                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                      onMouseDown={(e) =>
-                        startResizing(e, "weekend_group")
-                      }
-                    />
-                  </th>
-                )}
+                      <button
+                        type="button"
+                        className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
+                        onClick={() => toggleColumn("weekend_group")}
+                        title="Hide column"
+                      >
+                        ⇤
+                      </button>
+                      {headerLabel("Weekend")}
+                      <div
+                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
+                        onMouseDown={(e) =>
+                          startResizing(e, "weekend_group")
+                        }
+                      />
+                    </th>
+                  )}
 
-                {colVisible.availability && (
-                  <th
-                    style={{
-                      width: colWidth.availability,
-                      minWidth: colWidth.availability,
-                      maxWidth: colWidth.availability,
-                      display: colVisible.availability
-                        ? "table-cell"
-                        : "none",
-                    }}
-                    className="relative px-3 py-2 border overflow-hidden whitespace-nowrap"
-                  >
-                    <button
-                      type="button"
-                      className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
-                      onClick={() => toggleColumn("availability")}
-                      title="Hide column"
+                  {colVisible.availability && (
+                    <th
+                      style={{
+                        width: colWidth.availability,
+                        minWidth: colWidth.availability,
+                        maxWidth: colWidth.availability,
+                        display: colVisible.availability
+                          ? "table-cell"
+                          : "none",
+                      }}
+                      className="relative px-3 py-2 border overflow-hidden whitespace-nowrap"
                     >
-                      ⇤
-                    </button>
-                    {headerLabel("Availability")}
-                    <div
-                      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                      onMouseDown={(e) =>
-                        startResizing(e, "availability")
-                      }
+                      <button
+                        type="button"
+                        className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
+                        onClick={() => toggleColumn("availability")}
+                        title="Hide column"
+                      >
+                        ⇤
+                      </button>
+                      {headerLabel("Availability")}
+                      <div
+                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
+                        onMouseDown={(e) =>
+                          startResizing(e, "availability")
+                        }
+                      />
+                    </th>
+                  )}
+                </tr>
+              </thead>
+            
+              {/* BODY */}
+              <tbody>
+                {filteredRows.map((row, i) => {
+                  const rowIndex = rows.findIndex((r) => r.id === row.id)
+                  const effectiveIndex = rowIndex >= 0 ? rowIndex : i
+                  const filteredShifts = getFilteredShifts(row.position || "")
+
+                  return (
+                    <ResourceRowItem
+                      key={row.id || i}
+                      row={row}
+                      rowIndex={rowIndex}
+                      effectiveIndex={effectiveIndex}
+                      colVisible={colVisible}
+                      colWidth={colWidth}
+                      weekendGroupList={weekendGroupList}
+                      jobNames={jobNames}
+                      positions={positions}
+                      formatFullName={formatFullName}
+                      filteredShifts={filteredShifts}
+                      startResizing={startResizing}
+                      handleChange={handleChange}
+                      openDrawerForRow={openDrawerForRow}
+                      openAvailabilityForRow={openAvailabilityForRow}
                     />
-                  </th>
-                )}
-              </tr>
-            </thead>
+                  )
+                })}
+              </tbody>
 
-            <tbody>
-              {filteredRows.map((row, i) => {
-                const rowIndex = rows.findIndex((r) => r.id === row.id)
-                const effectiveIndex = rowIndex >= 0 ? rowIndex : i
-                const filteredShifts = getFilteredShifts(row.position || "")
+            </table>
+          </div>
 
-                return (
-                  <ResourceRowItem
-                    key={row.id || i}
-                    row={row}
-                    rowIndex={rowIndex}
-                    effectiveIndex={effectiveIndex}
-                    colVisible={colVisible}
-                    colWidth={colWidth}
-                    weekendGroupList={weekendGroupList}
-                    jobNames={jobNames}
-                    positions={positions}
-                    formatFullName={formatFullName}
-                    filteredShifts={filteredShifts}
-                    startResizing={startResizing}
-                    handleChange={handleChange}
-                    openDrawerForRow={openDrawerForRow}
-                    openAvailabilityForRow={openAvailabilityForRow}
-                  />
-                )
-              })}
-            </tbody>
+          {/* SHARED BOTTOM AVAILABILITY SCROLLBAR */}
+          <div
+            id="availabilitySharedScrollbar"
+            className="h-4 overflow-x-auto bg-gray-50 border-t"
+            ref={availabilityBottomRef}
+            onScroll={syncAvailabilityTop}
+          >
+            <div style={{ width: 52 * 100 }} />
+          </div>
 
-          </table>
         </div>
       )}
 

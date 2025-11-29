@@ -41,20 +41,6 @@ export default function ResourceRowItem({
   openAvailabilityForRow,
 }: Props) {
 
-  // Each row gets its own scroll controllers
-  const topScrollRef = useRef<HTMLDivElement>(null)
-  const bottomScrollRef = useRef<HTMLDivElement>(null)
-
-  const syncTopToBottom = () => {
-    if (!topScrollRef.current || !bottomScrollRef.current) return
-    bottomScrollRef.current.scrollLeft = topScrollRef.current.scrollLeft
-  }
-
-  const syncBottomToTop = () => {
-    if (!topScrollRef.current || !bottomScrollRef.current) return
-    topScrollRef.current.scrollLeft = bottomScrollRef.current.scrollLeft
-  }
-
   return (
     <tr className="odd:bg-white even:bg-gray-50 hover:bg-gray-100">
 
@@ -293,29 +279,13 @@ export default function ResourceRowItem({
           }}
           className="relative border px-2 py-1 whitespace-nowrap"
         >
-          {/* Top scroll (viewport) */}
-          <div
-            ref={topScrollRef}
-            className="overflow-x-auto w-full"
-            onScroll={syncTopToBottom}
-          >
-            <WeeklyFTEBar
-              baseFTE={row.unit_fte}
-              availability={row.availability || []}
-              onWeekClick={(weekStart) =>
-                openAvailabilityForRow(rowIndex, weekStart)
-              }
-            />
-          </div>
-
-          {/* Bottom scrollbar */}
-          <div
-            ref={bottomScrollRef}
-            className="h-3 overflow-x-auto mt-1"
-            onScroll={syncBottomToTop}
-          >
-            <div style={{ width: 52 * 100 }} />
-          </div>
+            <div className="availability-weeks">
+                <WeeklyFTEBar
+                    baseFTE={row.unit_fte}
+                    availability={row.availability || []}
+                    onWeekClick={(weekStart) => openAvailabilityForRow(rowIndex, weekStart)}
+                />
+            </div>
 
           {/* Resize handle */}
           <div
