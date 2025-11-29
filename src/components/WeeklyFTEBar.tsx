@@ -15,13 +15,33 @@ import {
     availability,
     onWeekClick,
     }: WeeklyFTEBarProps) {
-    // If there is no availability data at all, we keep showing
-    // the "Edit Availability" button in the parent component.
-    if (!availability || availability.length === 0) {
-        return null
+    // Always generate 52 weekly points (Sunday-based weeks)
+    const startOfYear = dayjs().year() // current year
+    const weeks: { weekStart: string; fte: number; reasons?: any[] }[] = []
+
+    for (let i = 0; i < 52; i++) {
+    const weekStart = dayjs().year(startOfYear).startOf("year").add(i, "week")
+    weeks.push({
+        weekStart: weekStart.format("YYYY-MM-DD"),
+        fte: baseFTE,       // default FTE
+        reasons: [],        // default no adjustments
+    })
     }
 
-    const weeklyPoints = computeWeeklyFTE(baseFTE, availability)
+    // Then apply availability adjustments if they exist
+    if (availability && availability.length > 0) {
+    const computed = computeWeeklyFTE(baseFTE, availability)
+    // Merge computed FTE into 52-week base array
+    computed.forEach((adj) => {
+        const match = weeks.find((w) => w.weekStart === adj.weekStart)
+        if (match) {
+        match.fte = adj.fte
+        match.reasons = adj.reasons
+        }
+    })
+    }
+
+    const weeklyPoints = weeks
 
     if (weeklyPoints.length === 0) {
         return null

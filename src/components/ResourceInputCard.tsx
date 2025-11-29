@@ -90,21 +90,8 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     weekend_group: "",
   })
 
-  const availabilityScrollRef = useRef<HTMLDivElement>(null);
-  const availabilityBottomBarRef = useRef<HTMLDivElement>(null);
-
   // Compute width: 52 weeks * 88px per button + gaps
   const totalWeeksWidth = 52 * 100; // adjust if needed
-
-  const syncAvailabilityBottom = () => {
-    if (!availabilityScrollRef.current || !availabilityBottomBarRef.current) return;
-    availabilityBottomBarRef.current.scrollLeft = availabilityScrollRef.current.scrollLeft;
-  };
-
-  const syncAvailabilityTop = () => {
-    if (!availabilityScrollRef.current || !availabilityBottomBarRef.current) return;
-    availabilityScrollRef.current.scrollLeft = availabilityBottomBarRef.current.scrollLeft;
-  };
 
   // ------------------------------
   // COLUMN WIDTH / RESIZE SYSTEM
@@ -1082,6 +1069,18 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
 
             <tbody>
               {filteredRows.map((row, i) => {
+                const topScrollRef = useRef<HTMLDivElement>(null)
+                const bottomScrollRef = useRef<HTMLDivElement>(null)
+
+                const syncTopToBottom = () => {
+                  if (!topScrollRef.current || !bottomScrollRef.current) return
+                  bottomScrollRef.current.scrollLeft = topScrollRef.current.scrollLeft
+                }
+
+                const syncBottomToTop = () => {
+                  if (!topScrollRef.current || !bottomScrollRef.current) return
+                  topScrollRef.current.scrollLeft = bottomScrollRef.current.scrollLeft
+                }
                 const rowIndex = rows.findIndex((r) => r.id === row.id)
                 const effectiveIndex = rowIndex >= 0 ? rowIndex : i
                 const filteredShifts = getFilteredShifts(row.position || "")
@@ -1387,9 +1386,9 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
 
                         {/* Availability scroll viewport */}
                         <div
-                          ref={availabilityScrollRef}
+                          ref={topScrollRef}
                           className="overflow-x-auto w-full"
-                          onScroll={syncAvailabilityBottom}
+                          onScroll={syncTopToBottom}
                         >
                           {row.availability && row.availability.length > 0 ? (
                             <WeeklyFTEBar
@@ -1400,24 +1399,23 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                               }
                             />
                           ) : (
-                            <Button
-                              variant="ghost"
-                              className="!px-3 !py-1 text-xs"
-                              onClick={() => openAvailabilityForRow(effectiveIndex)}
-                            >
-                              Edit Availability
-                            </Button>
+                            <WeeklyFTEBar
+                              baseFTE={row.unit_fte}
+                              availability={[]} // generate 52 weeks
+                              onWeekClick={(weekStart) =>
+                                openAvailabilityForRow(effectiveIndex, weekStart)
+                              }
+                            />
                           )}
                         </div>
 
                         {/* Availability bottom scrollbar */}
                         <div
-                          ref={availabilityBottomBarRef}
+                          ref={bottomScrollRef}
                           className="h-3 overflow-x-auto mt-1"
-                          onScroll={syncAvailabilityTop}
+                          onScroll={syncBottomToTop}
                         >
-                          {/* dynamic width representing 52 weeks */}
-                          <div style={{ width: totalWeeksWidth }} />
+                          <div style={{ width: 52 * 100 }} /> {/* 52 weeks × 100px */}
                         </div>
 
                         {/* resize handle */}
