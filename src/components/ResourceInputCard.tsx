@@ -11,49 +11,15 @@ import Card from "@/components/ui/Card"
 import Button from "@/components/ui/Button"
 import Input from "@/components/ui/Input"
 import Select from "@/components/ui/Select"
+import ResourceRowItem from "@/components/ResourceRowItem"
 import debounce from "lodash.debounce"
 import Papa from "papaparse"
 import Swal from "sweetalert2"
 import "sweetalert2/dist/sweetalert2.min.css"
-import WeeklyFTEBar from "@/components/WeeklyFTEBar"
 import AvailabilityDrawer from "@/components/AvailabilityDrawer"
 import { AvailabilityEntry } from "@/utils/useAvailabilityCalculator"
+import { ResourceRow } from "@/types/ResourceRow"
 
-type ResourceRow = {
-  id?: number
-  employee_id?: string
-
-  first_name: string
-  last_name: string
-  position: string
-  job_name?: string
-
-  campus?: string
-  cost_center_name?: string
-  unit_fte: number
-  shift: string
-  shift_group?: string
-  weekend_group: "A" | "B" | "C" | "WC" | ""
-  start_date?: string
-  end_date?: string
-
-  vacancy_status: string
-
-  availability?: AvailabilityEntry[]
-
-  schedule_system_id?: string
-  ehr_id?: string
-  primary_cost_center_id?: string
-  primary_job_category_id?: string
-  primary_job_category_name?: string
-  primary_job_code_id?: string
-  expected_hours_per_week?: number | null
-  term_date?: string
-  seniority_date?: string
-  seniority_value?: string
-  report_to_id?: string
-  report_to_name?: string
-}
 
 type Props = { onNext?: () => void; onPrev?: () => void }
 
@@ -1069,366 +1035,32 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
 
             <tbody>
               {filteredRows.map((row, i) => {
-                const topScrollRef = useRef<HTMLDivElement>(null)
-                const bottomScrollRef = useRef<HTMLDivElement>(null)
-
-                const syncTopToBottom = () => {
-                  if (!topScrollRef.current || !bottomScrollRef.current) return
-                  bottomScrollRef.current.scrollLeft = topScrollRef.current.scrollLeft
-                }
-
-                const syncBottomToTop = () => {
-                  if (!topScrollRef.current || !bottomScrollRef.current) return
-                  topScrollRef.current.scrollLeft = bottomScrollRef.current.scrollLeft
-                }
                 const rowIndex = rows.findIndex((r) => r.id === row.id)
                 const effectiveIndex = rowIndex >= 0 ? rowIndex : i
                 const filteredShifts = getFilteredShifts(row.position || "")
 
                 return (
-                  <tr
+                  <ResourceRowItem
                     key={row.id || i}
-                    className="odd:bg-white even:bg-gray-50 hover:bg-gray-100"
-                  >
-                    {/* Info */}
-                    {colVisible.info && (
-                      <td
-                        style={{
-                          width: colWidth.info,
-                          minWidth: colWidth.info,
-                          maxWidth: colWidth.info,
-                          display: colVisible.info ? "table-cell" : "none",
-                        }}
-                        className="relative border px-2 py-1 text-center overflow-hidden"
-                      >
-                        <Button
-                          variant="ghost"
-                          className="!px-2 !py-1 text-xl font-bold text-gray-700"
-                          onClick={() =>
-                            openDrawerForRow(
-                              rowIndex >= 0 ? rowIndex : i,
-                              "view",
-                              false
-                            )
-                          }
-                        >
-                          ««
-                        </Button>
-                        <div
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                          onMouseDown={(e) => startResizing(e, "info")}
-                        />
-                      </td>
-                    )}
-
-                    {/* Cost Center */}
-                    {colVisible.cost_center_name && (
-                      <td
-                        style={{
-                          width: colWidth.cost_center_name,
-                          minWidth: colWidth.cost_center_name,
-                          maxWidth: colWidth.cost_center_name,
-                          display: colVisible.cost_center_name
-                            ? "table-cell"
-                            : "none",
-                        }}
-                        className="relative border px-2 py-1 overflow-hidden"
-                      >
-                        <Input
-                          id={`cost_center_${row.id ?? i}`}
-                          value={row.cost_center_name || ""}
-                          onChange={(e) =>
-                            handleChange(
-                              rowIndex >= 0 ? rowIndex : i,
-                              "cost_center_name",
-                              e.target.value
-                            )
-                          }
-                          placeholder="Cost Center"
-                          className="!m-0 !p-1"
-                        />
-                        <div
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                          onMouseDown={(e) =>
-                            startResizing(e, "cost_center_name")
-                          }
-                        />
-                      </td>
-                    )}
-
-                    {/* Employee ID */}
-                    {colVisible.employee_id && (
-                      <td
-                        style={{
-                          width: colWidth.employee_id,
-                          minWidth: colWidth.employee_id,
-                          maxWidth: colWidth.employee_id,
-                          display: colVisible.employee_id
-                            ? "table-cell"
-                            : "none",
-                        }}
-                        className="relative border px-2 py-1 overflow-hidden"
-                      >
-                        <Input
-                          value={row.employee_id || ""}
-                          id=""
-                          onChange={(e) =>
-                            handleChange(
-                              effectiveIndex,
-                              "employee_id",
-                              e.target.value
-                            )
-                          }
-                          className="!m-0 !p-1 w-full"
-                        />
-                        <div
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                          onMouseDown={(e) =>
-                            startResizing(e, "employee_id")
-                          }
-                        />
-                      </td>
-                    )}
-
-                    {/* Full Name */}
-                    {colVisible.full_name && (
-                      <td
-                        style={{
-                          width: colWidth.full_name,
-                          minWidth: colWidth.full_name,
-                          maxWidth: colWidth.full_name,
-                          display: colVisible.full_name
-                            ? "table-cell"
-                            : "none",
-                        }}
-                        className="relative border px-2 py-1 overflow-hidden"
-                      >
-                        <div className="px-2 py-1 bg-white rounded border border-gray-200 text-gray-800 text-sm">
-                          {formatFullName(row)}
-                        </div>
-                        <div
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                          onMouseDown={(e) =>
-                            startResizing(e, "full_name")
-                          }
-                        />
-                      </td>
-                    )}
-
-                    {/* Job Name */}
-                    {colVisible.job_name && (
-                      <td
-                        style={{
-                          width: colWidth.job_name,
-                          minWidth: colWidth.job_name,
-                          maxWidth: colWidth.job_name,
-                          display: colVisible.job_name ? "table-cell" : "none",
-                        }}
-                        className="relative border px-2 py-1 overflow-hidden"
-                      >
-                        <Select
-                          value={row.job_name || row.position}
-                          onChange={(e) =>
-                            handleChange(
-                              rowIndex >= 0 ? rowIndex : i,
-                              "job_name",
-                              e.target.value
-                            )
-                          }
-                          className="!m-0 !p-1"
-                        >
-                          <option value="">-- Select --</option>
-                          {jobNames
-                            .concat(
-                              positions.filter(
-                                (p) =>
-                                  !jobNames.includes(p) &&
-                                  p !== (row.job_name || "")
-                              )
-                            )
-                            .map((p) => (
-                              <option key={p} value={p}>
-                                {p}
-                              </option>
-                            ))}
-                        </Select>
-                        <div
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                          onMouseDown={(e) =>
-                            startResizing(e, "job_name")
-                          }
-                        />
-                      </td>
-                    )}
-
-                    {/* Unit FTE */}
-                    {colVisible.unit_fte && (
-                      <td
-                        style={{
-                          width: colWidth.unit_fte,
-                          minWidth: colWidth.unit_fte,
-                          maxWidth: colWidth.unit_fte,
-                          display: colVisible.unit_fte ? "table-cell" : "none",
-                        }}
-                        className="relative border px-2 py-1 text-right overflow-hidden"
-                      >
-                        <Input
-                          id={`unit_fte_${row.id || i}`}
-                          type="number"
-                          min={0}
-                          step={0.1}
-                          value={row.unit_fte}
-                          onChange={(e) =>
-                            handleChange(
-                              rowIndex >= 0 ? rowIndex : i,
-                              "unit_fte",
-                              Number(e.target.value)
-                            )
-                          }
-                          className="!m-0 !p-1 w-full text-right"
-                        />
-                        <div
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                          onMouseDown={(e) =>
-                            startResizing(e, "unit_fte")
-                          }
-                        />
-                      </td>
-                    )}
-
-                    {/* Shift Group */}
-                    {colVisible.shift_group && (
-                      <td
-                        style={{
-                          width: colWidth.shift_group,
-                          minWidth: colWidth.shift_group,
-                          maxWidth: colWidth.shift_group,
-                          display: colVisible.shift_group
-                            ? "table-cell"
-                            : "none",
-                        }}
-                        className="relative border px-2 py-1 overflow-hidden"
-                      >
-                        <Select
-                          value={row.shift_group || row.shift}
-                          onChange={(e) =>
-                            handleChange(
-                              effectiveIndex,
-                              "shift_group",
-                              e.target.value
-                            )
-                          }
-                          className="!m-0 !p-1"
-                        >
-                          <option value="">-- Select --</option>
-                          {filteredShifts.map((opt) => (
-                            <option key={opt}>{opt}</option>
-                          ))}
-                        </Select>
-                        <div
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                          onMouseDown={(e) =>
-                            startResizing(e, "shift_group")
-                          }
-                        />
-                      </td>
-                    )}
-
-                    {/* Weekend Group */}
-                    {colVisible.weekend_group && (
-                      <td
-                        style={{
-                          width: colWidth.weekend_group,
-                          minWidth: colWidth.weekend_group,
-                          maxWidth: colWidth.weekend_group,
-                          display: colVisible.weekend_group
-                            ? "table-cell"
-                            : "none",
-                        }}
-                        className="relative border px-2 py-1 text-center overflow-hidden"
-                      >
-                        <Select
-                          value={row.weekend_group}
-                          onChange={(e) =>
-                            handleChange(
-                              effectiveIndex,
-                              "weekend_group",
-                              e.target.value
-                            )
-                          }
-                          className="!m-0 !p-1"
-                        >
-                          <option value="">-- Select --</option>
-                          {weekendGroupList.map((g) => (
-                            <option key={g}>{g}</option>
-                          ))}
-                        </Select>
-                        <div
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                          onMouseDown={(e) =>
-                            startResizing(e, "weekend_group")
-                          }
-                        />
-                      </td>
-                    )}
-
-                    {/* Availability */}
-                    {colVisible.availability && (
-                      <td
-                        style={{
-                          width: colWidth.availability,
-                          minWidth: colWidth.availability,
-                          maxWidth: colWidth.availability,
-                          display: colVisible.availability ? "table-cell" : "none",
-                        }}
-                        className="relative border px-2 py-1 whitespace-nowrap overflow-hidden"
-                      >
-
-                        {/* Availability scroll viewport */}
-                        <div
-                          ref={topScrollRef}
-                          className="overflow-x-auto w-full"
-                          onScroll={syncTopToBottom}
-                        >
-                          {row.availability && row.availability.length > 0 ? (
-                            <WeeklyFTEBar
-                              baseFTE={row.unit_fte}
-                              availability={row.availability}
-                              onWeekClick={(weekStart) =>
-                                openAvailabilityForRow(effectiveIndex, weekStart)
-                              }
-                            />
-                          ) : (
-                            <WeeklyFTEBar
-                              baseFTE={row.unit_fte}
-                              availability={[]} // generate 52 weeks
-                              onWeekClick={(weekStart) =>
-                                openAvailabilityForRow(effectiveIndex, weekStart)
-                              }
-                            />
-                          )}
-                        </div>
-
-                        {/* Availability bottom scrollbar */}
-                        <div
-                          ref={bottomScrollRef}
-                          className="h-3 overflow-x-auto mt-1"
-                          onScroll={syncBottomToTop}
-                        >
-                          <div style={{ width: 52 * 100 }} /> {/* 52 weeks × 100px */}
-                        </div>
-
-                        {/* resize handle */}
-                        <div
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                          onMouseDown={(e) => startResizing(e, "availability")}
-                        />
-                      </td>
-                    )}
-                  </tr>
+                    row={row}
+                    rowIndex={rowIndex}
+                    effectiveIndex={effectiveIndex}
+                    colVisible={colVisible}
+                    colWidth={colWidth}
+                    weekendGroupList={weekendGroupList}
+                    jobNames={jobNames}
+                    positions={positions}
+                    formatFullName={formatFullName}
+                    filteredShifts={filteredShifts}
+                    startResizing={startResizing}
+                    handleChange={handleChange}
+                    openDrawerForRow={openDrawerForRow}
+                    openAvailabilityForRow={openAvailabilityForRow}
+                  />
                 )
               })}
             </tbody>
+
           </table>
         </div>
       )}
