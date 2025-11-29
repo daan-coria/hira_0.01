@@ -766,6 +766,33 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                 <p className="text-xs font-semibold text-gray-500 mb-2">
                   Show / hide columns
                 </p>
+
+                {/* Select All / Deselect All buttons */}
+                <div className="flex justify-between mb-2">
+                  <button
+                    className="text-blue-600 text-xs hover:underline"
+                    onClick={() => {
+                      const updated: any = {}
+                      COLUMN_CONFIG.forEach((c) => (updated[c.key] = true))
+                      setColVisible(updated)
+                    }}
+                  >
+                    Select All
+                  </button>
+
+                  <button
+                    className="text-blue-600 text-xs hover:underline"
+                    onClick={() => {
+                      const updated: any = {}
+                      COLUMN_CONFIG.forEach((c) => (updated[c.key] = false))
+                      setColVisible(updated)
+                    }}
+                  >
+                    Deselect All
+                  </button>
+                </div>
+
+                {/* Checkboxes */}
                 <div className="space-y-1 max-h-64 overflow-y-auto">
                   {COLUMN_CONFIG.map((col) => (
                     <label
@@ -782,6 +809,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                   ))}
                 </div>
               </div>
+
             </>
           )}
         </div>
@@ -792,12 +820,20 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
         <p className="text-gray-500">No resource data yet.</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="min-w-full border border-gray-200 text-sm">
+          <table
+            className="min-w-full border border-gray-200 text-sm"
+            style={{ tableLayout: "fixed" }}
+          >
             <thead className="bg-gray-50">
               <tr>
                 {colVisible.info && (
                   <th
-                    style={{ width: colWidth.info }}
+                    style={{
+                      width: colWidth.info, 
+                      minWidth: colWidth.info,
+                      maxWidth: colWidth.info,
+                      display: colVisible.info ? "table-cell" : "none",
+                    }}
                     className="relative px-3 py-2 border text-center"
                   >
                     <button
@@ -818,7 +854,12 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
 
                 {colVisible.cost_center_name && (
                   <th
-                    style={{ width: colWidth.cost_center_name }}
+                    style={{
+                      width: colWidth.cost_center_name,
+                      minWidth: colWidth.cost_center_name,
+                      maxWidth: colWidth.cost_center_name,
+                      display: colVisible.cost_center_name ? "table-cell" : "none",
+                    }}
                     className="relative px-3 py-2 border"
                   >
                     <button
@@ -839,7 +880,12 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
 
                 {colVisible.employee_id && (
                   <th
-                    style={{ width: colWidth.employee_id }}
+                    style={{
+                      width: colWidth.employee_id,
+                      minWidth: colWidth.employee_id,
+                      maxWidth: colWidth.employee_id,
+                      display: colVisible.employee_id ? "table-cell" : "none",
+                    }}
                     className="relative px-3 py-2 border"
                   >
                     <button
@@ -860,7 +906,12 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
 
                 {colVisible.full_name && (
                   <th
-                    style={{ width: colWidth.full_name }}
+                    style={{
+                      width: colWidth.full_name,
+                      minWidth: colWidth.full_name,
+                      maxWidth: colWidth.full_name,
+                      display: colVisible.full_name ? "table-cell" : "none",
+                    }}
                     className="relative px-3 py-2 border"
                   >
                     <button
@@ -881,7 +932,12 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
 
                 {colVisible.job_name && (
                   <th
-                    style={{ width: colWidth.job_name }}
+                    style={{
+                      width: colWidth.job_name,
+                      minWidth: colWidth.job_name,
+                      maxWidth: colWidth.job_name,
+                      display: colVisible.job_name ? "table-cell" : "none",
+                    }}
                     className="relative px-3 py-2 border"
                   >
                     <button
@@ -902,7 +958,12 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
 
                 {colVisible.unit_fte && (
                   <th
-                    style={{ width: colWidth.unit_fte }}
+                    style={{
+                      width: colWidth.unit_fte,
+                      minWidth: colWidth.unit_fte,
+                      maxWidth: colWidth.unit_fte,
+                      display: colVisible.unit_fte ? "table-cell" : "none",
+                    }}
                     className="relative px-3 py-2 border text-right"
                   >
                     <button
@@ -923,7 +984,12 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
 
                 {colVisible.shift_group && (
                   <th
-                    style={{ width: colWidth.shift_group }}
+                    style={{
+                      width: colWidth.shift_group,
+                      minWidth: colWidth.shift_group,
+                      maxWidth: colWidth.shift_group,
+                      display: colVisible.shift_group ? "table-cell" : "none",
+                    }}
                     className="relative px-3 py-2 border"
                   >
                     <button
@@ -944,7 +1010,12 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
 
                 {colVisible.weekend_group && (
                   <th
-                    style={{ width: colWidth.weekend_group }}
+                    style={{
+                      width: colWidth.weekend_group,
+                      minWidth: colWidth.weekend_group,
+                      maxWidth: colWidth.weekend_group,
+                      display: colVisible.weekend_group ? "table-cell" : "none",
+                    }}
                     className="relative px-3 py-2 border"
                   >
                     <button
@@ -965,7 +1036,12 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
 
                 {colVisible.availability && (
                   <th
-                    style={{ width: colWidth.availability }}
+                    style={{
+                      width: colWidth.availability,
+                      minWidth: colWidth.availability,
+                      maxWidth: colWidth.availability,
+                      display: colVisible.availability ? "table-cell" : "none",
+                    }}
                     className="relative px-3 py-2 border"
                   >
                     <button
@@ -1000,8 +1076,13 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     {/* Information icon (≪) */}
                     {colVisible.info && (
                       <td
-                        style={{ width: colWidth.info }}
-                        className="relative border px-2 py-1 text-center"
+                        style={{
+                        width: colWidth.info,
+                        minWidth: colWidth.info,
+                        maxWidth: colWidth.info,
+                        display: colVisible.info ? "table-cell" : "none",
+                      }}
+                        className="relative border px-2 py-1 text-center overflow-hidden"
                       >
                         <Button
                           variant="ghost"
@@ -1027,8 +1108,13 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     {/* Cost Center Name */}
                     {colVisible.cost_center_name && (
                       <td
-                        style={{ width: colWidth.cost_center_name }}
-                        className="relative border px-2 py-1"
+                        style={{
+                        width: colWidth.cost_center_name,
+                        minWidth: colWidth.cost_center_name,
+                        maxWidth: colWidth.cost_center_name,
+                        display: colVisible.cost_center_name ? "table-cell" : "none",
+                      }}
+                        className="relative border px-2 py-1 overflow-hidden"
                       >
                         <Input
                           id={`cost_center_${row.id ?? i}`}
@@ -1056,8 +1142,13 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     {/* Employee ID */}
                     {colVisible.employee_id && (
                       <td
-                        style={{ width: colWidth.employee_id }}
-                        className="relative border px-2 py-1"
+                        style={{
+                          width: colWidth.employee_id,
+                          minWidth: colWidth.employee_id,
+                          maxWidth: colWidth.employee_id,
+                          display: colVisible.employee_id ? "table-cell" : "none",
+                        }}
+                        className="relative border px-2 py-1 overflow-hidden"
                       >
                         <Input
                           value={row.employee_id || ""}
@@ -1084,8 +1175,13 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     {/* Full Name (read-only, from first/last) */}
                     {colVisible.full_name && (
                       <td
-                        style={{ width: colWidth.full_name }}
-                        className="relative border px-2 py-1"
+                        style={{
+                          width: colWidth.full_name,
+                          minWidth: colWidth.full_name,
+                          maxWidth: colWidth.full_name,
+                          display: colVisible.full_name ? "table-cell" : "none",
+                        }}
+                        className="relative border px-2 py-1 overflow-hidden" 
                       >
                         <div className="px-2 py-1 bg-white rounded border border-gray-200 text-gray-800 text-sm">
                           {formatFullName(row)}
@@ -1101,8 +1197,13 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     {/* Job Name */}
                     {colVisible.job_name && (
                       <td
-                        style={{ width: colWidth.job_name }}
-                        className="relative border px-2 py-1"
+                        style={{
+                          width: colWidth.job_name,
+                          minWidth: colWidth.job_name,
+                          maxWidth: colWidth.job_name,
+                          display: colVisible.job_name ? "table-cell" : "none",
+                        }}
+                        className="relative border px-2 py-1 overflow-hidden"
                       >
                         <Select
                           value={row.job_name || row.position}
@@ -1141,8 +1242,13 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     {/* Unit FTE */}
                     {colVisible.unit_fte && (
                       <td
-                        style={{ width: colWidth.unit_fte }}
-                        className="relative border px-2 py-1 text-right"
+                        style={{
+                          width: colWidth.unit_fte,
+                          minWidth: colWidth.unit_fte,
+                          maxWidth: colWidth.unit_fte,
+                          display: colVisible.unit_fte ? "table-cell" : "none",
+                        }}
+                        className="relative border px-2 py-1 text-right overflow-hidden"
                       >
                         <Input
                           id={`unit_fte_${row.id || i}`}
@@ -1170,8 +1276,13 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     {/* Shift Group */}
                     {colVisible.shift_group && (
                       <td
-                        style={{ width: colWidth.shift_group }}
-                        className="relative border px-2 py-1"
+                        style={{
+                          width: colWidth.shift_group,
+                          minWidth: colWidth.shift_group,
+                          maxWidth: colWidth.shift_group,
+                          display: colVisible.shift_group ? "table-cell" : "none",
+                        }}
+                        className="relative border px-2 py-1 overflow-hidden"
                       >
                         <Select
                           value={row.shift_group || row.shift}
@@ -1202,8 +1313,13 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     {/* Weekend Group */}
                     {colVisible.weekend_group && (
                       <td
-                        style={{ width: colWidth.weekend_group }}
-                        className="relative border px-2 py-1 text-center"
+                        style={{
+                          width: colWidth.weekend_group,
+                          minWidth: colWidth.weekend_group,
+                          maxWidth: colWidth.weekend_group,
+                          display: colVisible.weekend_group ? "table-cell" : "none",
+                        }}
+                        className="relative border px-2 py-1 text-center overflow-hidden"
                       >
                         <Select
                           value={row.weekend_group}
@@ -1234,8 +1350,13 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     {/* Availability column */}
                     {colVisible.availability && (
                       <td
-                        style={{ width: colWidth.availability }}
-                        className="relative border px-2 py-1 overflow-x-auto whitespace-nowrap"
+                        style={{
+                          width: colWidth.availability,
+                          minWidth: colWidth.availability,
+                          maxWidth: colWidth.availability,
+                          display: colVisible.availability ? "table-cell" : "none",
+                        }}
+                        className="relative border px-2 py-1 overflow-x-auto whitespace-nowrap overflow-hidden"
                       >
                         {row.availability && row.availability.length > 0 ? (
                           <WeeklyFTEBar
@@ -1334,6 +1455,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
             </div>
 
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-2 text-sm text-gray-700">
+              
               {/* ====== MAIN TABLE FIELDS (Top of Drawer) ====== */}
 
               <div>
