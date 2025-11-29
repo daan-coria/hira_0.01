@@ -4,6 +4,9 @@ import Input from "@/components/ui/Input"
 import Select from "@/components/ui/Select"
 import WeeklyFTEBar from "@/components/WeeklyFTEBar"
 
+const WEEK_WIDTH = 100
+const TOTAL_WEEKS_WIDTH = WEEK_WIDTH * 52
+
 type Props = {
   row: ResourceRow
   rowIndex: number
@@ -39,6 +42,7 @@ export default function ResourceRowItem({
 }: Props) {
   return (
     <tr className="odd:bg-white even:bg-gray-50 hover:bg-gray-100">
+
       {/* INFO */}
       {colVisible.info && (
         <td
@@ -47,7 +51,7 @@ export default function ResourceRowItem({
             minWidth: colWidth.info,
             maxWidth: colWidth.info,
           }}
-          className="relative border px-2 py-1 text-center overflow-hidden"
+          className="relative border px-2 py-1 text-center"
         >
           <Button
             variant="ghost"
@@ -56,6 +60,7 @@ export default function ResourceRowItem({
           >
             ««
           </Button>
+
           <div
             className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
             onMouseDown={(e) => startResizing(e, "info")}
@@ -71,7 +76,7 @@ export default function ResourceRowItem({
             minWidth: colWidth.cost_center_name,
             maxWidth: colWidth.cost_center_name,
           }}
-          className="relative border px-2 py-1 overflow-hidden"
+          className="relative border px-2 py-1"
         >
           <Input
             value={row.cost_center_name || ""}
@@ -81,6 +86,7 @@ export default function ResourceRowItem({
             }
             className="!m-0 !p-1 w-full"
           />
+
           <div
             className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
             onMouseDown={(e) => startResizing(e, "cost_center_name")}
@@ -96,7 +102,7 @@ export default function ResourceRowItem({
             minWidth: colWidth.employee_id,
             maxWidth: colWidth.employee_id,
           }}
-          className="relative border px-2 py-1 overflow-hidden"
+          className="relative border px-2 py-1"
         >
           <Input
             value={row.employee_id || ""}
@@ -121,11 +127,12 @@ export default function ResourceRowItem({
             minWidth: colWidth.full_name,
             maxWidth: colWidth.full_name,
           }}
-          className="relative border px-2 py-1 overflow-hidden"
+          className="relative border px-2 py-1"
         >
           <div className="px-2 py-1 bg-white rounded border border-gray-200 text-gray-800 text-sm">
             {formatFullName(row)}
           </div>
+
           <div
             className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
             onMouseDown={(e) => startResizing(e, "full_name")}
@@ -141,7 +148,7 @@ export default function ResourceRowItem({
             minWidth: colWidth.job_name,
             maxWidth: colWidth.job_name,
           }}
-          className="relative border px-2 py-1 overflow-hidden"
+          className="relative border px-2 py-1"
         >
           <Select
             value={row.job_name || row.position}
@@ -151,17 +158,13 @@ export default function ResourceRowItem({
             className="!m-0 !p-1"
           >
             <option value="">-- Select --</option>
-            {jobNames
-              .concat(
-                positions.filter(
-                  (p) => !jobNames.includes(p) && p !== (row.job_name || "")
-                )
+            {jobNames.concat(
+              positions.filter(
+                (p) => !jobNames.includes(p) && p !== (row.job_name || "")
               )
-              .map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
+            ).map((p) => (
+              <option key={p} value={p}>{p}</option>
+            ))}
           </Select>
 
           <div
@@ -179,7 +182,7 @@ export default function ResourceRowItem({
             minWidth: colWidth.unit_fte,
             maxWidth: colWidth.unit_fte,
           }}
-          className="relative border px-2 py-1 text-right overflow-hidden"
+          className="relative border px-2 py-1 text-right"
         >
           <Input
             type="number"
@@ -192,6 +195,7 @@ export default function ResourceRowItem({
             }
             className="!m-0 !p-1 w-full text-right"
           />
+
           <div
             className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
             onMouseDown={(e) => startResizing(e, "unit_fte")}
@@ -207,7 +211,7 @@ export default function ResourceRowItem({
             minWidth: colWidth.shift_group,
             maxWidth: colWidth.shift_group,
           }}
-          className="relative border px-2 py-1 overflow-hidden"
+          className="relative border px-2 py-1"
         >
           <Select
             value={row.shift_group}
@@ -217,8 +221,8 @@ export default function ResourceRowItem({
             className="!m-0 !p-1"
           >
             <option value="">-- Select --</option>
-            {filteredShifts.map((opt) => (
-              <option key={opt}>{opt}</option>
+            {filteredShifts.map((s) => (
+              <option key={s}>{s}</option>
             ))}
           </Select>
 
@@ -237,7 +241,7 @@ export default function ResourceRowItem({
             minWidth: colWidth.weekend_group,
             maxWidth: colWidth.weekend_group,
           }}
-          className="relative border px-2 py-1 text-center overflow-hidden"
+          className="relative border px-2 py-1"
         >
           <Select
             value={row.weekend_group}
@@ -259,7 +263,7 @@ export default function ResourceRowItem({
         </td>
       )}
 
-      {/* AVAILABILITY */}
+      {/* AVAILABILITY (NO SCROLL HERE) */}
       {colVisible.availability && (
         <td
           style={{
@@ -267,10 +271,13 @@ export default function ResourceRowItem({
             minWidth: colWidth.availability,
             maxWidth: colWidth.availability,
           }}
-          className="relative border px-2 py-1 whitespace-nowrap overflow-hidden"
+          className="relative border px-2 py-1 whitespace-nowrap"
         >
-          {/* ROW-WIDE WEEK STRIP */}
-          <div className="availability-row">
+          {/* FIXED-WIDTH STRIP ONLY */}
+          <div
+            className="availability-strip"
+            style={{ width: TOTAL_WEEKS_WIDTH, overflow: "hidden" }}
+          >
             <WeeklyFTEBar
               baseFTE={row.unit_fte}
               availability={row.availability || []}
@@ -279,6 +286,7 @@ export default function ResourceRowItem({
               }
             />
           </div>
+
           <div
             className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
             onMouseDown={(e) => startResizing(e, "availability")}

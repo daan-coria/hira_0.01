@@ -20,8 +20,10 @@ import AvailabilityDrawer from "@/components/AvailabilityDrawer"
 import { AvailabilityEntry } from "@/utils/useAvailabilityCalculator"
 import { ResourceRow } from "@/types/ResourceRow"
 
-
 type Props = { onNext?: () => void; onPrev?: () => void }
+
+const WEEK_WIDTH = 100
+const TOTAL_WEEKS_WIDTH = WEEK_WIDTH * 52
 
 export default function ResourceInputCard({ onNext, onPrev }: Props) {
   const { data, updateData } = useApp()
@@ -56,27 +58,21 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     weekend_group: "",
   })
 
+  // --- NEW: scroll refs ---
+  // Scrollbar #1: Availability header scrollbar (52 weeks)
+  const availabilityHeaderRef = useRef<HTMLDivElement | null>(null)
 
-  // Availability scroll refs
-  const availabilityBigScrollRef = useRef<HTMLDivElement>(null)
-  const availabilityBottomRef = useRef<HTMLDivElement>(null)
+  // Table scroll container (no native scrollbar shown, we drive it from bottom)
+  const tableScrollRef = useRef<HTMLDivElement | null>(null)
 
-  // Two-way sync between top and bottom scrollbar
-  const syncScroll = () => {
-    if (!availabilityBigScrollRef.current || !availabilityBottomRef.current) return
-    availabilityBottomRef.current.scrollLeft = availabilityBigScrollRef.current.scrollLeft
-  }
+  // Scrollbar #2: bottom scrollbar for entire table (Info → Availability)
+  const tableBottomRef = useRef<HTMLDivElement | null>(null)
 
-  useEffect(() => {
-    const top = availabilityBigScrollRef.current
-    if (!top) return
+  // Width of the scrollable table content (for bottom bar)
+  const [tableScrollWidth, setTableScrollWidth] = useState(0)
 
-    top.addEventListener("scroll", syncScroll)
-    return () => top.removeEventListener("scroll", syncScroll)
-  }, [])
-
-  // Compute width: 52 weeks * 88px per button + gaps
-  const totalWeeksWidth = 52 * 100; // adjust if needed
+  // Compute width: 52 weeks * WEEK_WIDTH
+  const totalWeeksWidth = TOTAL_WEEKS_WIDTH
 
   // ------------------------------
   // COLUMN WIDTH / RESIZE SYSTEM
@@ -219,16 +215,12 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // --- NEW: recompute table scroll width whenever structure changes ---
   useEffect(() => {
-    if (!availabilityBigScrollRef.current) return
-
-    const syncAllRows = () => {
-      const nodes = document.querySelectorAll(".availability-row")
-      nodes.forEach((node: any) => {
-        node.scrollLeft = availabilityBigScrollRef.current!.scrollLeft
-      })
+    if (tableScrollRef.current) {
+      setTableScrollWidth(tableScrollRef.current.scrollWidth)
     }
-  }, [])
+  }, [rows, colWidth, colVisible])
 
   // Positions
   const positions =
@@ -551,10 +543,12 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
   const filteredRows = rows.filter((r) => {
     return (
       (!filters.campus || r.campus === filters.campus) &&
-      (!filters.cost_center_name || r.cost_center_name === filters.cost_center_name) &&
+      (!filters.cost_center_name ||
+        r.cost_center_name === filters.cost_center_name) &&
       (!filters.status || r.vacancy_status === filters.status) &&
       (!filters.job_name || (r.job_name || r.position) === filters.job_name) &&
-      (!filters.shift_group || (r.shift_group || r.shift) === filters.shift_group) &&
+      (!filters.shift_group ||
+        (r.shift_group || r.shift) === filters.shift_group) &&
       (!filters.weekend_group || r.weekend_group === filters.weekend_group)
     )
   })
@@ -589,6 +583,17 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
       {text}
     </span>
   )
+
+  // --- NEW: Availability header scrollbar → sync all row availability viewports ---
+  const handleAvailabilityHeaderScroll = (
+    e: React.UIEvent<HTMLDivElement, UIEvent>
+  ) => {
+    const left = e.currentTarget.scrollLeft
+    const nodes = document.querySelectorAll<HTMLDivElement>(".availability-row")
+    nodes.forEach((node) => {
+      node.scrollLeft = left
+    })
+  }
 
   // Render
   return (
@@ -801,13 +806,9 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
       {filteredRows.length === 0 ? (
         <p className="text-gray-500">No resource data yet.</p>
       ) : (
-        <div className="overflow-x-auto">
-
-          {/* SHARED AVAILABILITY SCROLL CONTAINER */}
-          <div
-            ref={availabilityBigScrollRef}
-            className="overflow-x-auto"
-          >
+        <div className="space-y-1">
+          {/* TABLE VIEWPORT (no native scrollbar, driven by bottom bar) */}
+          <div ref={tableScrollRef} className="overflow-x-hidden">
             <table
               className="border border-gray-200 text-sm"
               style={{ tableLayout: "fixed", width: "max-content" }}
@@ -893,9 +894,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       {headerLabel("Employee ID")}
                       <div
                         className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                        onMouseDown={(e) =>
-                          startResizing(e, "employee_id")
-                        }
+                        onMouseDown={(e) => startResizing(e, "employee_id")}
                       />
                     </th>
                   )}
@@ -921,9 +920,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       {headerLabel("Full Name")}
                       <div
                         className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                        onMouseDown={(e) =>
-                          startResizing(e, "full_name")
-                        }
+                        onMouseDown={(e) => startResizing(e, "full_name")}
                       />
                     </th>
                   )}
@@ -1001,9 +998,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       {headerLabel("Shift Group")}
                       <div
                         className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                        onMouseDown={(e) =>
-                          startResizing(e, "shift_group")
-                        }
+                        onMouseDown={(e) => startResizing(e, "shift_group")}
                       />
                     </th>
                   )}
@@ -1031,13 +1026,11 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       {headerLabel("Weekend")}
                       <div
                         className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                        onMouseDown={(e) =>
-                          startResizing(e, "weekend_group")
-                        }
+                        onMouseDown={(e) => startResizing(e, "weekend_group")}
                       />
                     </th>
                   )}
-                  
+
                   {colVisible.availability && (
                     <th
                       style={{
@@ -1048,7 +1041,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                           ? "table-cell"
                           : "none",
                       }}
-                      className="relative px-3 py-2 border overflow-hidden whitespace-nowrap"
+                      className="relative px-3 py-2 border overflow-hidden whitespace-nowrap align-top"
                     >
                       <button
                         type="button"
@@ -1059,17 +1052,25 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                         ⇤
                       </button>
                       {headerLabel("Availability")}
+
+                      {/* SCROLLBAR #1: inside Availability header, controls 52 weeks */}
+                      <div
+                        ref={availabilityHeaderRef}
+                        className="mt-1 h-4 overflow-x-auto"
+                        onScroll={handleAvailabilityHeaderScroll}
+                      >
+                        <div style={{ width: totalWeeksWidth }} />
+                      </div>
+
                       <div
                         className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                        onMouseDown={(e) =>
-                          startResizing(e, "availability")
-                        }
+                        onMouseDown={(e) => startResizing(e, "availability")}
                       />
                     </th>
                   )}
                 </tr>
               </thead>
-            
+
               {/* BODY */}
               <tbody>
                 {filteredRows.map((row, i) => {
@@ -1101,12 +1102,16 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
             </table>
           </div>
 
-          {/* Shared Availability scrollbar */}
+          {/* SCROLLBAR #2: bottom bar controlling entire table horizontally */}
           <div
-            ref={availabilityBottomRef}
+            ref={tableBottomRef}
             className="h-4 overflow-x-auto bg-gray-50"
+            onScroll={(e) => {
+              if (!tableScrollRef.current) return
+              tableScrollRef.current.scrollLeft = e.currentTarget.scrollLeft
+            }}
           >
-            <div style={{ width: 52 * 100 }} />
+            <div style={{ width: tableScrollWidth || "100%" }} />
           </div>
         </div>
       )}
@@ -1429,10 +1434,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     id={`primary_job_code_id_${drawerRow.id || "new"}`}
                     value={drawerRow.primary_job_code_id || ""}
                     onChange={(e) =>
-                      updateDrawerField(
-                        "primary_job_code_id",
-                        e.target.value
-                      )
+                      updateDrawerField("primary_job_code_id", e.target.value)
                     }
                   />
                 ) : (
