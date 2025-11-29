@@ -20,33 +20,27 @@ import AvailabilityDrawer from "@/components/AvailabilityDrawer"
 import { AvailabilityEntry } from "@/utils/useAvailabilityCalculator"
 
 type ResourceRow = {
-  // Core identifiers
   id?: number
   employee_id?: string
 
-  // Name & role
   first_name: string
   last_name: string
-  position: string // underlying role
-  job_name?: string // displayed as "Job Name"
+  position: string
+  job_name?: string
 
-  // Main table fields
   campus?: string
   cost_center_name?: string
   unit_fte: number
   shift: string
   shift_group?: string
   weekend_group: "A" | "B" | "C" | "WC" | ""
-  start_date?: string // main table "Start Date"
-  end_date?: string // main table "End Date"
+  start_date?: string
+  end_date?: string
 
-  // Status
-  vacancy_status: string // used as "Status" filter
+  vacancy_status: string
 
-  // Availability
   availability?: AvailabilityEntry[]
 
-  // Drawer-only extended profile
   schedule_system_id?: string
   ehr_id?: string
   primary_cost_center_id?: string
@@ -69,7 +63,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
   const [rows, setRows] = useState<ResourceRow[]>([])
   const [saving, setSaving] = useState(false)
 
-  // Info drawer state
+  // Info drawer
   const [activeInfoRow, setActiveInfoRow] = useState<number | null>(null)
   const [drawerRow, setDrawerRow] = useState<ResourceRow | null>(null)
   const [drawerMode, setDrawerMode] = useState<"view" | "edit">("view")
@@ -77,7 +71,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     useState<ResourceRow | null>(null)
   const [drawerIsNew, setDrawerIsNew] = useState(false)
 
-  // Availability drawer state (right side)
+  // Availability drawer
   const [availabilityRowIndex, setAvailabilityRowIndex] = useState<
     number | null
   >(null)
@@ -87,7 +81,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const weekendGroups = ["A", "B", "C", "WC"]
 
-  // Filters (per mockup bullets)
   const [filters, setFilters] = useState({
     campus: "",
     cost_center_name: "",
@@ -137,7 +130,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
   }
 
   // ------------------------------
-  // COLUMN VISIBILITY STATE
+  // COLUMN VISIBILITY
   // ------------------------------
   const [colVisible, setColVisible] = useState({
     info: true,
@@ -244,7 +237,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
       ? data.staffingConfig.map((p: any) => p.role)
       : ["RN", "LPN", "CNA", "Clerk"]
 
-  // Filter shifts by role
   const getFilteredShifts = (position: string) => {
     if (!Array.isArray(data?.shiftConfig)) return []
     return (data.shiftConfig || [])
@@ -252,7 +244,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
       .map((shift: any) => shift.shift_label)
   }
 
-  // Weekend group list
   const [weekendGroupList, setWeekendGroupList] =
     useState<string[]>(weekendGroups)
   useEffect(() => {
@@ -268,7 +259,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     }
   }, [data?.staffingConfig])
 
-  // Generic table cell change handler
+  // Change handler
   const handleChange = async (
     index: number,
     field: keyof ResourceRow,
@@ -318,8 +309,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     debouncedSave(updated)
   }
 
-  // --- Drawer helpers --------------------------------------------------------
-
+  // Drawer helpers
   const openDrawerForRow = (
     rowIndex: number,
     mode: "view" | "edit",
@@ -334,7 +324,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
   }
 
   const closeDrawer = () => {
-    // If this was a brand-new row and user never saved → remove it
     if (drawerIsNew && activeInfoRow !== null) {
       const updated = rows.filter((_, idx) => idx !== activeInfoRow)
       setRows(updated)
@@ -363,14 +352,10 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
       closeDrawer()
       return
     }
-
-    // For a new row: cancel closes and removes row
     if (drawerIsNew) {
       closeDrawer()
       return
     }
-
-    // For existing row: revert changes
     setDrawerRow({ ...drawerOriginalRow })
     setDrawerMode("view")
   }
@@ -379,8 +364,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     setDrawerRow((prev) => (prev ? { ...prev, [field]: value } : prev))
   }
 
-  // --- Availability drawer helpers -------------------------------------
-
+  // Availability drawer helpers
   const openAvailabilityForRow = (rowIndex: number, weekStart?: string) => {
     setAvailabilityRowIndex(rowIndex)
     setAvailabilityWeek(weekStart ?? null)
@@ -413,8 +397,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
   const currentAvailabilityRow =
     availabilityRowIndex !== null ? rows[availabilityRowIndex] : null
 
-  // --- Add / Remove rows -----------------------------------------------------
-
+  // Add row
   const addRow = () => {
     const newRow: ResourceRow = {
       id: Date.now(),
@@ -436,13 +419,11 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     const updated = [...rows, newRow]
     setRows(updated)
     debouncedSave(updated)
-
     const newIndex = updated.length - 1
     openDrawerForRow(newIndex, "edit", true)
   }
 
-  // --- CSV Upload / Export ---------------------------------------------------
-
+  // CSV upload / export
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -566,8 +547,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     URL.revokeObjectURL(url)
   }
 
-  // --- Filtering -------------------------------------------------------------
-
+  // Filtering
   const filteredRows = rows.filter((r) => {
     return (
       (!filters.campus || r.campus === filters.campus) &&
@@ -579,7 +559,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     )
   })
 
-  // Helpers for options
   const campuses = Array.from(
     new Set(rows.map((r) => r.campus).filter(Boolean))
   ) as string[]
@@ -602,8 +581,16 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
   const formatFullName = (row: ResourceRow) =>
     `${row.first_name || ""} ${row.last_name || ""}`.trim() || "—"
 
-  // --- Render ----------------------------------------------------------------
+  const headerLabel = (text: string) => (
+    <span
+      className="block overflow-hidden whitespace-nowrap"
+      style={{ fontSize: "clamp(10px, 0.9vw, 14px)" }}
+    >
+      {text}
+    </span>
+  )
 
+  // Render
   return (
     <Card className="p-4 space-y-4">
       {/* Header */}
@@ -660,7 +647,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
         </div>
       </div>
 
-      {/* Filter Bar + Manage Columns */}
+      {/* Filters + Manage Columns */}
       <div className="flex flex-wrap gap-3 items-center mb-3">
         <Select
           value={filters.campus}
@@ -757,7 +744,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
 
           {isColumnMenuOpen && (
             <>
-              {/* Click-away backdrop */}
               <div
                 className="fixed inset-0 z-30"
                 onClick={() => setIsColumnMenuOpen(false)}
@@ -767,7 +753,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                   Show / hide columns
                 </p>
 
-                {/* Select All / Deselect All buttons */}
                 <div className="flex justify-between mb-2">
                   <button
                     className="text-blue-600 text-xs hover:underline"
@@ -779,7 +764,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                   >
                     Select All
                   </button>
-
                   <button
                     className="text-blue-600 text-xs hover:underline"
                     onClick={() => {
@@ -792,7 +776,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                   </button>
                 </div>
 
-                {/* Checkboxes */}
                 <div className="space-y-1 max-h-64 overflow-y-auto">
                   {COLUMN_CONFIG.map((col) => (
                     <label
@@ -809,7 +792,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                   ))}
                 </div>
               </div>
-
             </>
           )}
         </div>
@@ -821,20 +803,20 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
       ) : (
         <div className="overflow-x-auto">
           <table
-            className="min-w-full border border-gray-200 text-sm"
-            style={{ tableLayout: "fixed" }}
+            className="border border-gray-200 text-sm"
+            style={{ tableLayout: "fixed", width: "max-content" }}
           >
             <thead className="bg-gray-50">
               <tr>
                 {colVisible.info && (
                   <th
                     style={{
-                      width: colWidth.info, 
+                      width: colWidth.info,
                       minWidth: colWidth.info,
                       maxWidth: colWidth.info,
                       display: colVisible.info ? "table-cell" : "none",
                     }}
-                    className="relative px-3 py-2 border text-center"
+                    className="relative px-3 py-2 border text-center overflow-hidden whitespace-nowrap"
                   >
                     <button
                       type="button"
@@ -844,7 +826,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     >
                       ⇤
                     </button>
-                    Info
+                    {headerLabel("Info")}
                     <div
                       className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
                       onMouseDown={(e) => startResizing(e, "info")}
@@ -858,9 +840,11 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       width: colWidth.cost_center_name,
                       minWidth: colWidth.cost_center_name,
                       maxWidth: colWidth.cost_center_name,
-                      display: colVisible.cost_center_name ? "table-cell" : "none",
+                      display: colVisible.cost_center_name
+                        ? "table-cell"
+                        : "none",
                     }}
-                    className="relative px-3 py-2 border"
+                    className="relative px-3 py-2 border overflow-hidden whitespace-nowrap"
                   >
                     <button
                       type="button"
@@ -870,10 +854,12 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     >
                       ⇤
                     </button>
-                    Cost Center
+                    {headerLabel("Cost Center")}
                     <div
                       className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                      onMouseDown={(e) => startResizing(e, "cost_center_name")}
+                      onMouseDown={(e) =>
+                        startResizing(e, "cost_center_name")
+                      }
                     />
                   </th>
                 )}
@@ -884,9 +870,11 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       width: colWidth.employee_id,
                       minWidth: colWidth.employee_id,
                       maxWidth: colWidth.employee_id,
-                      display: colVisible.employee_id ? "table-cell" : "none",
+                      display: colVisible.employee_id
+                        ? "table-cell"
+                        : "none",
                     }}
-                    className="relative px-3 py-2 border"
+                    className="relative px-3 py-2 border overflow-hidden whitespace-nowrap"
                   >
                     <button
                       type="button"
@@ -896,10 +884,12 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     >
                       ⇤
                     </button>
-                    Employee ID
+                    {headerLabel("Employee ID")}
                     <div
                       className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                      onMouseDown={(e) => startResizing(e, "employee_id")}
+                      onMouseDown={(e) =>
+                        startResizing(e, "employee_id")
+                      }
                     />
                   </th>
                 )}
@@ -912,7 +902,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       maxWidth: colWidth.full_name,
                       display: colVisible.full_name ? "table-cell" : "none",
                     }}
-                    className="relative px-3 py-2 border"
+                    className="relative px-3 py-2 border overflow-hidden whitespace-nowrap"
                   >
                     <button
                       type="button"
@@ -922,10 +912,12 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     >
                       ⇤
                     </button>
-                    Full Name
+                    {headerLabel("Full Name")}
                     <div
                       className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                      onMouseDown={(e) => startResizing(e, "full_name")}
+                      onMouseDown={(e) =>
+                        startResizing(e, "full_name")
+                      }
                     />
                   </th>
                 )}
@@ -938,7 +930,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       maxWidth: colWidth.job_name,
                       display: colVisible.job_name ? "table-cell" : "none",
                     }}
-                    className="relative px-3 py-2 border"
+                    className="relative px-3 py-2 border overflow-hidden whitespace-nowrap"
                   >
                     <button
                       type="button"
@@ -948,7 +940,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     >
                       ⇤
                     </button>
-                    Job Name
+                    {headerLabel("Job Name")}
                     <div
                       className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
                       onMouseDown={(e) => startResizing(e, "job_name")}
@@ -964,7 +956,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       maxWidth: colWidth.unit_fte,
                       display: colVisible.unit_fte ? "table-cell" : "none",
                     }}
-                    className="relative px-3 py-2 border text-right"
+                    className="relative px-3 py-2 border text-right overflow-hidden whitespace-nowrap"
                   >
                     <button
                       type="button"
@@ -974,7 +966,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     >
                       ⇤
                     </button>
-                    Unit FTE
+                    {headerLabel("Unit FTE")}
                     <div
                       className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
                       onMouseDown={(e) => startResizing(e, "unit_fte")}
@@ -990,7 +982,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       maxWidth: colWidth.shift_group,
                       display: colVisible.shift_group ? "table-cell" : "none",
                     }}
-                    className="relative px-3 py-2 border"
+                    className="relative px-3 py-2 border overflow-hidden whitespace-nowrap"
                   >
                     <button
                       type="button"
@@ -1000,10 +992,12 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     >
                       ⇤
                     </button>
-                    Shift Group
+                    {headerLabel("Shift Group")}
                     <div
                       className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                      onMouseDown={(e) => startResizing(e, "shift_group")}
+                      onMouseDown={(e) =>
+                        startResizing(e, "shift_group")
+                      }
                     />
                   </th>
                 )}
@@ -1014,9 +1008,11 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       width: colWidth.weekend_group,
                       minWidth: colWidth.weekend_group,
                       maxWidth: colWidth.weekend_group,
-                      display: colVisible.weekend_group ? "table-cell" : "none",
+                      display: colVisible.weekend_group
+                        ? "table-cell"
+                        : "none",
                     }}
-                    className="relative px-3 py-2 border"
+                    className="relative px-3 py-2 border overflow-hidden whitespace-nowrap"
                   >
                     <button
                       type="button"
@@ -1026,10 +1022,12 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     >
                       ⇤
                     </button>
-                    Weekend
+                    {headerLabel("Weekend")}
                     <div
                       className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                      onMouseDown={(e) => startResizing(e, "weekend_group")}
+                      onMouseDown={(e) =>
+                        startResizing(e, "weekend_group")
+                      }
                     />
                   </th>
                 )}
@@ -1040,9 +1038,11 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       width: colWidth.availability,
                       minWidth: colWidth.availability,
                       maxWidth: colWidth.availability,
-                      display: colVisible.availability ? "table-cell" : "none",
+                      display: colVisible.availability
+                        ? "table-cell"
+                        : "none",
                     }}
-                    className="relative px-3 py-2 border"
+                    className="relative px-3 py-2 border overflow-hidden whitespace-nowrap"
                   >
                     <button
                       type="button"
@@ -1052,10 +1052,12 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     >
                       ⇤
                     </button>
-                    Availability
+                    {headerLabel("Availability")}
                     <div
                       className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                      onMouseDown={(e) => startResizing(e, "availability")}
+                      onMouseDown={(e) =>
+                        startResizing(e, "availability")
+                      }
                     />
                   </th>
                 )}
@@ -1073,15 +1075,15 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     key={row.id || i}
                     className="odd:bg-white even:bg-gray-50 hover:bg-gray-100"
                   >
-                    {/* Information icon (≪) */}
+                    {/* Info */}
                     {colVisible.info && (
                       <td
                         style={{
-                        width: colWidth.info,
-                        minWidth: colWidth.info,
-                        maxWidth: colWidth.info,
-                        display: colVisible.info ? "table-cell" : "none",
-                      }}
+                          width: colWidth.info,
+                          minWidth: colWidth.info,
+                          maxWidth: colWidth.info,
+                          display: colVisible.info ? "table-cell" : "none",
+                        }}
                         className="relative border px-2 py-1 text-center overflow-hidden"
                       >
                         <Button
@@ -1097,7 +1099,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                         >
                           ««
                         </Button>
-
                         <div
                           className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
                           onMouseDown={(e) => startResizing(e, "info")}
@@ -1105,15 +1106,17 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       </td>
                     )}
 
-                    {/* Cost Center Name */}
+                    {/* Cost Center */}
                     {colVisible.cost_center_name && (
                       <td
                         style={{
-                        width: colWidth.cost_center_name,
-                        minWidth: colWidth.cost_center_name,
-                        maxWidth: colWidth.cost_center_name,
-                        display: colVisible.cost_center_name ? "table-cell" : "none",
-                      }}
+                          width: colWidth.cost_center_name,
+                          minWidth: colWidth.cost_center_name,
+                          maxWidth: colWidth.cost_center_name,
+                          display: colVisible.cost_center_name
+                            ? "table-cell"
+                            : "none",
+                        }}
                         className="relative border px-2 py-1 overflow-hidden"
                       >
                         <Input
@@ -1129,7 +1132,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                           placeholder="Cost Center"
                           className="!m-0 !p-1"
                         />
-
                         <div
                           className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
                           onMouseDown={(e) =>
@@ -1146,7 +1148,9 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                           width: colWidth.employee_id,
                           minWidth: colWidth.employee_id,
                           maxWidth: colWidth.employee_id,
-                          display: colVisible.employee_id ? "table-cell" : "none",
+                          display: colVisible.employee_id
+                            ? "table-cell"
+                            : "none",
                         }}
                         className="relative border px-2 py-1 overflow-hidden"
                       >
@@ -1162,7 +1166,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                           }
                           className="!m-0 !p-1 w-full"
                         />
-
                         <div
                           className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
                           onMouseDown={(e) =>
@@ -1172,24 +1175,27 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       </td>
                     )}
 
-                    {/* Full Name (read-only, from first/last) */}
+                    {/* Full Name */}
                     {colVisible.full_name && (
                       <td
                         style={{
                           width: colWidth.full_name,
                           minWidth: colWidth.full_name,
                           maxWidth: colWidth.full_name,
-                          display: colVisible.full_name ? "table-cell" : "none",
+                          display: colVisible.full_name
+                            ? "table-cell"
+                            : "none",
                         }}
-                        className="relative border px-2 py-1 overflow-hidden" 
+                        className="relative border px-2 py-1 overflow-hidden"
                       >
                         <div className="px-2 py-1 bg-white rounded border border-gray-200 text-gray-800 text-sm">
                           {formatFullName(row)}
                         </div>
-
                         <div
                           className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                          onMouseDown={(e) => startResizing(e, "full_name")}
+                          onMouseDown={(e) =>
+                            startResizing(e, "full_name")
+                          }
                         />
                       </td>
                     )}
@@ -1231,10 +1237,11 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                               </option>
                             ))}
                         </Select>
-
                         <div
                           className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                          onMouseDown={(e) => startResizing(e, "job_name")}
+                          onMouseDown={(e) =>
+                            startResizing(e, "job_name")
+                          }
                         />
                       </td>
                     )}
@@ -1265,10 +1272,11 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                           }
                           className="!m-0 !p-1 w-full text-right"
                         />
-
                         <div
                           className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
-                          onMouseDown={(e) => startResizing(e, "unit_fte")}
+                          onMouseDown={(e) =>
+                            startResizing(e, "unit_fte")
+                          }
                         />
                       </td>
                     )}
@@ -1280,7 +1288,9 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                           width: colWidth.shift_group,
                           minWidth: colWidth.shift_group,
                           maxWidth: colWidth.shift_group,
-                          display: colVisible.shift_group ? "table-cell" : "none",
+                          display: colVisible.shift_group
+                            ? "table-cell"
+                            : "none",
                         }}
                         className="relative border px-2 py-1 overflow-hidden"
                       >
@@ -1300,7 +1310,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                             <option key={opt}>{opt}</option>
                           ))}
                         </Select>
-
                         <div
                           className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
                           onMouseDown={(e) =>
@@ -1317,7 +1326,9 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                           width: colWidth.weekend_group,
                           minWidth: colWidth.weekend_group,
                           maxWidth: colWidth.weekend_group,
-                          display: colVisible.weekend_group ? "table-cell" : "none",
+                          display: colVisible.weekend_group
+                            ? "table-cell"
+                            : "none",
                         }}
                         className="relative border px-2 py-1 text-center overflow-hidden"
                       >
@@ -1337,7 +1348,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                             <option key={g}>{g}</option>
                           ))}
                         </Select>
-
                         <div
                           className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
                           onMouseDown={(e) =>
@@ -1347,14 +1357,16 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       </td>
                     )}
 
-                    {/* Availability column */}
+                    {/* Availability */}
                     {colVisible.availability && (
                       <td
                         style={{
                           width: colWidth.availability,
                           minWidth: colWidth.availability,
                           maxWidth: colWidth.availability,
-                          display: colVisible.availability ? "table-cell" : "none",
+                          display: colVisible.availability
+                            ? "table-cell"
+                            : "none",
                         }}
                         className="relative border px-2 py-1 overflow-x-auto whitespace-nowrap overflow-hidden"
                       >
@@ -1380,7 +1392,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                             Edit Availability
                           </Button>
                         )}
-
                         <div
                           className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
                           onMouseDown={(e) =>
@@ -1404,12 +1415,8 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
             className="fixed inset-0 z-40 bg-black bg-opacity-40"
             onClick={closeDrawer}
           />
-
-          {/* LEFT SIDE DRAWER */}
           <div className="fixed inset-y-0 left-0 z-50 w-full max-w-md bg-white shadow-2xl flex flex-col">
-            {/* HEADER */}
             <div className="px-5 py-4 border-b flex items-center justify-between">
-              {/* LEFT = trash delete button */}
               <Button
                 variant="ghost"
                 className="text-red-600 text-xl"
@@ -1444,7 +1451,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                 Employee Information
               </h3>
 
-              {/* RIGHT = close button */}
               <Button
                 variant="ghost"
                 className="text-gray-600 text-xl"
@@ -1455,9 +1461,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
             </div>
 
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-2 text-sm text-gray-700">
-              
-              {/* ====== MAIN TABLE FIELDS (Top of Drawer) ====== */}
-
+              {/* Main table fields mirrored */}
               <div>
                 <p className="font-semibold">Cost Center Name</p>
                 {drawerMode === "edit" ? (
@@ -1630,7 +1634,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                 )}
               </div>
 
-              {/* Schedule IDs */}
+              {/* Extra profile fields */}
               <div>
                 <p className="font-semibold">Schedule System ID</p>
                 {drawerMode === "edit" ? (
@@ -1783,22 +1787,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
               </div>
 
               <div>
-                <p className="font-semibold">Start Date</p>
-                {drawerMode === "edit" ? (
-                  <Input
-                    id={`start_date_${drawerRow.id || "new"}`}
-                    type="date"
-                    value={drawerRow.start_date || ""}
-                    onChange={(e) =>
-                      updateDrawerField("start_date", e.target.value)
-                    }
-                  />
-                ) : (
-                  <p>{drawerRow.start_date || "—"}</p>
-                )}
-              </div>
-
-              <div>
                 <p className="font-semibold">Term Date</p>
                 {drawerMode === "edit" ? (
                   <Input
@@ -1876,7 +1864,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
               </div>
             </div>
 
-            {/* Drawer footer */}
             <div className="px-5 py-3 border-t flex justify-between items-center">
               {drawerMode === "view" ? (
                 <>
@@ -1918,7 +1905,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
         </>
       )}
 
-      {/* Availability Drawer (RIGHT side) */}
+      {/* Availability Drawer */}
       {isAvailabilityOpen && currentAvailabilityRow && (
         <AvailabilityDrawer
           row={currentAvailabilityRow}
