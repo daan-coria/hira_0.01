@@ -60,12 +60,20 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
   // Availability scroll refs
   const availabilityBigScrollRef = useRef<HTMLDivElement>(null)
   const availabilityBottomRef = useRef<HTMLDivElement>(null)
-  
-  const syncAvailabilityTop = () => {
+
+  // Two-way sync between top and bottom scrollbar
+  const syncScroll = () => {
     if (!availabilityBigScrollRef.current || !availabilityBottomRef.current) return
-    availabilityBigScrollRef.current.scrollLeft =
-      availabilityBottomRef.current.scrollLeft
+    availabilityBottomRef.current.scrollLeft = availabilityBigScrollRef.current.scrollLeft
   }
+
+  useEffect(() => {
+    const top = availabilityBigScrollRef.current
+    if (!top) return
+
+    top.addEventListener("scroll", syncScroll)
+    return () => top.removeEventListener("scroll", syncScroll)
+  }, [])
 
   // Compute width: 52 weeks * 88px per button + gaps
   const totalWeeksWidth = 52 * 100; // adjust if needed
@@ -220,10 +228,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
         node.scrollLeft = availabilityBigScrollRef.current!.scrollLeft
       })
     }
-
-    availabilityBigScrollRef.current.addEventListener("scroll", syncAllRows)
-    return () =>
-      availabilityBigScrollRef.current?.removeEventListener("scroll", syncAllRows)
   }, [])
 
   // Positions
@@ -800,7 +804,10 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
         <div className="overflow-x-auto">
 
           {/* SHARED AVAILABILITY SCROLL CONTAINER */}
-
+          <div
+            ref={availabilityBigScrollRef}
+            className="overflow-x-auto"
+          >
             <table
               className="border border-gray-200 text-sm"
               style={{ tableLayout: "fixed", width: "max-content" }}
@@ -1030,7 +1037,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       />
                     </th>
                   )}
-
+                  
                   {colVisible.availability && (
                     <th
                       style={{
@@ -1091,14 +1098,13 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                   )
                 })}
               </tbody>
-
             </table>
+          </div>
 
           {/* Shared Availability scrollbar */}
           <div
             ref={availabilityBottomRef}
             className="h-4 overflow-x-auto bg-gray-50"
-            onScroll={syncAvailabilityTop}
           >
             <div style={{ width: 52 * 100 }} />
           </div>

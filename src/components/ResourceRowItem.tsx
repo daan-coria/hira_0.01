@@ -270,7 +270,7 @@ export default function ResourceRowItem({
           className="relative border px-2 py-1 whitespace-nowrap overflow-hidden"
         >
           {/* ROW-WIDE WEEK STRIP */}
-          <div className="availability-row overflow-hidden">
+          <div className="availability-row">
             <WeeklyFTEBar
               baseFTE={row.unit_fte}
               availability={row.availability || []}
@@ -279,7 +279,6 @@ export default function ResourceRowItem({
               }
             />
           </div>
-
           <div
             className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
             onMouseDown={(e) => startResizing(e, "availability")}
