@@ -106,7 +106,7 @@ export default function PositionStaffingSetupCard() {
       <h2 className="text-sm font-semibold mb-4">Staffing Needs</h2>
 
       {/* Column headers */}
-      <div className="grid grid-cols-[auto,1.5fr,1.2fr,repeat(5,minmax(0,1fr)),1fr] gap-3 text-xs font-semibold text-gray-500 mb-2">
+      <div className="grid grid-cols-[auto,1.5fr,1.2fr,repeat(5,minmax(0,1fr))] gap-3 text-xs font-semibold text-gray-500 mb-2">
         <div />
         <div>Department Name</div>
         <div>Resource Type</div>
@@ -125,7 +125,7 @@ export default function PositionStaffingSetupCard() {
           return (
             <div
               key={row.id}
-              className="grid grid-cols-[auto,1.5fr,1.2fr,repeat(5,minmax(0,1fr)),1fr] gap-3 items-center text-sm"
+              className="grid grid-cols-[auto,1.5fr,1.2fr,repeat(5,minmax(0,1fr))] gap-3 items-center text-sm"
             >
               {/* Checkbox */}
               <div className="flex justify-center">
@@ -209,11 +209,6 @@ export default function PositionStaffingSetupCard() {
                 id=""
                 onChange={(e) => updateRow(row.id, { fixed: e.target.value })}
               />
-
-              {/* Calculated */}
-              <div className="text-center font-semibold text-brand-600">
-                {calculated || "-"}
-              </div>
             </div>
           );
         })}
