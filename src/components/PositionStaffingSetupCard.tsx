@@ -5,7 +5,7 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 
 // ----------------------------------------
-// MOCK DATA 
+// MOCK DATA — department + resource types
 // ----------------------------------------
 const MOCK_UNITS = [
   { id: "5E-ICU", name: "5E ICU", campus: "Bay" },
@@ -16,71 +16,49 @@ const MOCK_UNITS = [
 
 const MOCK_RESOURCE_TYPES = ["Nurse", "NA/UC", "LPN", "Clerk"];
 
-const MOCK_SHIFTS = [
-  { value: "shift1", label: "Weekday 7A-7P" },
-  { value: "shift2", label: "Weekday 7P-7A" },
-  { value: "shift3", label: "Weekday 7A-7P No Lunch" },
-  { value: "shift4", label: "Weekday 7P-7A No Lunch" }
-];
-
-// We use a constant census
+// Constant census for calculation (unchanged)
 const MOCK_CENSUS = 25;
-
-
-
 
 // ----------------------------------------
 // CALCULATION LOGIC
 // ----------------------------------------
 function computeStaffing(row: any, census: number) {
   const min = Number(row.min) || 0;
-  const ratio5 = Number(row.ratio) || 0;        // Target ratio (ex: 5)
-  const ratio6 = Number(row.maxRatio) || 0;     // Max ratio (ex: 6)
+  const ratio5 = Number(row.ratio) || 0;
+  const ratio6 = Number(row.maxRatio) || 0;
   const fixed = Number(row.fixed) || 0;
 
   if (!ratio5 || !ratio6) return "";
 
-  // STAFF BASED ON TARGET RATIO (1:5)
   const staffAt5 = Math.ceil(census / ratio5);
-
-  // STAFF BASED ON MAX ALLOWABLE RATIO (1:6)
   const staffAt6 = Math.ceil(census / ratio6);
 
-  // The policy says:
-  //   "The target ratio is 1:5 BUT staffing must NEVER exceed 1:6"
-  //
-  // Therefore we choose the HIGHER of the two:
-  //
-  //  - staffAt5 ensures good staffing
-  //  - staffAt6 ensures you do NOT violate the max ratio cap
   let required = Math.max(staffAt5, staffAt6);
-
-  // Add fixed nurses (free charge)
   required += fixed;
-
-  // Apply minimum staffing rule
   required = Math.max(required, min);
 
   return required;
 }
 
-
-
 // ----------------------------------------
 // COMPONENT
 // ----------------------------------------
 export default function PositionStaffingSetupCard() {
-  const { master } = useApp();
+  const { master, data } = useApp();
+
+  // Load real shifts from ShiftConfig
+  const shiftOptions = Array.isArray(data?.shiftConfig)
+    ? data.shiftConfig.filter((s) => s.shift_name && s.shift_name !== "N/A")
+    : [];
+
   const selectedCampus = master.facility;
 
-  // Filter department options based on campus filter
   const filteredUnits = useMemo(() => {
     if (!selectedCampus) return MOCK_UNITS;
     return MOCK_UNITS.filter((u) => u.campus === selectedCampus);
   }, [selectedCampus]);
 
-
-  // Initialize rows with empty departmentName + resourceType
+  // Initial staffing rows
   const [rows, setRows] = useState(() =>
     MOCK_UNITS.map((u) => ({
       id: u.id,
@@ -92,7 +70,7 @@ export default function PositionStaffingSetupCard() {
       ratio: "",
       maxRatio: "",
       fixed: "",
-      shift: MOCK_SHIFTS[0].value,
+      shiftName: "", // NEW FIELD
     }))
   );
 
@@ -100,13 +78,12 @@ export default function PositionStaffingSetupCard() {
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   };
 
-
   return (
     <Card className="mt-4">
       <h2 className="text-sm font-semibold mb-4">Staffing Needs</h2>
 
       {/* Column headers */}
-      <div className="grid grid-cols-[auto,1.5fr,1.2fr,repeat(5,minmax(0,1fr))] gap-3 text-xs font-semibold text-gray-500 mb-2">
+      <div className="grid grid-cols-[auto,1.5fr,1.2fr,repeat(5,minmax(0,1fr)),1.2fr] gap-3 text-xs font-semibold text-gray-500 mb-2">
         <div />
         <div>Department Name</div>
         <div>Resource Type</div>
@@ -115,17 +92,16 @@ export default function PositionStaffingSetupCard() {
         <div>Ratio</div>
         <div>Max Ratio</div>
         <div>Fixed</div>
+        <div>Shift Name</div>
       </div>
 
       {/* Rows */}
       <div className="space-y-3">
         {rows.map((row) => {
-          const calculated = computeStaffing(row, MOCK_CENSUS);
-
           return (
             <div
               key={row.id}
-              className="grid grid-cols-[auto,1.5fr,1.2fr,repeat(5,minmax(0,1fr))] gap-3 items-center text-sm"
+              className="grid grid-cols-[auto,1.5fr,1.2fr,repeat(5,minmax(0,1fr)),1.2fr] gap-3 items-center text-sm"
             >
               {/* Checkbox */}
               <div className="flex justify-center">
@@ -139,7 +115,7 @@ export default function PositionStaffingSetupCard() {
                 />
               </div>
 
-              {/* Department Name (Filtered dropdown) */}
+              {/* Department */}
               <Select
                 ariaLabel="Select Department"
                 value={row.unitName}
@@ -155,7 +131,7 @@ export default function PositionStaffingSetupCard() {
                 ))}
               </Select>
 
-              {/* Resource Type (Single dropdown) */}
+              {/* Resource Type */}
               <Select
                 ariaLabel="Select Resource Type"
                 value={row.resourceType}
@@ -171,7 +147,7 @@ export default function PositionStaffingSetupCard() {
                 ))}
               </Select>
 
-              {/* Minimum */}
+              {/* Min */}
               <Input
                 value={row.min}
                 id=""
@@ -209,6 +185,22 @@ export default function PositionStaffingSetupCard() {
                 id=""
                 onChange={(e) => updateRow(row.id, { fixed: e.target.value })}
               />
+
+              {/* Shift Name dropdown */}
+              <Select
+                ariaLabel="Select Shift Name"
+                value={row.shiftName}
+                onChange={(e) =>
+                  updateRow(row.id, { shiftName: e.target.value })
+                }
+              >
+                <option value="">Select Shift</option>
+                {shiftOptions.map((s) => (
+                  <option key={s.id} value={s.shift_name}>
+                    {s.shift_name}
+                  </option>
+                ))}
+              </Select>
             </div>
           );
         })}
