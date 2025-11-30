@@ -25,6 +25,78 @@ const TOTAL_WEEKS_WIDTH = WEEK_WIDTH * 52
 
 type Props = { onNext?: () => void; onPrev?: () => void }
 
+/**
+ * Expand a single AvailabilityEntry (date range + FTE) into
+ * a list of *weekly* AvailabilityEntry objects.
+ *
+ * - If entry.end is null:
+ *    • If masterEnd is provided → expand up to masterEnd.
+ *    • Else → expand for 52 weeks from start.
+ * - Range is clamped to [masterStart, masterEnd] if they exist.
+ */
+function expandEntryToWeeklyEntries(
+  entry: AvailabilityEntry,
+  masterStartStr: string | null,
+  masterEndStr: string | null,
+  fallbackFte: number
+): AvailabilityEntry[] {
+  const result: AvailabilityEntry[] = []
+
+  const parse = (s: string | null | undefined) => {
+    if (!s) return null
+    const d = new Date(s)
+    if (Number.isNaN(d.getTime())) return null
+    d.setHours(0, 0, 0, 0)
+    return d
+  }
+
+  let start = parse(entry.start)
+  if (!start) return result
+
+  let end = parse(entry.end)
+  const masterStart = parse(masterStartStr)
+  const masterEnd = parse(masterEndStr)
+
+  // If no explicit end, use masterEnd if present; otherwise 52 weeks from start
+  if (!end) {
+    if (masterEnd) {
+      end = masterEnd
+    } else {
+      end = new Date(start)
+      end.setDate(end.getDate() + 51 * 7) // 52 weeks inclusive
+    }
+  }
+
+  if (!end) return result
+
+  // Clamp to master filter range if available
+  if (masterStart && start < masterStart) start = masterStart
+  if (masterEnd && end > masterEnd) end = masterEnd
+
+  if (end < start) return result
+
+  const fte = typeof entry.fte === "number" ? entry.fte : fallbackFte
+  let idx = 0
+  const cursor = new Date(start)
+
+  while (cursor <= end) {
+    const iso = cursor.toISOString().slice(0, 10)
+
+    result.push({
+      ...entry,
+      id: `${entry.id || "week"}_${idx}`,
+      start: iso,
+      end: iso,
+      fte,
+    })
+
+    idx += 1
+    cursor.setDate(cursor.getDate() + 7)
+  }
+
+  return result
+}
+
 export default function ResourceInputCard({ onNext, onPrev }: Props) {
   const { data, updateData } = useApp()
 
@@ -215,7 +287,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Recompute table scroll width whenever structure changes ---
+  // --- NEW: recompute table scroll width whenever structure changes ---
   useEffect(() => {
     if (tableScrollRef.current) {
       setTableScrollWidth(tableScrollRef.current.scrollWidth)
@@ -369,6 +441,13 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     setAvailabilityWeek(null)
   }
 
+  /**
+   * When the Availability drawer saves:
+   *  - Take the list of ranges (AvailabilityEntry[])
+   *  - Expand each one into weekly AvailabilityEntry objects
+   *  - Clamp to Master Filters date range if present
+   *  - Save to row.availability
+   */
   const handleAvailabilitySave = (entries: AvailabilityEntry[]) => {
     if (availabilityRowIndex === null) {
       closeAvailabilityDrawer()
@@ -377,7 +456,55 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
 
     setRows((prev) => {
       const updated = [...prev]
-      const target = { ...updated[availabilityRowIndex], availability: entries }
+
+      // Try to detect master filter date range from app data.
+      // We support a few likely shapes:
+      //  - data.masterFilters.dateRange = [start, end]
+      //  - data.masterFilters.start / end
+      //  - data.masterFilters.startDate / endDate
+      const masterFilters: any =
+        (data as any)?.masterFilters ??
+        (data as any)?.masterFilter ??
+        (data as any)?.master ??
+        null
+
+      let masterStartStr: string | null = null
+      let masterEndStr: string | null = null
+
+      if (masterFilters) {
+        if (Array.isArray(masterFilters.dateRange)) {
+          masterStartStr = masterFilters.dateRange[0] || null
+          masterEndStr = masterFilters.dateRange[1] || null
+        }
+        if (!masterStartStr && masterFilters.start)
+          masterStartStr = masterFilters.start
+        if (!masterEndStr && masterFilters.end)
+          masterEndStr = masterFilters.end
+        if (!masterStartStr && masterFilters.startDate)
+          masterStartStr = masterFilters.startDate
+        if (!masterEndStr && masterFilters.endDate)
+          masterEndStr = masterFilters.endDate
+      }
+
+      const baseRow = updated[availabilityRowIndex]
+      const finalWeeklyEntries: AvailabilityEntry[] = []
+
+      for (const entry of entries) {
+        if (!entry.start) continue
+        const expanded = expandEntryToWeeklyEntries(
+          entry,
+          masterStartStr,
+          masterEndStr,
+          baseRow.unit_fte ?? 0
+        )
+        finalWeeklyEntries.push(...expanded)
+      }
+
+      const target: ResourceRow = {
+        ...baseRow,
+        availability: finalWeeklyEntries,
+      }
+
       updated[availabilityRowIndex] = target
       debouncedSave(updated)
       return updated
@@ -584,7 +711,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     </span>
   )
 
-  // Availability header scrollbar → sync all row availability viewports ---
+  // --- Availability header scrollbar → sync all row availability viewports ---
   const handleAvailabilityHeaderScroll = (
     e: React.UIEvent<HTMLDivElement, UIEvent>
   ) => {
