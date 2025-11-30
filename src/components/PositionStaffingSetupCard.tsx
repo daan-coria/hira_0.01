@@ -115,7 +115,6 @@ export default function PositionStaffingSetupCard() {
         <div>Ratio</div>
         <div>Max Ratio</div>
         <div>Fixed</div>
-        <div>Calculated Staff</div>
       </div>
 
       {/* Rows */}
