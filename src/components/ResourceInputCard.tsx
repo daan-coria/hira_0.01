@@ -968,7 +968,8 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       jobNames={jobNames}
                       positions={positions}
                       formatFullName={formatFullName}
-                      filteredShifts={getFilteredShifts}
+                      // pass the filtered shifts array for this row's position
+                      filteredShifts={getFilteredShifts(row.position || "")}
                       startResizing={startResizing}
                       handleChange={handleChange}
                       openDrawerForRow={openDrawerForRow}
