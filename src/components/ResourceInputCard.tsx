@@ -26,8 +26,7 @@ const TOTAL_WEEKS_WIDTH = WEEK_WIDTH * 52
 type Props = { onNext?: () => void; onPrev?: () => void }
 
 export default function ResourceInputCard({ onNext, onPrev }: Props) {
-  // NOTE: now also pulling master from context (Option B)
-  const { data, updateData, master } = useApp()
+  const { data, updateData } = useApp()
 
   const [rows, setRows] = useState<ResourceRow[]>([])
   const [saving, setSaving] = useState(false)
@@ -41,9 +40,9 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
   const [drawerIsNew, setDrawerIsNew] = useState(false)
 
   // Availability drawer
-  const [availabilityRowIndex, setAvailabilityRowIndex] = useState<number | null>(
-    null
-  )
+  const [availabilityRowIndex, setAvailabilityRowIndex] = useState<
+    number | null
+  >(null)
   const [availabilityWeek, setAvailabilityWeek] = useState<string | null>(null)
   const [isAvailabilityOpen, setIsAvailabilityOpen] = useState(false)
 
@@ -59,8 +58,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     weekend_group: "",
   })
 
-  // --- SCROLL / LAYOUT REFS ---
-
+  // --- NEW: scroll refs ---
   // Scrollbar #1: Availability header scrollbar (52 weeks)
   const availabilityHeaderRef = useRef<HTMLDivElement | null>(null)
 
@@ -148,9 +146,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
 
   const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false)
 
-  // ------------------------------
-  // DEBOUNCED AUTOSAVE
-  // ------------------------------
+  // Debounced autosave
   const debouncedSave = useCallback(
     debounce((updated: ResourceRow[]) => {
       setSaving(true)
@@ -160,9 +156,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     [updateData]
   )
 
-  // ------------------------------
-  // INITIALIZE DATA
-  // ------------------------------
+  // Initialize from stored data + mock employees
   useEffect(() => {
     const resourceArray = Array.isArray(data?.resourceInput)
       ? (data.resourceInput as ResourceRow[])
@@ -179,117 +173,85 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
         position: "RN",
         job_name: "Nurse",
         unit_fte: 0.9,
-        shift: "",
-        shift_group: "",
+        shift: "Day",
+        shift_group: "Day",
         weekend_group: "A",
         start_date: "",
         end_date: "",
         vacancy_status: "Filled",
+        schedule_system_id: "",
+        ehr_id: "",
       },
       {
         id: 2,
         campus: "Main Campus",
         cost_center_name: "5W",
         employee_id: "EMP1002",
-        first_name: "Carlos",
-        last_name: "García",
-        position: "NA/UC",
-        job_name: "Nurse Assistant / Unit Clerk",
+        first_name: "Michael",
+        last_name: "Lopez",
+        position: "CNA",
+        job_name: "NA/UC",
         unit_fte: 0.9,
-        shift: "",
-        shift_group: "",
+        shift: "Day",
+        shift_group: "Day",
         weekend_group: "C",
         start_date: "",
         end_date: "",
         vacancy_status: "Filled",
-      },
-      {
-        id: 3,
-        campus: "Main Campus",
-        cost_center_name: "5W",
-        employee_id: "EMP1003",
-        first_name: "",
-        last_name: "",
-        position: "",
-        job_name: "",
-        unit_fte: 0.9,
-        shift: "",
-        shift_group: "",
-        weekend_group: "",
-        start_date: "",
-        end_date: "",
-        vacancy_status: "",
+        schedule_system_id: "",
+        ehr_id: "",
       },
     ]
 
-    // keep existing + ensure the 3 mock rows exist (by employee_id)
-    const existingIds = new Set(resourceArray.map((r) => r.employee_id))
     const merged = [
+      ...mockEmployees.filter(
+        (mock) => !resourceArray.some((e) => e.employee_id === mock.employee_id)
+      ),
       ...resourceArray,
-      ...mockEmployees.filter((m) => !existingIds.has(m.employee_id)),
     ]
 
     setRows(merged)
-  }, [data?.resourceInput])
+    updateData("resourceInput", merged)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-  // ------------------------------
-  // TABLE WIDTH FOR BOTTOM SCROLLBAR
-  // ------------------------------
+  // Recompute table scroll width whenever structure changes ---
   useEffect(() => {
-    const fixedColsWidth =
-      (colVisible.info ? colWidth.info : 0) +
-      (colVisible.cost_center_name ? colWidth.cost_center_name : 0) +
-      (colVisible.employee_id ? colWidth.employee_id : 0) +
-      (colVisible.full_name ? colWidth.full_name : 0) +
-      (colVisible.job_name ? colWidth.job_name : 0) +
-      (colVisible.unit_fte ? colWidth.unit_fte : 0) +
-      (colVisible.shift_group ? colWidth.shift_group : 0) +
-      (colVisible.weekend_group ? colWidth.weekend_group : 0)
+    if (tableScrollRef.current) {
+      setTableScrollWidth(tableScrollRef.current.scrollWidth)
+    }
+  }, [rows, colWidth, colVisible])
 
-    const availabilityWidth = colVisible.availability ? colWidth.availability : 0
-    const fullWidth = fixedColsWidth + availabilityWidth + 40 // a little padding
+  // Positions
+  const positions =
+    Array.isArray(data?.staffingConfig) && data.staffingConfig.length > 0
+      ? data.staffingConfig.map((p: any) => p.role)
+      : ["RN", "LPN", "CNA", "Clerk"]
 
-    const weeksWidth = totalWeeksWidth
-
-    setTableScrollWidth(fullWidth + weeksWidth)
-  }, [colWidth, colVisible, totalWeeksWidth])
-
-  // ------------------------------
-  // STAFFING CONFIG HELPERS
-  // ------------------------------
-  const positions: string[] = Array.from(
-    new Set(
-      (data?.staffingConfig || []).map((row: any) => row.resource_type || row.job)
-    )
-  ).filter(Boolean)
-
-  const getFilteredShifts = (resourceType: string): string[] => {
-    if (!resourceType) return []
-    return (data?.staffingConfig || [])
-      .filter((row: any) => row.resource_type === resourceType)
-      .map((row: any) => row.shift_group_name || row.shift_group || "")
-      .filter(Boolean)
+  const getFilteredShifts = (position: string) => {
+    if (!Array.isArray(data?.shiftConfig)) return []
+    return (data.shiftConfig || [])
+      .filter((shift: any) => shift.roles?.includes(position))
+      .map((shift: any) => shift.shift_label)
   }
 
-  const [weekendGroupList, setWeekendGroupList] = useState<string[]>(weekendGroups)
+  const [weekendGroupList, setWeekendGroupList] =
+    useState<string[]>(weekendGroups)
 
   useEffect(() => {
-    if (!data?.staffingConfig) return
-    const derivedWeekendGroups = Array.from(
-      new Set(
-        (data.staffingConfig as any[])
-          .map((r) => r.weekend_group)
-          .filter(Boolean)
+    if (Array.isArray(data?.staffingConfig)) {
+      const groups = Array.from(
+        new Set(
+          (data.staffingConfig || [])
+            .map((r: any) => r.weekend_rotation)
+            .filter((g: string) => g && weekendGroups.includes(g))
+        )
       )
-    ) as string[]
-    if (derivedWeekendGroups.length > 0) {
-      setWeekendGroupList(derivedWeekendGroups)
+      if (groups.length > 0) setWeekendGroupList(groups)
     }
   }, [data?.staffingConfig])
 
-  // ------------------------------
-  // CHANGE HANDLER
-  // ------------------------------
+  // Change handler
   const handleChange = async (
     index: number,
     field: keyof ResourceRow,
@@ -299,7 +261,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     const prevValue = updated[index][field]
     updated[index] = { ...updated[index], [field]: value }
 
-    // Duplicate employee guard
     if (field === "employee_id" || field === "id") {
       const duplicateIndex = updated.findIndex(
         (r, i) => i !== index && r.employee_id === value
@@ -311,7 +272,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
           existing.first_name !== current.first_name ||
           existing.last_name !== current.last_name ||
           existing.position !== current.position
-
         if (differs) {
           const result = await Swal.fire({
             title: "Duplicate ID Detected",
@@ -321,7 +281,6 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
             confirmButtonText: "Yes, overwrite",
             cancelButtonText: "No, keep both",
           })
-
           if (result.isConfirmed) {
             updated[duplicateIndex] = { ...current }
             Swal.fire(
@@ -342,9 +301,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     debouncedSave(updated)
   }
 
-  // ------------------------------
-  // EMPLOYEE INFO DRAWER HELPERS
-  // ------------------------------
+  // Drawer helpers
   const openDrawerForRow = (
     rowIndex: number,
     mode: "view" | "edit",
@@ -399,9 +356,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     setDrawerRow((prev) => (prev ? { ...prev, [field]: value } : prev))
   }
 
-  // ------------------------------
-  // AVAILABILITY DRAWER HELPERS
-  // ------------------------------
+  // Availability drawer helpers
   const openAvailabilityForRow = (rowIndex: number, weekStart?: string) => {
     setAvailabilityRowIndex(rowIndex)
     setAvailabilityWeek(weekStart ?? null)
@@ -422,10 +377,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
 
     setRows((prev) => {
       const updated = [...prev]
-      const target = {
-        ...updated[availabilityRowIndex],
-        availability: entries,
-      }
+      const target = { ...updated[availabilityRowIndex], availability: entries }
       updated[availabilityRowIndex] = target
       debouncedSave(updated)
       return updated
@@ -437,9 +389,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
   const currentAvailabilityRow =
     availabilityRowIndex !== null ? rows[availabilityRowIndex] : null
 
-  // ------------------------------
-  // ADD ROW
-  // ------------------------------
+  // Add row
   const addRow = () => {
     const newRow: ResourceRow = {
       id: Date.now(),
@@ -465,9 +415,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     openDrawerForRow(newIndex, "edit", true)
   }
 
-  // ------------------------------
-  // CSV UPLOAD / EXPORT
-  // ------------------------------
+  // CSV upload / export
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -480,85 +428,129 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
 
         const newRows: ResourceRow[] = rawData.map((row) => ({
           campus: row.Campus || "",
-          cost_center_name: row["Cost Center Name"] || "",
-          employee_id: row["Employee ID"] || "",
-          first_name: row["First Name"] || "",
-          last_name: row["Last Name"] || "",
-          position: row.Position || "",
-          job_name: row["Job Name"] || "",
-          unit_fte: Number(row["Unit FTE"] || 1),
-          shift: row.Shift || "",
-          shift_group: row["Shift Group"] || "",
-          weekend_group: row["Weekend Group"] || "",
-          start_date: row["Start Date"] || "",
-          end_date: row["End Date"] || "",
-          vacancy_status: row["Vacancy Status"] || "",
-          id: Date.now() + Math.random(),
+          cost_center_name: row.Cost_Center_Name || "",
+          employee_id: row.ID || row.employee_id || "",
+          first_name: row.First_Name || row.first_name || "",
+          last_name: row.Last_Name || row.last_name || "",
+          position: row.Position || row.position || "",
+          job_name: row.Job_Name || row.job_name || row.Position || "",
+          unit_fte: Number(row.Unit_FTE || row.unit_fte || 0),
+          shift: row.Shift || row.shift || "",
+          shift_group: row.Shift_Group || row.shift_group || row.Shift || "",
+          weekend_group: normalizeGroup(row.Weekend_Group || row.weekend_group),
+          start_date: row.Start_Date || "",
+          end_date: row.End_Date || "",
+          vacancy_status: row.Vacancy_Status || row.vacancy_status || "",
         }))
 
-        const updated = [...rows, ...newRows]
-        setRows(updated)
-        debouncedSave(updated)
+        let merged = [...rows]
+
+        for (const newRow of newRows) {
+          if (
+            !newRow.employee_id &&
+            !newRow.first_name &&
+            !newRow.last_name &&
+            !newRow.position
+          )
+            continue
+
+          const matchIndex = merged.findIndex(
+            (r) => r.employee_id === newRow.employee_id
+          )
+
+          if (matchIndex >= 0) {
+            const existing = merged[matchIndex]
+            const differs =
+              existing.first_name !== newRow.first_name ||
+              existing.last_name !== newRow.last_name ||
+              existing.position !== newRow.position ||
+              existing.unit_fte !== newRow.unit_fte ||
+              existing.shift !== newRow.shift ||
+              existing.weekend_group !== newRow.weekend_group ||
+              existing.vacancy_status !== newRow.vacancy_status
+
+            if (differs) {
+              const result = await Swal.fire({
+                title: "Duplicate ID in CSV",
+                text: `Employee ID ${newRow.employee_id} already exists but has different details. Overwrite existing entry?`,
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonText: "Yes, overwrite",
+                cancelButtonText: "No, skip",
+              })
+
+              if (result.isConfirmed) {
+                merged[matchIndex] = { ...existing, ...newRow }
+              }
+            }
+          } else {
+            merged.push({ ...newRow, id: Date.now() })
+          }
+        }
+
+        setRows(merged)
+        updateData("resourceInput", merged)
+        Swal.fire("Upload Complete", "Roster processed successfully!", "success")
         if (fileInputRef.current) fileInputRef.current.value = ""
       },
     })
   }
 
-  const normalizeGroup = (value: string | number | undefined | null): string => {
-    if (value === undefined || value === null) return ""
-    return String(value)
+  const normalizeGroup = (val: any): "A" | "B" | "C" | "WC" | "" => {
+    if (!val) return ""
+    const t = val.toString().toUpperCase()
+    if (["A", "B", "C", "WC"].includes(t)) return t as any
+    if (t.includes("1")) return "A"
+    if (t.includes("2")) return "B"
+    if (t.includes("3")) return "C"
+    if (t.includes("W")) return "WC"
+    return ""
   }
 
   const handleExport = () => {
-    const exportRows = rows.map((row) => ({
-      Campus: row.campus,
-      "Cost Center Name": row.cost_center_name,
-      "Employee ID": row.employee_id,
-      "First Name": row.first_name,
-      "Last Name": row.last_name,
-      Position: row.position,
-      "Job Name": row.job_name,
-      "Unit FTE": row.unit_fte,
-      "Shift Group": normalizeGroup(row.shift_group || row.shift),
-      "Weekend Group": normalizeGroup(row.weekend_group),
-      "Start Date": row.start_date,
-      "End Date": row.end_date,
-      "Vacancy Status": row.vacancy_status,
-    }))
-
-    const worksheet = XLSX.utils.json_to_sheet(exportRows)
-    const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Resource Input")
-    XLSX.writeFile(workbook, "resource-input-export.xlsx")
+    if (rows.length === 0) {
+      Swal.fire("No Data", "There are no rows to export.", "info")
+      return
+    }
+    const csv = Papa.unparse(
+      rows.map(({ id, ...r }) => ({
+        Campus: r.campus || "",
+        Cost_Center_Name: r.cost_center_name || "",
+        ID: r.employee_id || "",
+        First_Name: r.first_name,
+        Last_Name: r.last_name,
+        Position: r.position,
+        Job_Name: r.job_name || "",
+        Unit_FTE: r.unit_fte,
+        Shift: r.shift,
+        Shift_Group: r.shift_group || "",
+        Weekend_Group: r.weekend_group,
+        Start_Date: r.start_date || "",
+        End_Date: r.end_date || "",
+        Vacancy_Status: r.vacancy_status,
+      }))
+    )
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+    const link = document.createElement("a")
+    const url = URL.createObjectURL(blob)
+    link.href = url
+    link.download = "resource_roster.csv"
+    link.click()
+    URL.revokeObjectURL(url)
   }
 
-  // ------------------------------
-  // FILTERING + DROPDOWNS
-  // ------------------------------
+  // Filtering
   const filteredRows = rows.filter((r) => {
-    const campusOk =
-      !filters.campus || r.campus.toLowerCase() === filters.campus.toLowerCase()
-    const ccOk =
-      !filters.cost_center_name ||
-      (r.cost_center_name || "")
-        .toLowerCase()
-        .includes(filters.cost_center_name.toLowerCase())
-    const statusOk =
-      !filters.status ||
-      (r.vacancy_status || "").toLowerCase() === filters.status.toLowerCase()
-    const jobOk =
-      !filters.job_name ||
-      (r.job_name || r.position || "")
-        .toLowerCase()
-        .includes(filters.job_name.toLowerCase())
-    const shiftOk =
-      !filters.shift_group ||
-      normalizeGroup(r.shift_group || r.shift) === filters.shift_group
-    const weekendOk =
-      !filters.weekend_group ||
-      normalizeGroup(r.weekend_group) === filters.weekend_group
-
-    return campusOk && ccOk && statusOk && jobOk && shiftOk && weekendOk
+    return (
+      (!filters.campus || r.campus === filters.campus) &&
+      (!filters.cost_center_name ||
+        r.cost_center_name === filters.cost_center_name) &&
+      (!filters.status || r.vacancy_status === filters.status) &&
+      (!filters.job_name || (r.job_name || r.position) === filters.job_name) &&
+      (!filters.shift_group ||
+        (r.shift_group || r.shift) === filters.shift_group) &&
+      (!filters.weekend_group || r.weekend_group === filters.weekend_group)
+    )
   })
 
   const campuses = Array.from(
@@ -592,23 +584,18 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
     </span>
   )
 
-  // ------------------------------
-  // HEADER AVAILABILITY SCROLLBAR
-  // ------------------------------
+  // Availability header scrollbar → sync all row availability viewports ---
   const handleAvailabilityHeaderScroll = (
     e: React.UIEvent<HTMLDivElement, UIEvent>
   ) => {
     const left = e.currentTarget.scrollLeft
-    const nodes =
-      document.querySelectorAll<HTMLDivElement>(".availability-row")
+    const nodes = document.querySelectorAll<HTMLDivElement>(".availability-row")
     nodes.forEach((node) => {
       node.scrollLeft = left
     })
   }
 
-  // ------------------------------
-  // RENDER
-  // ------------------------------
+  // Render
   return (
     <Card className="p-4 space-y-4">
       {/* Header */}
@@ -669,9 +656,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
       <div className="flex flex-wrap gap-3 items-center mb-3">
         <Select
           value={filters.campus}
-          onChange={(e) =>
-            setFilters((prev) => ({ ...prev, campus: e.target.value }))
-          }
+          onChange={(e) => setFilters({ ...filters, campus: e.target.value })}
         >
           <option value="">All Campuses</option>
           {campuses.map((c) => (
@@ -682,10 +667,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
         <Select
           value={filters.cost_center_name}
           onChange={(e) =>
-            setFilters((prev) => ({
-              ...prev,
-              cost_center_name: e.target.value,
-            }))
+            setFilters({ ...filters, cost_center_name: e.target.value })
           }
         >
           <option value="">All Cost Centers</option>
@@ -696,9 +678,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
 
         <Select
           value={filters.status}
-          onChange={(e) =>
-            setFilters((prev) => ({ ...prev, status: e.target.value }))
-          }
+          onChange={(e) => setFilters({ ...filters, status: e.target.value })}
         >
           <option value="">All Statuses</option>
           {statuses.map((s) => (
@@ -709,7 +689,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
         <Select
           value={filters.job_name}
           onChange={(e) =>
-            setFilters((prev) => ({ ...prev, job_name: e.target.value }))
+            setFilters({ ...filters, job_name: e.target.value })
           }
         >
           <option value="">All Job Names</option>
@@ -721,7 +701,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
         <Select
           value={filters.shift_group}
           onChange={(e) =>
-            setFilters((prev) => ({ ...prev, shift_group: e.target.value }))
+            setFilters({ ...filters, shift_group: e.target.value })
           }
         >
           <option value="">All Shift Groups</option>
@@ -733,7 +713,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
         <Select
           value={filters.weekend_group}
           onChange={(e) =>
-            setFilters((prev) => ({ ...prev, weekend_group: e.target.value }))
+            setFilters({ ...filters, weekend_group: e.target.value })
           }
         >
           <option value="">All Weekend Groups</option>
@@ -770,195 +750,337 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
           {isColumnMenuOpen && (
             <>
               <div
-                className="fixed inset-0 z-10"
+                className="fixed inset-0 z-30"
                 onClick={() => setIsColumnMenuOpen(false)}
               />
-              <div className="absolute right-0 z-20 mt-2 w-56 bg-white border rounded-lg shadow-lg p-3 space-y-2">
-                <p className="text-xs font-semibold text-gray-500">
-                  Toggle columns
+              <div className="absolute right-0 z-40 mt-2 w-60 rounded-md bg-white shadow-lg border p-3">
+                <p className="text-xs font-semibold text-gray-500 mb-2">
+                  Show / hide columns
                 </p>
-                {COLUMN_CONFIG.map((col) => (
-                  <label
-                    key={col.key}
-                    className="flex items-center gap-2 text-sm"
+
+                <div className="flex justify-between mb-2">
+                  <button
+                    className="text-blue-600 text-xs hover:underline"
+                    onClick={() => {
+                      const updated: any = {}
+                      COLUMN_CONFIG.forEach((c) => (updated[c.key] = true))
+                      setColVisible(updated)
+                    }}
                   >
-                    <input
-                      type="checkbox"
-                      checked={colVisible[col.key]}
-                      onChange={() => toggleColumn(col.key)}
-                    />
-                    <span>{col.label}</span>
-                  </label>
-                ))}
+                    Select All
+                  </button>
+                  <button
+                    className="text-blue-600 text-xs hover:underline"
+                    onClick={() => {
+                      const updated: any = {}
+                      COLUMN_CONFIG.forEach((c) => (updated[c.key] = false))
+                      setColVisible(updated)
+                    }}
+                  >
+                    Deselect All
+                  </button>
+                </div>
+
+                <div className="space-y-1 max-h-64 overflow-y-auto">
+                  {COLUMN_CONFIG.map((col) => (
+                    <label
+                      key={col.key}
+                      className="flex items-center gap-2 text-sm"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={colVisible[col.key]}
+                        onChange={() => toggleColumn(col.key)}
+                      />
+                      <span>{col.label}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
             </>
           )}
         </div>
       </div>
 
-      {/* TABLE + SCROLLBARS */}
-      {rows.length > 0 && (
-        <div className="border rounded-lg overflow-hidden bg-white">
-          {/* Header row with Availability header scrollbar */}
-          <div
-            ref={tableScrollRef}
-            className="overflow-x-hidden"
-            style={{ position: "relative" }}
-          >
-            <table className="min-w-full border-collapse text-xs">
-              <thead>
-                <tr className="bg-gray-50">
-                  {/* Info */}
+      {/* Table */}
+      {filteredRows.length === 0 ? (
+        <p className="text-gray-500">No resource data yet.</p>
+      ) : (
+        <div className="space-y-1">
+          {/* TABLE VIEWPORT (no native scrollbar, driven by bottom bar) */}
+          <div ref={tableScrollRef} className="overflow-x-hidden">
+            <table
+              className="border border-gray-200 text-sm"
+              style={{ tableLayout: "fixed", width: "max-content" }}
+            >
+              <thead className="bg-gray-50">
+                <tr>
                   {colVisible.info && (
                     <th
-                      className="border px-2 py-2 text-center align-middle"
-                      style={{ width: colWidth.info }}
+                      style={{
+                        width: colWidth.info,
+                        minWidth: colWidth.info,
+                        maxWidth: colWidth.info,
+                        display: colVisible.info ? "table-cell" : "none",
+                      }}
+                      className="relative px-3 py-2 border text-center overflow-hidden whitespace-nowrap"
                     >
-                      {headerLabel("«")}
+                      <button
+                        type="button"
+                        className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
+                        onClick={() => toggleColumn("info")}
+                        title="Hide column"
+                      >
+                        ⇤
+                      </button>
+                      {headerLabel("Info")}
                       <div
+                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
                         onMouseDown={(e) => startResizing(e, "info")}
-                        className="w-1 h-full cursor-col-resize inline-block align-middle ml-1"
                       />
                     </th>
                   )}
 
-                  {/* Cost Center */}
                   {colVisible.cost_center_name && (
                     <th
-                      className="border px-2 py-2 text-center align-middle"
-                      style={{ width: colWidth.cost_center_name }}
+                      style={{
+                        width: colWidth.cost_center_name,
+                        minWidth: colWidth.cost_center_name,
+                        maxWidth: colWidth.cost_center_name,
+                        display: colVisible.cost_center_name
+                          ? "table-cell"
+                          : "none",
+                      }}
+                      className="relative px-3 py-2 border overflow-hidden whitespace-nowrap"
                     >
+                      <button
+                        type="button"
+                        className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
+                        onClick={() => toggleColumn("cost_center_name")}
+                        title="Hide column"
+                      >
+                        ⇤
+                      </button>
                       {headerLabel("Cost Center")}
                       <div
-                        onMouseDown={(e) => startResizing(e, "cost_center_name")}
-                        className="w-1 h-full cursor-col-resize inline-block align-middle ml-1"
+                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
+                        onMouseDown={(e) =>
+                          startResizing(e, "cost_center_name")
+                        }
                       />
                     </th>
                   )}
 
-                  {/* Employee ID */}
                   {colVisible.employee_id && (
                     <th
-                      className="border px-2 py-2 text-center align-middle"
-                      style={{ width: colWidth.employee_id }}
+                      style={{
+                        width: colWidth.employee_id,
+                        minWidth: colWidth.employee_id,
+                        maxWidth: colWidth.employee_id,
+                        display: colVisible.employee_id
+                          ? "table-cell"
+                          : "none",
+                      }}
+                      className="relative px-3 py-2 border overflow-hidden whitespace-nowrap"
                     >
+                      <button
+                        type="button"
+                        className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
+                        onClick={() => toggleColumn("employee_id")}
+                        title="Hide column"
+                      >
+                        ⇤
+                      </button>
                       {headerLabel("Employee ID")}
                       <div
+                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
                         onMouseDown={(e) => startResizing(e, "employee_id")}
-                        className="w-1 h-full cursor-col-resize inline-block align-middle ml-1"
                       />
                     </th>
                   )}
 
-                  {/* Full Name */}
                   {colVisible.full_name && (
                     <th
-                      className="border px-2 py-2 text-center align-middle"
-                      style={{ width: colWidth.full_name }}
+                      style={{
+                        width: colWidth.full_name,
+                        minWidth: colWidth.full_name,
+                        maxWidth: colWidth.full_name,
+                        display: colVisible.full_name ? "table-cell" : "none",
+                      }}
+                      className="relative px-3 py-2 border overflow-hidden whitespace-nowrap"
                     >
+                      <button
+                        type="button"
+                        className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
+                        onClick={() => toggleColumn("full_name")}
+                        title="Hide column"
+                      >
+                        ⇤
+                      </button>
                       {headerLabel("Full Name")}
                       <div
+                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
                         onMouseDown={(e) => startResizing(e, "full_name")}
-                        className="w-1 h-full cursor-col-resize inline-block align-middle ml-1"
                       />
                     </th>
                   )}
 
-                  {/* Job Name */}
                   {colVisible.job_name && (
                     <th
-                      className="border px-2 py-2 text-center align-middle"
-                      style={{ width: colWidth.job_name }}
+                      style={{
+                        width: colWidth.job_name,
+                        minWidth: colWidth.job_name,
+                        maxWidth: colWidth.job_name,
+                        display: colVisible.job_name ? "table-cell" : "none",
+                      }}
+                      className="relative px-3 py-2 border overflow-hidden whitespace-nowrap"
                     >
+                      <button
+                        type="button"
+                        className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
+                        onClick={() => toggleColumn("job_name")}
+                        title="Hide column"
+                      >
+                        ⇤
+                      </button>
                       {headerLabel("Job Name")}
                       <div
+                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
                         onMouseDown={(e) => startResizing(e, "job_name")}
-                        className="w-1 h-full cursor-col-resize inline-block align-middle ml-1"
                       />
                     </th>
                   )}
 
-                  {/* Unit FTE */}
                   {colVisible.unit_fte && (
                     <th
-                      className="border px-2 py-2 text-center align-middle"
-                      style={{ width: colWidth.unit_fte }}
+                      style={{
+                        width: colWidth.unit_fte,
+                        minWidth: colWidth.unit_fte,
+                        maxWidth: colWidth.unit_fte,
+                        display: colVisible.unit_fte ? "table-cell" : "none",
+                      }}
+                      className="relative px-3 py-2 border text-right overflow-hidden whitespace-nowrap"
                     >
+                      <button
+                        type="button"
+                        className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
+                        onClick={() => toggleColumn("unit_fte")}
+                        title="Hide column"
+                      >
+                        ⇤
+                      </button>
                       {headerLabel("Unit FTE")}
                       <div
+                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
                         onMouseDown={(e) => startResizing(e, "unit_fte")}
-                        className="w-1 h-full cursor-col-resize inline-block align-middle ml-1"
                       />
                     </th>
                   )}
 
-                  {/* Shift Group */}
                   {colVisible.shift_group && (
                     <th
-                      className="border px-2 py-2 text-center align-middle"
-                      style={{ width: colWidth.shift_group }}
+                      style={{
+                        width: colWidth.shift_group,
+                        minWidth: colWidth.shift_group,
+                        maxWidth: colWidth.shift_group,
+                        display: colVisible.shift_group ? "table-cell" : "none",
+                      }}
+                      className="relative px-3 py-2 border overflow-hidden whitespace-nowrap"
                     >
+                      <button
+                        type="button"
+                        className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
+                        onClick={() => toggleColumn("shift_group")}
+                        title="Hide column"
+                      >
+                        ⇤
+                      </button>
                       {headerLabel("Shift Group")}
                       <div
+                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
                         onMouseDown={(e) => startResizing(e, "shift_group")}
-                        className="w-1 h-full cursor-col-resize inline-block align-middle ml-1"
                       />
                     </th>
                   )}
 
-                  {/* Weekend Group */}
                   {colVisible.weekend_group && (
                     <th
-                      className="border px-2 py-2 text-center align-middle"
-                      style={{ width: colWidth.weekend_group }}
+                      style={{
+                        width: colWidth.weekend_group,
+                        minWidth: colWidth.weekend_group,
+                        maxWidth: colWidth.weekend_group,
+                        display: colVisible.weekend_group
+                          ? "table-cell"
+                          : "none",
+                      }}
+                      className="relative px-3 py-2 border overflow-hidden whitespace-nowrap"
                     >
+                      <button
+                        type="button"
+                        className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
+                        onClick={() => toggleColumn("weekend_group")}
+                        title="Hide column"
+                      >
+                        ⇤
+                      </button>
                       {headerLabel("Weekend")}
                       <div
+                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
                         onMouseDown={(e) => startResizing(e, "weekend_group")}
-                        className="w-1 h-full cursor-col-resize inline-block align-middle ml-1"
                       />
                     </th>
                   )}
 
-                  {/* Availability with its own internal scrollbar */}
                   {colVisible.availability && (
                     <th
-                      className="border px-2 py-2 text-center align-middle"
-                      style={{ width: colWidth.availability }}
+                      style={{
+                        width: colWidth.availability,
+                        minWidth: colWidth.availability,
+                        maxWidth: colWidth.availability,
+                        display: colVisible.availability
+                          ? "table-cell"
+                          : "none",
+                      }}
+                      className="relative px-3 py-2 border overflow-hidden whitespace-nowrap align-top"
                     >
-                      <div className="flex flex-col gap-1">
-                        {headerLabel("Availability")}
-                        <div
-                          ref={availabilityHeaderRef}
-                          className="relative h-4 overflow-x-auto"
-                          onScroll={handleAvailabilityHeaderScroll}
-                        >
-                          <div
-                            style={{
-                              width: totalWeeksWidth,
-                              height: "4px",
-                            }}
-                          />
-                        </div>
-                      </div>
+                      <button
+                        type="button"
+                        className="absolute left-1 top-1 text-xs text-gray-400 hover:text-gray-700"
+                        onClick={() => toggleColumn("availability")}
+                        title="Hide column"
+                      >
+                        ⇤
+                      </button>
+                      {headerLabel("Availability")}
+
+                      {/* SCROLLBAR #1: inside Availability header, controls 52 weeks */}
                       <div
+                        ref={availabilityHeaderRef}
+                        className="mt-1 h-4 overflow-x-auto"
+                        onScroll={handleAvailabilityHeaderScroll}
+                      >
+                        <div style={{ width: totalWeeksWidth }} />
+                      </div>
+
+                      <div
+                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400"
                         onMouseDown={(e) => startResizing(e, "availability")}
-                        className="w-1 h-full cursor-col-resize inline-block align-middle ml-1"
                       />
                     </th>
                   )}
                 </tr>
               </thead>
 
+              {/* BODY */}
               <tbody>
-                {filteredRows.map((row, rowIndex) => {
-                  const effectiveIndex = rows.findIndex(
-                    (r) => r.id === row.id && r.employee_id === row.employee_id
-                  )
+                {filteredRows.map((row, i) => {
+                  const rowIndex = rows.findIndex((r) => r.id === row.id)
+                  const effectiveIndex = rowIndex >= 0 ? rowIndex : i
+                  const filteredShifts = getFilteredShifts(row.position || "")
 
                   return (
                     <ResourceRowItem
-                      key={`${row.id}-${row.employee_id}-${rowIndex}`}
+                      key={row.id || i}
                       row={row}
                       rowIndex={rowIndex}
                       effectiveIndex={effectiveIndex}
@@ -968,8 +1090,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                       jobNames={jobNames}
                       positions={positions}
                       formatFullName={formatFullName}
-                      // pass the filtered shifts array for this row's position
-                      filteredShifts={getFilteredShifts(row.position || "")}
+                      filteredShifts={filteredShifts}
                       startResizing={startResizing}
                       handleChange={handleChange}
                       openDrawerForRow={openDrawerForRow}
@@ -995,7 +1116,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
         </div>
       )}
 
-      {/* Employee Information Drawer (LEFT) */}
+      {/* Employee Information Drawer */}
       {activeInfoRow !== null && drawerRow && (
         <>
           <div
@@ -1101,7 +1222,10 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                     />
                   </div>
                 ) : (
-                  <p>{formatFullName(drawerRow)}</p>
+                  <p>
+                    {`${drawerRow.first_name} ${drawerRow.last_name}`.trim() ||
+                      "—"}
+                  </p>
                 )}
               </div>
 
@@ -1428,21 +1552,56 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
                   <p>{drawerRow.report_to_id || "—"}</p>
                 )}
               </div>
+
+              <div>
+                <p className="font-semibold">Report To Name</p>
+                {drawerMode === "edit" ? (
+                  <Input
+                    id={`report_to_name_${drawerRow.id || "new"}`}
+                    value={drawerRow.report_to_name || ""}
+                    onChange={(e) =>
+                      updateDrawerField("report_to_name", e.target.value)
+                    }
+                  />
+                ) : (
+                  <p>{drawerRow.report_to_name || "—"}</p>
+                )}
+              </div>
             </div>
 
-            <div className="px-5 py-3 border-t flex justify-between">
+            <div className="px-5 py-3 border-t flex justify-between items-center">
               {drawerMode === "view" ? (
                 <>
-                  <Button onClick={() => setDrawerMode("edit")}>Edit</Button>
-                  <Button variant="ghost" onClick={closeDrawer}>
+                  <Button
+                    variant="ghost"
+                    onClick={closeDrawer}
+                    className="text-gray-700"
+                  >
                     Close
+                  </Button>
+
+                  <Button
+                    variant="primary"
+                    onClick={() => setDrawerMode("edit")}
+                  >
+                    Edit
                   </Button>
                 </>
               ) : (
                 <>
-                  <Button onClick={saveDrawer}>Save</Button>
-                  <Button variant="ghost" onClick={cancelDrawerEdit}>
+                  <Button
+                    variant="ghost"
+                    onClick={cancelDrawerEdit}
+                    className="text-gray-700"
+                  >
                     Cancel
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={saveDrawer}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    Save
                   </Button>
                 </>
               )}
@@ -1451,7 +1610,7 @@ export default function ResourceInputCard({ onNext, onPrev }: Props) {
         </>
       )}
 
-      {/* Availability Drawer (RIGHT) */}
+      {/* Availability Drawer */}
       {isAvailabilityOpen && currentAvailabilityRow && (
         <AvailabilityDrawer
           row={currentAvailabilityRow}
