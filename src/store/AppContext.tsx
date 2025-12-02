@@ -89,6 +89,39 @@ export type MasterFilters = {
   };
 };
 
+// =====================================================
+// Default Shift + Job Configuration Types
+// (kept local to FE / Health System Setup)
+// =====================================================
+
+export type DefaultShiftDefinition = {
+  id: number;
+  shift_group: string;
+  shift_name: string;
+  start_time: string;
+  end_time: string;
+  break_minutes: number | "N/A";
+  total_hours: number | "N/A";
+  shift_type?: string;
+  days: string[];
+  campuses: string[];
+};
+
+export type DefaultJobConfiguration = {
+  id: number;
+  resourceType: string;
+  directCarePct: string;
+  category?: string;
+  weekendRotations: string[];
+  campuses: string[];
+  openReqJob: string;
+  rosterJob: string;
+  scheduleJob: string;
+  isCharge?: boolean;
+  isOriented?: boolean;
+  isPreceptor?: boolean;
+};
+
 type AppContextType = {
   state: AppState;
   data: DataState;
@@ -115,6 +148,17 @@ type AppContextType = {
 
   master: MasterFilters;
   setMaster: React.Dispatch<React.SetStateAction<MasterFilters>>;
+
+  // NEW: Default shift + job templates managed in Health System Setup
+  defaultShiftDefinitions: DefaultShiftDefinition[];
+  setDefaultShiftDefinitions: React.Dispatch<
+    React.SetStateAction<DefaultShiftDefinition[]>
+  >;
+
+  defaultJobConfigurations: DefaultJobConfiguration[];
+  setDefaultJobConfigurations: React.Dispatch<
+    React.SetStateAction<DefaultJobConfiguration[]>
+  >;
 };
 
 // =====================================================
@@ -153,6 +197,53 @@ export function AppProvider({ children }: { children: ReactNode }) {
     ],
     categories: ["Nursing", "Support", "Other"],
   });
+
+  // -----------------------------
+  // NEW: Default Shift + Job Config (persisted to LS)
+  // -----------------------------
+  const [defaultShiftDefinitions, setDefaultShiftDefinitions] = useState<
+    DefaultShiftDefinition[]
+  >(() => {
+    try {
+      const raw = localStorage.getItem("hira_default_shift_definitions");
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [defaultJobConfigurations, setDefaultJobConfigurations] = useState<
+    DefaultJobConfiguration[]
+  >(() => {
+    try {
+      const raw = localStorage.getItem("hira_default_job_configurations");
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "hira_default_shift_definitions",
+        JSON.stringify(defaultShiftDefinitions)
+      );
+    } catch {
+      // ignore
+    }
+  }, [defaultShiftDefinitions]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "hira_default_job_configurations",
+        JSON.stringify(defaultJobConfigurations)
+      );
+    } catch {
+      // ignore
+    }
+  }, [defaultJobConfigurations]);
 
   // -----------------------------
   // Step Navigation
@@ -281,7 +372,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   // =====================================================
-  // MOCK DATA LOADING (unchanged)
+  // MOCK DATA LOADING (unchanged for now)
   // =====================================================
   const reloadData = async () => {
     try {
@@ -396,6 +487,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     master,
     setMaster,
+
+    defaultShiftDefinitions,
+    setDefaultShiftDefinitions,
+    defaultJobConfigurations,
+    setDefaultJobConfigurations,
   };
 
   return (

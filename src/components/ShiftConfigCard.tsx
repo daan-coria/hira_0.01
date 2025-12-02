@@ -1,38 +1,44 @@
-import { useEffect, useState, useCallback } from "react"
-import { useApp } from "@/store/AppContext"
-import Card from "@/components/ui/Card"
-import Button from "@/components/ui/Button"
-import Input from "@/components/ui/Input"
-import debounce from "lodash.debounce"
-import Swal from "sweetalert2"
-import "sweetalert2/dist/sweetalert2.min.css"
+import { useEffect, useState, useCallback } from "react";
+import { useApp } from "@/store/AppContext";
+import Card from "@/components/ui/Card";
+import Button from "@/components/ui/Button";
+import Input from "@/components/ui/Input";
+import debounce from "lodash.debounce";
+import Swal from "sweetalert2";
+import "sweetalert2/dist/sweetalert2.min.css";
 
-type ShiftType = "weekday_shift" | "weekend_shift" | "N/A" | ""
+type ShiftType = "weekday_shift" | "weekend_shift" | "N/A" | "";
 
 type ShiftRow = {
-  id: number
-  shift_group: string
-  shift_name: string
-  start_time: string
-  end_time: string
-  break_minutes: number | "N/A"
-  total_hours: number | "N/A"
-  shift_type: ShiftType
-  days: string[]
-  campuses: string[]
-}
+  id: number;
+  shift_group: string;
+  shift_name: string;
+  start_time: string;
+  end_time: string;
+  break_minutes: number | "N/A";
+  total_hours: number | "N/A";
+  shift_type: ShiftType;
+  days: string[];
+  campuses: string[];
+};
 
-type SortMode = "none" | "start" | "end" | "hours" | "group"
+type SortMode = "none" | "start" | "end" | "hours" | "group";
 
-type Props = { onNext?: () => void; onPrev?: () => void }
+type Props = { onNext?: () => void; onPrev?: () => void };
 
 export default function ShiftConfigCard({ onNext, onPrev }: Props) {
-  const { data, updateData } = useApp()
-  const [rows, setRows] = useState<ShiftRow[]>([])
-  const [saving, setSaving] = useState(false)
-  const [filterGroup, setFilterGroup] = useState<string>("")
-  const [sortMode, setSortMode] = useState<SortMode>("none")
-  const [dragId, setDragId] = useState<number | null>(null)
+  const {
+    data,
+    updateData,
+    defaultShiftDefinitions,
+    setDefaultShiftDefinitions,
+  } = useApp();
+
+  const [rows, setRows] = useState<ShiftRow[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [filterGroup, setFilterGroup] = useState<string>("");
+  const [sortMode, setSortMode] = useState<SortMode>("none");
+  const [dragId, setDragId] = useState<number | null>(null);
 
   const daysOfWeek = [
     "Monday",
@@ -42,21 +48,22 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
     "Friday",
     "Saturday",
     "Sunday",
-  ]
+  ];
 
-  const campusOptions = ["Lansing", "Bay", "Flint"]
-  const shiftGroupSuggestions = ["Day", "Evening", "Night"]
+  const campusOptions = ["Lansing", "Bay", "Flint"];
+  const shiftGroupSuggestions = ["Day", "Evening", "Night"];
 
   // -------------------------
   // DEBOUNCED SAVE
   // -------------------------
   const debouncedSave = useCallback(
     debounce((updated: ShiftRow[]) => {
-      updateData("shiftConfig", updated)
-      setSaving(false)
+      updateData("shiftConfig", updated);
+      setDefaultShiftDefinitions(updated as any);
+      setSaving(false);
     }, 1200),
-    []
-  )
+    [updateData, setDefaultShiftDefinitions]
+  );
 
   // -------------------------
   // SHIFT NAME BUILDER
@@ -72,8 +79,8 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
     const weekdaySet = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
     const weekendSet = ["Saturday", "Sunday"];
 
-    const hasWeekday = days.some(d => weekdaySet.includes(d));
-    const hasWeekend = days.some(d => weekendSet.includes(d));
+    const hasWeekday = days.some((d) => weekdaySet.includes(d));
+    const hasWeekend = days.some((d) => weekendSet.includes(d));
 
     // A. If exactly 1 day → show that day
     if (days.length === 1) {
@@ -81,18 +88,12 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
     }
 
     // B. If all 5 weekdays → "Weekday"
-    if (
-      days.length === 5 &&
-      weekdaySet.every(d => days.includes(d))
-    ) {
+    if (days.length === 5 && weekdaySet.every((d) => days.includes(d))) {
       return buildFinalShiftLabel("Weekday", start, end, breakMinutes);
     }
 
     // C. If Saturday + Sunday → "Weekend"
-    if (
-      days.length === 2 &&
-      weekendSet.every(d => days.includes(d))
-    ) {
+    if (days.length === 2 && weekendSet.every((d) => days.includes(d))) {
       return buildFinalShiftLabel("Weekend", start, end, breakMinutes);
     }
 
@@ -103,7 +104,7 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
 
     // E. Mixed weekday + weekend
     return buildFinalShiftLabel("Mixed", start, end, breakMinutes);
-    };
+  };
 
   // -------------------------
   // FINAL LABEL BUILDER
@@ -143,95 +144,110 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
   };
 
   // -------------------------
-  // LOAD EXISTING (normalize)
-  // -------------------------
-    useEffect(() => {
-      const raw = Array.isArray(data?.shiftConfig) ? data.shiftConfig : [];
-
-      if (raw.length === 3) {
-        const starterRows: ShiftRow[] = Array.from({ length: 3 }).map(() => ({
-          id: Date.now() + Math.random(),
-          shift_group: "",
-          shift_name: "N/A",
-          start_time: "N/A",
-          end_time: "N/A",
-          break_minutes: "N/A",
-          total_hours: "N/A",
-          shift_type: "N/A",
-          days: [],
-          campuses: [],
-        }));
-
-        setRows(starterRows);
-        updateData("shiftConfig", starterRows);
-        return;
-      }
-
-      const normalized = raw.map((r: any) => ({
-        id: typeof r.id === "number" ? r.id : Date.now(),
-        shift_group: r.shift_group ?? "",
-        shift_name: r.shift_name || "N/A",
-        start_time: r.start_time || "N/A",
-        end_time: r.end_time || "N/A",
-        break_minutes:
-          typeof r.break_minutes === "number" ? r.break_minutes : "N/A",
-        total_hours:
-          typeof r.total_hours === "number" ? r.total_hours : "N/A",
-        shift_type: r.shift_type || "N/A",
-        days: Array.isArray(r.days) ? r.days : [],
-        campuses: Array.isArray(r.campuses) ? r.campuses : [],
-      }));
-
-      setRows(normalized);
-    }, [data?.shiftConfig]);
-
-  // -------------------------
   // TIME HELPERS
   // -------------------------
-    const isValidTime = (value: string) => /^([01]\d|2[0-3]):([0-5]\d)$/.test(value)
+  const isValidTime = (value: string) =>
+    /^([01]\d|2[0-3]):([0-5]\d)$/.test(value);
 
-    const calculateHours = (start: string, end: string, breakMinutes: number) => {
-      if (!isValidTime(start) || !isValidTime(end)) return "N/A"
+  const calculateHours = (
+    start: string,
+    end: string,
+    breakMinutes: number
+  ): number | "N/A" => {
+    if (!isValidTime(start) || !isValidTime(end)) return "N/A";
 
-      const [sH, sM] = start.split(":").map(Number)
-      const [eH, eM] = end.split(":").map(Number)
+    const [sH, sM] = start.split(":").map(Number);
+    const [eH, eM] = end.split(":").map(Number);
 
-      const s = new Date(0, 0, 0, sH, sM)
-      const e = new Date(0, 0, 0, eH, eM)
+    const s = new Date(0, 0, 0, sH, sM);
+    const e = new Date(0, 0, 0, eH, eM);
 
-      let diff = (e.getTime() - s.getTime()) / (1000 * 60 * 60)
-      if (diff < 0) diff += 24
+    let diff = (e.getTime() - s.getTime()) / (1000 * 60 * 60);
+    if (diff < 0) diff += 24;
 
-      diff -= breakMinutes / 60
-      if (diff < 0) diff = 0
+    diff -= breakMinutes / 60;
+    if (diff < 0) diff = 0;
 
-      return Number(diff.toFixed(2))
+    return Number(diff.toFixed(2));
+  };
+
+  const recalcRow = (row: ShiftRow): ShiftRow => {
+    if (
+      row.start_time === "N/A" ||
+      row.end_time === "N/A" ||
+      row.break_minutes === "N/A"
+    ) {
+      return { ...row, total_hours: "N/A" };
     }
 
-    const recalcRow = (row: ShiftRow): ShiftRow => {
-      if (
-        row.start_time === "N/A" ||
-        row.end_time === "N/A" ||
-        row.break_minutes === "N/A"
-      ) {
-        return { ...row, total_hours: "N/A" }
-      }
+    return {
+      ...row,
+      total_hours: calculateHours(
+        row.start_time,
+        row.end_time,
+        Number(row.break_minutes)
+      ),
+    };
+  };
 
-      return {
-        ...row,
-        total_hours: calculateHours(
-          row.start_time,
-          row.end_time,
-          Number(row.break_minutes)
-        ),
-      }
+  // -------------------------
+  // LOAD EXISTING (normalize)
+  // Prefer defaults defined in Health System Setup
+  // -------------------------
+  useEffect(() => {
+    const sourceRaw = Array.isArray(defaultShiftDefinitions) &&
+      defaultShiftDefinitions.length
+      ? defaultShiftDefinitions
+      : Array.isArray(data?.shiftConfig)
+      ? data.shiftConfig
+      : [];
+
+    if (!sourceRaw || sourceRaw.length === 0) {
+      // No existing data → start with 3 N/A rows
+      const starterRows: ShiftRow[] = Array.from({ length: 3 }).map(() => ({
+        id: Date.now() + Math.random(),
+        shift_group: "",
+        shift_name: "N/A",
+        start_time: "N/A",
+        end_time: "N/A",
+        break_minutes: "N/A",
+        total_hours: "N/A",
+        shift_type: "N/A",
+        days: [],
+        campuses: [],
+      }));
+      setRows(starterRows);
+      updateData("shiftConfig", starterRows);
+      setDefaultShiftDefinitions(starterRows as any);
+      return;
     }
+
+    const normalized = sourceRaw.map((r: any) => ({
+      id: typeof r.id === "number" ? r.id : Date.now() + Math.random(),
+      shift_group: r.shift_group ?? "",
+      shift_name: r.shift_name || "N/A",
+      start_time: r.start_time || "N/A",
+      end_time: r.end_time || "N/A",
+      break_minutes:
+        typeof r.break_minutes === "number" ? r.break_minutes : "N/A",
+      total_hours:
+        typeof r.total_hours === "number" ? r.total_hours : "N/A",
+      shift_type: (r.shift_type as ShiftType) || "N/A",
+      days: Array.isArray(r.days) ? r.days : [],
+      campuses: Array.isArray(r.campuses) ? r.campuses : [],
+    }));
+
+    setRows(normalized);
+  }, [data?.shiftConfig, defaultShiftDefinitions, updateData, setDefaultShiftDefinitions]);
 
   // -------------------------
   // UPDATE FIELD (TS SAFE)
   // -------------------------
 
-  const defaultShiftByGroup: Record<string, { start: string; end: string; break: number }> = {
+  const defaultShiftByGroup: Record<
+    string,
+    { start: string; end: string; break: number }
+  > = {
     Day: { start: "07:00", end: "19:00", break: 0 },
     Evening: { start: "15:00", end: "23:00", break: 0 },
     Night: { start: "19:00", end: "07:00", break: 0 },
@@ -245,8 +261,8 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
   ) => {
     setSaving(true);
 
-    setRows(prev => {
-      const updated = prev.map(row => {
+    setRows((prev) => {
+      const updated = prev.map((row) => {
         if (row.id !== id) return row;
 
         let newRow = { ...row };
@@ -372,12 +388,12 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
   };
 
   const updateRowDays = (id: number, days: string[]) => {
-    updateRowField(id, "days", days)
-  }
+    updateRowField(id, "days", days);
+  };
 
   const updateRowCampuses = (id: number, c: string[]) => {
-    updateRowField(id, "campuses", c)
-  }
+    updateRowField(id, "campuses", c);
+  };
 
   // -------------------------
   // ADD / REMOVE
@@ -394,17 +410,18 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
       shift_type: "N/A",
       days: [],
       campuses: [],
-    }
-    const updated = [...rows, newRow]
-    setRows(updated)
-    debouncedSave(updated)
-  }
+    };
+    const updated = [...rows, newRow];
+    setRows(updated);
+    debouncedSave(updated);
+  };
 
   const removeRow = (id: number) => {
-    const updated = rows.filter(r => r.id !== id)
-    setRows(updated)
-    updateData("shiftConfig", updated)
-  }
+    const updated = rows.filter((r) => r.id !== id);
+    setRows(updated);
+    updateData("shiftConfig", updated);
+    setDefaultShiftDefinitions(updated as any);
+  };
 
   const clearAll = () => {
     Swal.fire({
@@ -413,70 +430,71 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
       showCancelButton: true,
       confirmButtonColor: "#d33",
       confirmButtonText: "Yes, clear all",
-    }).then(res => {
+    }).then((res) => {
       if (res.isConfirmed) {
-        setRows([])
-        updateData("shiftConfig", [])
+        setRows([]);
+        updateData("shiftConfig", []);
+        setDefaultShiftDefinitions([]);
       }
-    })
-  }
+    });
+  };
 
   // -------------------------
   // DRAG & DROP (FULLY FIXED)
   // -------------------------
   const handleDragStart = (id: number) => {
-    setDragId(id)
-  }
+    setDragId(id);
+  };
 
   const handleDrop = (targetId: number) => {
-    if (dragId === null || dragId === targetId) return
+    if (dragId === null || dragId === targetId) return;
 
-    setRows(prev => {
-      const currentIndex = prev.findIndex(r => r.id === dragId)
-      const targetIndex = prev.findIndex(r => r.id === targetId)
+    setRows((prev) => {
+      const currentIndex = prev.findIndex((r) => r.id === dragId);
+      const targetIndex = prev.findIndex((r) => r.id === targetId);
 
-      if (currentIndex === -1 || targetIndex === -1) return prev
+      if (currentIndex === -1 || targetIndex === -1) return prev;
 
-      const updated = [...prev]
-      const [moved] = updated.splice(currentIndex, 1)
-      updated.splice(targetIndex, 0, moved)
+      const updated = [...prev];
+      const [moved] = updated.splice(currentIndex, 1);
+      updated.splice(targetIndex, 0, moved);
 
-      debouncedSave(updated)
-      return updated
-    })
+      debouncedSave(updated);
+      return updated;
+    });
 
-    setDragId(null)
-  }
+    setDragId(null);
+  };
 
   // -------------------------
   // FILTER + SORT
   // -------------------------
-  let displayRows = rows
+  let displayRows = rows;
 
   if (filterGroup) {
-    displayRows = displayRows.filter(r => r.shift_group === filterGroup)
+    displayRows = displayRows.filter((r) => r.shift_group === filterGroup);
   }
 
   if (sortMode !== "none") {
     displayRows = [...displayRows].sort((a, b) => {
       switch (sortMode) {
         case "start":
-          return a.start_time.localeCompare(b.start_time)
+          return a.start_time.localeCompare(b.start_time);
         case "end":
-          return a.end_time.localeCompare(b.end_time)
+          return a.end_time.localeCompare(b.end_time);
         case "hours":
-          if (a.total_hours === "N/A") return 1
-          if (b.total_hours === "N/A") return -1
-          return (a.total_hours as number) - (b.total_hours as number)
+          if (a.total_hours === "N/A") return 1;
+          if (b.total_hours === "N/A") return -1;
+          return (a.total_hours as number) - (b.total_hours as number);
         case "group":
-          return a.shift_group.localeCompare(b.shift_group)
+          return a.shift_group.localeCompare(b.shift_group);
         default:
-          return 0
+          return 0;
       }
-    })
+    });
   }
 
-  const isLocked = (row: ShiftRow) => !row.shift_group
+  const isLocked = (row: ShiftRow) => !row.shift_group;
 
   // -------------------------
   // RENDER
@@ -506,15 +524,15 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
           <span className="mr-2">Filter Group:</span>
           <select
             value={filterGroup}
-            onChange={e => setFilterGroup(e.target.value)}
+            onChange={(e) => setFilterGroup(e.target.value)}
             className="border rounded px-2 py-1"
           >
             <option value="">All</option>
-            {Array.from(new Set(rows.map(r => r.shift_group).filter(Boolean))).map(
-              g => (
-                <option key={g}>{g}</option>
-              )
-            )}
+            {Array.from(
+              new Set(rows.map((r) => r.shift_group).filter(Boolean))
+            ).map((g) => (
+              <option key={g}>{g}</option>
+            ))}
           </select>
         </div>
 
@@ -522,7 +540,7 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
           <span className="mr-2">Sort:</span>
           <select
             value={sortMode}
-            onChange={e => setSortMode(e.target.value as SortMode)}
+            onChange={(e) => setSortMode(e.target.value as SortMode)}
             className="border rounded px-2 py-1"
           >
             <option value="none">None (drag reorder)</option>
@@ -536,7 +554,7 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
 
       {/* SHIFT GROUP AUTOCOMPLETE */}
       <datalist id="shift-group-suggestions">
-        {shiftGroupSuggestions.map(g => (
+        {shiftGroupSuggestions.map((g) => (
           <option key={g} value={g} />
         ))}
       </datalist>
@@ -560,12 +578,12 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
           </thead>
 
           <tbody>
-            {displayRows.map(row => (
+            {displayRows.map((row) => (
               <tr
                 key={row.id}
                 draggable={sortMode === "none"}
                 onDragStart={() => handleDragStart(row.id)}
-                onDragOver={e => sortMode === "none" && e.preventDefault()}
+                onDragOver={(e) => sortMode === "none" && e.preventDefault()}
                 onDrop={() => sortMode === "none" && handleDrop(row.id)}
                 className="odd:bg-white even:bg-gray-50 hover:bg-gray-100"
                 style={{
@@ -580,7 +598,7 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                     id=""
                     value={row.shift_group}
                     list="shift-group-suggestions"
-                    onChange={e =>
+                    onChange={(e) =>
                       updateRowField(row.id, "shift_group", e.target.value)
                     }
                     className="!m-0 !p-1"
@@ -594,7 +612,7 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                   ) : (
                     <textarea
                       value={row.shift_name}
-                      onChange={e =>
+                      onChange={(e) =>
                         updateRowField(row.id, "shift_name", e.target.value)
                       }
                       className="
@@ -628,13 +646,13 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                     <Input
                       id=""
                       type="time"
-                      step="60"     // 1-minute increments, or change to 900 for 15-minute
-                      value={row.start_time}
-                      onChange={e =>
+                      step="60"
+                      value={row.start_time === "N/A" ? "" : row.start_time}
+                      onChange={(e) =>
                         updateRowField(
                           row.id,
                           "start_time",
-                          e.target.value,
+                          e.target.value || "N/A",
                           true
                         )
                       }
@@ -653,12 +671,12 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                       id=""
                       type="time"
                       step="60"
-                      value={row.end_time}
-                      onChange={e =>
+                      value={row.end_time === "N/A" ? "" : row.end_time}
+                      onChange={(e) =>
                         updateRowField(
                           row.id,
                           "end_time",
-                          e.target.value,
+                          e.target.value || "N/A",
                           true
                         )
                       }
@@ -676,8 +694,12 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                     <Input
                       id=""
                       type="number"
-                      value={row.break_minutes}
-                      onChange={e =>
+                      value={
+                        row.break_minutes === "N/A"
+                          ? ""
+                          : String(row.break_minutes)
+                      }
+                      onChange={(e) =>
                         updateRowField(
                           row.id,
                           "break_minutes",
@@ -703,23 +725,23 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                     "N/A"
                   ) : (
                     <div className="flex flex-col gap-1 text-xs max-h-28 overflow-auto">
-                      {daysOfWeek.map(day => {
-                        const checked = row.days.includes(day)
+                      {daysOfWeek.map((day) => {
+                        const checked = row.days.includes(day);
                         return (
                           <label key={day} className="flex items-center gap-1">
                             <input
                               type="checkbox"
                               checked={checked}
-                              onChange={e => {
+                              onChange={(e) => {
                                 const updated = e.target.checked
                                   ? [...row.days, day]
-                                  : row.days.filter(d => d !== day)
-                                updateRowDays(row.id, updated)
+                                  : row.days.filter((d) => d !== day);
+                                updateRowDays(row.id, updated);
                               }}
                             />
                             {day}
                           </label>
-                        )
+                        );
                       })}
                     </div>
                   )}
@@ -731,23 +753,26 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
                     "N/A"
                   ) : (
                     <div className="flex flex-col gap-1 text-xs max-h-28 overflow-auto">
-                      {campusOptions.map(campus => {
-                        const checked = row.campuses.includes(campus)
+                      {campusOptions.map((campus) => {
+                        const checked = row.campuses.includes(campus);
                         return (
-                          <label key={campus} className="flex items-center gap-1">
+                          <label
+                            key={campus}
+                            className="flex items-center gap-1"
+                          >
                             <input
                               type="checkbox"
                               checked={checked}
-                              onChange={e => {
+                              onChange={(e) => {
                                 const updated = e.target.checked
                                   ? [...row.campuses, campus]
-                                  : row.campuses.filter(c => c !== campus)
-                                updateRowCampuses(row.id, updated)
+                                  : row.campuses.filter((c) => c !== campus);
+                                updateRowCampuses(row.id, updated);
                               }}
                             />
                             {campus}
                           </label>
-                        )
+                        );
                       })}
                     </div>
                   )}
@@ -769,5 +794,5 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
         </table>
       </div>
     </Card>
-  )
+  );
 }
