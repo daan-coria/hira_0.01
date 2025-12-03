@@ -578,8 +578,8 @@ export default function HealthSystemSetupPage() {
                     <th className="border px-2 py-1">End</th>
                     <th className="border px-2 py-1">Break (min)</th>
                     <th className="border px-2 py-1">Hours</th>
-                    <th className="border px-2 py-1">Days (comma)</th>
-                    <th className="border px-2 py-1">Campuses (comma)</th>
+                    <th className="border px-2 py-1">Days</th>
+                    <th className="border px-2 py-1">Campuses</th>
                     <th className="border px-2 py-1">Actions</th>
                   </tr>
                 </thead>
@@ -705,22 +705,29 @@ export default function HealthSystemSetupPage() {
                       </td>
                       <td className="border px-2 py-1 align-top">
                         <div className="flex flex-col gap-1 max-h-28 overflow-auto text-xs">
+
+                          {campuses.length === 0 && (
+                            <div className="text-gray-400 text-[11px]">No campuses defined</div>
+                          )}
+
                           {campuses.map((c) => {
-                            const name = c.name;
-                            const checked = row.campuses.includes(name);
+                            const campusName = c.name; // Campus label
+                            const checked = row.campuses.includes(campusName);
+
                             return (
-                              <label key={name} className="flex items-center gap-1">
+                              <label key={c.key} className="flex items-center gap-1">
                                 <input
                                   type="checkbox"
                                   checked={checked}
                                   onChange={(e) => {
                                     const updated = e.target.checked
-                                      ? [...row.campuses, name]
-                                      : row.campuses.filter((x) => x !== name);
+                                      ? [...row.campuses, campusName]
+                                      : row.campuses.filter((x) => x !== campusName);
+
                                     updateDefaultShift(row.id, "campuses", updated as any);
                                   }}
                                 />
-                                {name}
+                                {campusName}
                               </label>
                             );
                           })}
