@@ -672,33 +672,59 @@ export default function HealthSystemSetupPage() {
                           ? "N/A"
                           : Number(row.total_hours).toFixed(2)}
                       </td>
-                      <td className="border px-2 py-1">
-                        <Input
-                          id=""
-                          value={row.days.join(", ")}
-                          onChange={(e) =>
-                            updateDefaultShift(
-                              row.id,
-                              "days",
-                              e.target.value as any
-                            )
-                          }
-                          className="!m-0 !p-1"
-                        />
+                      <td className="border px-2 py-1 align-top">
+                        <div className="flex flex-col gap-1 max-h-28 overflow-auto text-xs">
+                          {[
+                            "Monday",
+                            "Tuesday",
+                            "Wednesday",
+                            "Thursday",
+                            "Friday",
+                            "Saturday",
+                            "Sunday",
+                          ].map((day) => {
+                            const checked = row.days.includes(day);
+                            return (
+                              <label key={day} className="flex items-center gap-1">
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={(e) => {
+                                    const updated = e.target.checked
+                                      ? [...row.days, day]
+                                      : row.days.filter((d) => d !== day);
+
+                                    updateDefaultShift(row.id, "days", updated as any);
+                                  }}
+                                />
+                                {day}
+                              </label>
+                            );
+                          })}
+                        </div>
                       </td>
-                      <td className="border px-2 py-1">
-                        <Input
-                          id=""
-                          value={row.campuses.join(", ")}
-                          onChange={(e) =>
-                            updateDefaultShift(
-                              row.id,
-                              "campuses",
-                              e.target.value as any
-                            )
-                          }
-                          className="!m-0 !p-1"
-                        />
+                      <td className="border px-2 py-1 align-top">
+                        <div className="flex flex-col gap-1 max-h-28 overflow-auto text-xs">
+                          {campuses.map((c) => {
+                            const name = c.name;
+                            const checked = row.campuses.includes(name);
+                            return (
+                              <label key={name} className="flex items-center gap-1">
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={(e) => {
+                                    const updated = e.target.checked
+                                      ? [...row.campuses, name]
+                                      : row.campuses.filter((x) => x !== name);
+                                    updateDefaultShift(row.id, "campuses", updated as any);
+                                  }}
+                                />
+                                {name}
+                              </label>
+                            );
+                          })}
+                        </div>
                       </td>
                       <td className="border px-2 py-1 text-center">
                         <button
