@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import {
   GripVertical,
@@ -9,9 +9,15 @@ import {
   X,
 } from "lucide-react";
 
-import { useApp, DefaultShiftDefinition, DefaultJobConfiguration } from "@/store/AppContext";
+import {
+  useApp,
+  DefaultShiftDefinition,
+  DefaultJobConfiguration,
+} from "@/store/AppContext";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
+import Card from "@/components/ui/Card";
+import Button from "@/components/ui/Button";
 
 type Campus = {
   key: string;
@@ -22,9 +28,49 @@ type Campus = {
 
 type SortMode = "alphabetical" | "region" | "custom";
 
+// For Job Configuration categories
+type Category = "Nursing" | "Support" | "Other" | "";
+
+// Local row model for the Job Configuration UI
+type JobConfigRow = {
+  id: number;
+  resourceType: string;
+  directCarePct: string;
+  category: Category;
+  weekendRotations: string[];
+  campuses: string[];
+  openReqJob: string;
+  rosterJob: string;
+  scheduleJob: string;
+  isCharge: boolean;
+  isOriented: boolean;
+  isPreceptor: boolean;
+};
+
 const STORAGE_KEY_CAMPUSES = "hira_campuses";
 const STORAGE_KEY_SORTMODE = "hira_campuses_sortMode";
 const STORAGE_KEY_REGIONS = "hira_regions";
+
+// Default options reused from JobConfigurationCard
+const DEFAULT_CAMPUSES = ["Lansing", "Bay", "Flint"];
+
+const DEFAULT_WEEKEND_ROTATIONS = [
+  "Every Other",
+  "Every Third",
+  "Weekend Only",
+];
+
+const DEFAULT_OPEN_REQ = ["NA", "UC", "MGR", "Nurse", "RN", "RN I", "RN II"];
+const DEFAULT_ROSTER = ["NA", "UC", "Manager", "Nurse", "RN", "RN I", "RN II"];
+
+const DEFAULT_SCHEDULE = [
+  "Nurse Assistant",
+  "Unit Coordinator",
+  "Unit Manager",
+  "RN",
+  "RN I",
+  "RN II",
+];
 
 function sortAlphabetical(campuses: Campus[]): Campus[] {
   return [...campuses].sort((a, b) => a.name.localeCompare(b.name));
@@ -86,6 +132,54 @@ const calculateHours = (
   return Number(diff.toFixed(2));
 };
 
+// Initial sample rows for Job Configuration (same as JobConfigurationCard)
+function createInitialRows(campuses: string[]): JobConfigRow[] {
+  return [
+    {
+      id: 1,
+      resourceType: "NA/UC",
+      directCarePct: "100%",
+      category: "Support",
+      weekendRotations: ["Every Other"],
+      campuses: ["Lansing", "Bay"],
+      openReqJob: "NA",
+      rosterJob: "NA",
+      scheduleJob: "Nurse Assistant",
+      isCharge: false,
+      isOriented: false,
+      isPreceptor: false,
+    },
+    {
+      id: 2,
+      resourceType: "Manager",
+      directCarePct: "0%",
+      category: "Other",
+      weekendRotations: [],
+      campuses: ["Flint"],
+      openReqJob: "MGR",
+      rosterJob: "Manager",
+      scheduleJob: "Unit Manager",
+      isCharge: true,
+      isOriented: false,
+      isPreceptor: false,
+    },
+    {
+      id: 3,
+      resourceType: "Nurse",
+      directCarePct: "100%",
+      category: "Nursing",
+      weekendRotations: ["Every Third", "Weekend Only"],
+      campuses: [...campuses],
+      openReqJob: "Nurse",
+      rosterJob: "RN",
+      scheduleJob: "RN",
+      isCharge: false,
+      isOriented: false,
+      isPreceptor: true,
+    },
+  ];
+}
+
 export default function HealthSystemSetupPage() {
   const {
     defaultShiftDefinitions,
@@ -117,7 +211,153 @@ export default function HealthSystemSetupPage() {
   const [regionDrawerOpen, setRegionDrawerOpen] = useState(false);
   const [newRegionName, setNewRegionName] = useState("");
 
-  // ---------- LOAD ----------
+  // ------------------------------
+  // Job Configuration local state
+  // ------------------------------
+  const allCampuses =
+    campuses.length > 0 ? campuses.map((c) => c.name) : DEFAULT_CAMPUSES;
+
+  const openReqOptions = DEFAULT_OPEN_REQ;
+  const rosterOptions = DEFAULT_ROSTER;
+  const scheduleOptions = DEFAULT_SCHEDULE;
+
+  const [jobRows, setJobRows] = useState<JobConfigRow[]>([]);
+
+  // Initialize Job Configuration rows from defaults or create initial sample
+  useEffect(() => {
+    if (defaultJobConfigurations && defaultJobConfigurations.length) {
+      const mapped: JobConfigRow[] = defaultJobConfigurations.map(
+        (r: DefaultJobConfiguration) => ({
+          id: r.id,
+          resourceType: r.resourceType,
+          directCarePct: r.directCarePct,
+          category: (r.category as Category) || "",
+          weekendRotations: Array.isArray(r.weekendRotations)
+            ? r.weekendRotations
+            : [],
+          campuses: Array.isArray(r.campuses) ? r.campuses : [],
+          openReqJob: r.openReqJob || "",
+          rosterJob: r.rosterJob || "",
+          scheduleJob: r.scheduleJob || "",
+          isCharge: !!r.isCharge,
+          isOriented: !!r.isOriented,
+          isPreceptor: !!r.isPreceptor,
+        })
+      );
+      setJobRows(mapped);
+    } else {
+      const initial = createInitialRows(allCampuses);
+      setJobRows(initial);
+      setDefaultJobConfigurations(initial as any);
+    }
+  }, [defaultJobConfigurations, allCampuses, setDefaultJobConfigurations]);
+
+  const nextJobId = useMemo(
+    () => (jobRows.length ? Math.max(...jobRows.map((r) => r.id)) + 1 : 1),
+    [jobRows]
+  );
+
+  const syncJobsToDefaults = (rowsToSync: JobConfigRow[]) => {
+    const mapped: DefaultJobConfiguration[] = rowsToSync.map((r) => ({
+      id: r.id,
+      resourceType: r.resourceType,
+      directCarePct: r.directCarePct,
+      category: r.category,
+      weekendRotations: [...r.weekendRotations],
+      campuses: [...r.campuses],
+      openReqJob: r.openReqJob,
+      rosterJob: r.rosterJob,
+      scheduleJob: r.scheduleJob,
+      isCharge: r.isCharge,
+      isOriented: r.isOriented,
+      isPreceptor: r.isPreceptor,
+    }));
+    setDefaultJobConfigurations(mapped);
+  };
+
+  const addJobRow = () => {
+    setJobRows((prev) => {
+      const updated = [
+        ...prev,
+        {
+          id: nextJobId,
+          resourceType: "",
+          directCarePct: "",
+          category: "" as Category,
+          weekendRotations: [] as string[],
+          campuses: [] as string[],
+          openReqJob: "",
+          rosterJob: "",
+          scheduleJob: "",
+          isCharge: false,
+          isOriented: false,
+          isPreceptor: false,
+        },
+      ];
+      syncJobsToDefaults(updated);
+      return updated;
+    });
+  };
+
+  const removeJobRow = (id: number) => {
+    setJobRows((prev) => {
+      const updated = prev.filter((r) => r.id !== id);
+      syncJobsToDefaults(updated);
+      return updated;
+    });
+  };
+
+  const updateJobRowField = <K extends keyof JobConfigRow>(
+    id: number,
+    field: K,
+    value: JobConfigRow[K]
+  ) => {
+    setJobRows((prev) => {
+      const updated = prev.map((row) =>
+        row.id === id ? { ...row, [field]: value } : row
+      );
+      syncJobsToDefaults(updated);
+      return updated;
+    });
+  };
+
+  const toggleCampus = (id: number, campus: string) => {
+    setJobRows((prev) => {
+      const updated = prev.map((row) => {
+        if (row.id !== id) return row;
+        const selected = new Set(row.campuses);
+        if (selected.has(campus)) {
+          selected.delete(campus);
+        } else {
+          selected.add(campus);
+        }
+        return { ...row, campuses: Array.from(selected) };
+      });
+      syncJobsToDefaults(updated);
+      return updated;
+    });
+  };
+
+  const toggleAllCampuses = (id: number) => {
+    setJobRows((prev) => {
+      const updated = prev.map((row) => {
+        if (row.id !== id) return row;
+        const allSelected =
+          allCampuses.length > 0 &&
+          allCampuses.every((c) => row.campuses.includes(c));
+        return {
+          ...row,
+          campuses: allSelected ? [] : [...allCampuses],
+        };
+      });
+      syncJobsToDefaults(updated);
+      return updated;
+    });
+  };
+
+  const allWeekendRotations = DEFAULT_WEEKEND_ROTATIONS;
+
+  // ---------- LOAD CAMPUSES / REGIONS ----------
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -157,9 +397,7 @@ export default function HealthSystemSetupPage() {
 
         const presetRegions = baseRegions;
         const savedRegions = storedRegionsRaw ? JSON.parse(storedRegionsRaw) : [];
-        const derivedRegions = baseCampuses
-          .map((c) => c.region)
-          .filter(Boolean);
+        const derivedRegions = baseCampuses.map((c) => c.region).filter(Boolean);
 
         const initialRegions = Array.from(
           new Set([...presetRegions, ...derivedRegions, ...savedRegions])
@@ -249,7 +487,7 @@ export default function HealthSystemSetupPage() {
     setCampusForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  // ---------- SAVE ----------
+  // ---------- SAVE CAMPUS ----------
   const handleSaveCampus = () => {
     const { key, name, region, hoursPerWeekFTE } = campusForm;
 
@@ -368,63 +606,6 @@ export default function HealthSystemSetupPage() {
 
   const removeDefaultShift = (id: number) => {
     setDefaultShiftDefinitions((prev) => prev.filter((r) => r.id !== id));
-  };
-
-  // ----------------------------------------------------
-  // DEFAULT JOB CONFIG — handlers
-  // ----------------------------------------------------
-  const addDefaultJob = () => {
-    const newRow: DefaultJobConfiguration = {
-      id: Date.now(),
-      resourceType: "",
-      directCarePct: "",
-      category: "",
-      weekendRotations: [],
-      campuses: [],
-      openReqJob: "",
-      rosterJob: "",
-      scheduleJob: "",
-      isCharge: false,
-      isOriented: false,
-      isPreceptor: false,
-    };
-    setDefaultJobConfigurations((prev) => [...prev, newRow]);
-  };
-
-  const updateDefaultJob = <K extends keyof DefaultJobConfiguration>(
-    id: number,
-    field: K,
-    value: DefaultJobConfiguration[K]
-  ) => {
-    setDefaultJobConfigurations((prev) =>
-      prev.map((row) => {
-        if (row.id !== id) return row;
-
-        let updated: DefaultJobConfiguration = { ...row };
-
-        if (field === "weekendRotations" && typeof value === "string") {
-          const arr = (value as string)
-            .split(",")
-            .map((v) => v.trim())
-            .filter(Boolean);
-          updated.weekendRotations = arr;
-        } else if (field === "campuses" && typeof value === "string") {
-          const arr = (value as string)
-            .split(",")
-            .map((v) => v.trim())
-            .filter(Boolean);
-          updated.campuses = arr;
-        } else {
-          updated[field] = value;
-        }
-
-        return updated;
-      })
-    );
-  };
-
-  const removeDefaultJob = (id: number) => {
-    setDefaultJobConfigurations((prev) => prev.filter((r) => r.id !== id));
   };
 
   // ============================
@@ -589,14 +770,17 @@ export default function HealthSystemSetupPage() {
 
                     return (
                       <tr key={row.id} className="odd:bg-white even:bg-gray-50">
-
                         {/* SHIFT GROUP */}
                         <td className="border px-2 py-1">
                           <Input
                             id=""
                             value={row.shift_group}
                             onChange={(e) =>
-                              updateDefaultShift(row.id, "shift_group", e.target.value)
+                              updateDefaultShift(
+                                row.id,
+                                "shift_group",
+                                e.target.value
+                              )
                             }
                             className="!m-0 !p-1"
                           />
@@ -608,7 +792,11 @@ export default function HealthSystemSetupPage() {
                             id=""
                             value={row.shift_name}
                             onChange={(e) =>
-                              updateDefaultShift(row.id, "shift_name", e.target.value)
+                              updateDefaultShift(
+                                row.id,
+                                "shift_name",
+                                e.target.value
+                              )
                             }
                             className="!m-0 !p-1"
                           />
@@ -703,7 +891,11 @@ export default function HealthSystemSetupPage() {
                                         ? [...row.days, day]
                                         : row.days.filter((d) => d !== day);
 
-                                      updateDefaultShift(row.id, "days", updated as any);
+                                      updateDefaultShift(
+                                        row.id,
+                                        "days",
+                                        updated as any
+                                      );
                                     }}
                                   />
                                   {day}
@@ -716,7 +908,6 @@ export default function HealthSystemSetupPage() {
                         {/* CAMPUSES CHECKBOXES */}
                         <td className="border px-2 py-1 align-top">
                           <div className="flex flex-col gap-1 max-h-28 overflow-auto text-xs">
-
                             {campuses.length === 0 && (
                               <div className="text-gray-400 text-[11px]">
                                 No campuses defined
@@ -728,16 +919,25 @@ export default function HealthSystemSetupPage() {
                               const checked = row.campuses.includes(campusName);
 
                               return (
-                                <label key={c.key} className="flex items-center gap-1">
+                                <label
+                                  key={c.key}
+                                  className="flex items-center gap-1"
+                                >
                                   <input
                                     type="checkbox"
                                     checked={checked}
                                     onChange={(e) => {
                                       const updated = e.target.checked
                                         ? [...row.campuses, campusName]
-                                        : row.campuses.filter((x) => x !== campusName);
+                                        : row.campuses.filter(
+                                            (x) => x !== campusName
+                                          );
 
-                                      updateDefaultShift(row.id, "campuses", updated as any);
+                                      updateDefaultShift(
+                                        row.id,
+                                        "campuses",
+                                        updated as any
+                                      );
                                     }}
                                   />
                                   {campusName}
@@ -765,226 +965,295 @@ export default function HealthSystemSetupPage() {
           )}
         </div>
 
-        {/* DEFAULT JOB CONFIGURATION */}
+        {/* DEFAULT JOB CONFIGURATION – NEW UI MATCHING JobConfigurationCard */}
         <div className="mt-8 border rounded-2xl p-4 bg-white">
-          <div className="flex justify-between items-center mb-3">
-            <div>
-              <h2 className="text-sm font-semibold text-gray-900">
-                Default Job Configuration
-              </h2>
-              <p className="text-[11px] text-gray-500">
-                These rows will auto-load into the Job Configuration page.
-              </p>
-            </div>
-            <button
-              onClick={addDefaultJob}
-              className="inline-flex items-center gap-1 rounded-xl bg-brand-600 text-white px-3 py-1.5 text-xs"
-            >
-              <Plus className="h-4 w-4" /> Add Default Job
-            </button>
+          <div className="mb-3">
+            <h2 className="text-sm font-semibold text-gray-900">
+              Default Job Configuration
+            </h2>
+            <p className="text-[11px] text-gray-500">
+              These defaults will auto-load into the Job Configuration page.
+            </p>
           </div>
 
-          {defaultJobConfigurations.length === 0 ? (
-            <p className="text-xs text-gray-500">
-              No default job configurations yet.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full border border-gray-200 text-xs">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="border px-2 py-1">Resource Type</th>
-                    <th className="border px-2 py-1">Direct Care %</th>
-                    <th className="border px-2 py-1">Category</th>
-                    <th className="border px-2 py-1">Weekend Rotation(s)</th>
-                    <th className="border px-2 py-1">Campuses</th>
-                    <th className="border px-2 py-1">Open Req Job(s)</th>
-                    <th className="border px-2 py-1">Roster Job(s)</th>
-                    <th className="border px-2 py-1">Schedule Job(s)</th>
-                    <th className="border px-2 py-1">Flags</th>
-                    <th className="border px-2 py-1">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {defaultJobConfigurations.map((row) => (
-                    <tr key={row.id} className="odd:bg-white even:bg-gray-50">
-                      <td className="border px-2 py-1">
-                        <Input
-                          id=""
-                          value={row.resourceType}
-                          onChange={(e) =>
-                            updateDefaultJob(
-                              row.id,
-                              "resourceType",
-                              e.target.value
-                            )
-                          }
-                          className="!m-0 !p-1"
-                        />
-                      </td>
-                      <td className="border px-2 py-1">
-                        <Input
-                          id=""
-                          value={row.directCarePct}
-                          onChange={(e) =>
-                            updateDefaultJob(
-                              row.id,
-                              "directCarePct",
-                              e.target.value
-                            )
-                          }
-                          className="!m-0 !p-1"
-                        />
-                      </td>
-                      <td className="border px-2 py-1">
-                        <Input
-                          id=""
-                          value={row.category || ""}
-                          onChange={(e) =>
-                            updateDefaultJob(
-                              row.id,
-                              "category",
-                              e.target.value
-                            )
-                          }
-                          className="!m-0 !p-1"
-                        />
-                      </td>
-                      <td className="border px-2 py-1">
-                        <Input
-                          id=""
-                          value={row.weekendRotations.join(", ")}
-                          onChange={(e) =>
-                            updateDefaultJob(
-                              row.id,
-                              "weekendRotations",
-                              e.target.value as any
-                            )
-                          }
-                          className="!m-0 !p-1"
-                          placeholder="Every Other, Every Third..."
-                        />
-                      </td>
-                      <td className="border px-2 py-1">
-                        <Input
-                          id=""
-                          value={row.campuses.join(", ")}
-                          onChange={(e) =>
-                            updateDefaultJob(
-                              row.id,
-                              "campuses",
-                              e.target.value as any
-                            )
-                          }
-                          className="!m-0 !p-1"
-                          placeholder="Lansing, Bay..."
-                        />
-                      </td>
-                      <td className="border px-2 py-1">
-                        <Input
-                          id=""
-                          value={row.openReqJob}
-                          onChange={(e) =>
-                            updateDefaultJob(
-                              row.id,
-                              "openReqJob",
-                              e.target.value
-                            )
-                          }
-                          className="!m-0 !p-1"
-                          placeholder="NA, RN..."
-                        />
-                      </td>
-                      <td className="border px-2 py-1">
-                        <Input
-                          id=""
-                          value={row.rosterJob}
-                          onChange={(e) =>
-                            updateDefaultJob(
-                              row.id,
-                              "rosterJob",
-                              e.target.value
-                            )
-                          }
-                          className="!m-0 !p-1"
-                          placeholder="Manager, RN..."
-                        />
-                      </td>
-                      <td className="border px-2 py-1">
-                        <Input
-                          id=""
-                          value={row.scheduleJob}
-                          onChange={(e) =>
-                            updateDefaultJob(
-                              row.id,
-                              "scheduleJob",
-                              e.target.value
-                            )
-                          }
-                          className="!m-0 !p-1"
-                          placeholder="RN, RN II..."
-                        />
-                      </td>
-                      <td className="border px-2 py-1 text-[11px]">
-                        <div className="flex flex-col gap-1">
-                          <label className="inline-flex items-center gap-1">
-                            <input
-                              type="checkbox"
-                              checked={!!row.isCharge}
-                              onChange={(e) =>
-                                updateDefaultJob(
-                                  row.id,
-                                  "isCharge",
-                                  e.target.checked
-                                )
-                              }
-                            />
-                            Charge
-                          </label>
-                          <label className="inline-flex items-center gap-1">
-                            <input
-                              type="checkbox"
-                              checked={!!row.isOriented}
-                              onChange={(e) =>
-                                updateDefaultJob(
-                                  row.id,
-                                  "isOriented",
-                                  e.target.checked
-                                )
-                              }
-                            />
-                            Oriented
-                          </label>
-                          <label className="inline-flex items-center gap-1">
-                            <input
-                              type="checkbox"
-                              checked={!!row.isPreceptor}
-                              onChange={(e) =>
-                                updateDefaultJob(
-                                  row.id,
-                                  "isPreceptor",
-                                  e.target.checked
-                                )
-                              }
-                            />
-                            Preceptor
-                          </label>
-                        </div>
-                      </td>
-                      <td className="border px-2 py-1 text-center">
-                        <button
-                          onClick={() => removeDefaultJob(row.id)}
-                          className="text-red-600 text-xs hover:underline"
-                        >
-                          Remove
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <Card className="space-y-4">
+            {/* Header row */}
+            <div className="grid grid-cols-7 gap-6 text-xs font-semibold text-gray-600 pb-2">
+              <div>Resource Type</div>
+              <div>Direct Care</div>
+              <div>Weekend Rotation</div>
+              <div>Campus</div>
+              <div>Open Req Job</div>
+              <div>Roster Job</div>
+              <div>Schedule Job</div>
             </div>
-          )}
+
+            <div className="space-y-3">
+              {jobRows.map((row) => {
+                const allCampusesSelected =
+                  allCampuses.length > 0 &&
+                  allCampuses.every((c) => row.campuses.includes(c));
+
+                const campusLabel =
+                  row.campuses.length > 0
+                    ? row.campuses.join(", ")
+                    : "No campus";
+
+                const weekendLabel =
+                  row.weekendRotations.length > 0
+                    ? row.weekendRotations.join(" • ")
+                    : "None";
+
+                return (
+                  <div
+                    key={row.id}
+                    className="grid grid-cols-7 gap-6 items-start rounded-xl border border-gray-200 bg-white p-4"
+                  >
+                    {/* Resource Type */}
+                    <div>
+                      <Input
+                        id=""
+                        value={row.resourceType}
+                        onChange={(e) =>
+                          updateJobRowField(
+                            row.id,
+                            "resourceType",
+                            e.target.value
+                          )
+                        }
+                        className="w-full"
+                      />
+                      <div className="text-[11px] text-gray-400">
+                        {campusLabel}
+                      </div>
+                    </div>
+
+                    {/* Direct Care */}
+                    <div>
+                      <Input
+                        id=""
+                        value={row.directCarePct}
+                        onChange={(e) =>
+                          updateJobRowField(
+                            row.id,
+                            "directCarePct",
+                            e.target.value
+                          )
+                        }
+                        className="w-full"
+                      />
+                    </div>
+
+                    {/* Weekend Rotation */}
+                    <div>
+                      <Select
+                        value={row.weekendRotations[0] ?? ""}
+                        onChange={(e) =>
+                          updateJobRowField(row.id, "weekendRotations", [
+                            (e.target as HTMLSelectElement).value,
+                          ])
+                        }
+                        className="w-full"
+                      >
+                        <option value="">Select...</option>
+                        {allWeekendRotations.map((rot) => (
+                          <option key={rot} value={rot}>
+                            {rot}
+                          </option>
+                        ))}
+                      </Select>
+                      <div className="text-[11px] text-gray-400 mt-1">
+                        {weekendLabel}
+                      </div>
+                    </div>
+
+                    {/* Campus */}
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap gap-2">
+                        <label className="inline-flex items-center rounded-full border px-2 py-1 text-[11px] cursor-pointer bg-gray-50 border-gray-300 text-gray-600">
+                          <input
+                            type="checkbox"
+                            className="mr-1 h-3 w-3"
+                            checked={allCampusesSelected}
+                            onChange={() => toggleAllCampuses(row.id)}
+                          />
+                          Default
+                        </label>
+
+                        {allCampuses.map((campus) => {
+                          const checked = row.campuses.includes(campus);
+                          return (
+                            <label
+                              key={campus}
+                              className={`inline-flex items-center rounded-full border px-2 py-1 text-[11px] cursor-pointer ${
+                                checked
+                                  ? "bg-brand-50 border-brand-500 text-brand-700"
+                                  : "bg-gray-50 border-gray-300 text-gray-600"
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                className="mr-1 h-3 w-3"
+                                checked={checked}
+                                onChange={() => toggleCampus(row.id, campus)}
+                              />
+                              {campus}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Open Req Job */}
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap gap-2">
+                        {openReqOptions.map((o) => {
+                          const selected = row.openReqJob
+                            .split(",")
+                            .filter(Boolean)
+                            .includes(o);
+                          return (
+                            <label
+                              key={o}
+                              className={`inline-flex items-center rounded-full border px-2 py-1 text-[11px] cursor-pointer ${
+                                selected
+                                  ? "bg-brand-50 border-brand-500 text-brand-700"
+                                  : "bg-gray-50 border-gray-300 text-gray-600"
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                className="mr-1 h-3 w-3"
+                                checked={selected}
+                                onChange={() => {
+                                  const current = row.openReqJob
+                                    ? row.openReqJob
+                                        .split(",")
+                                        .filter(Boolean)
+                                    : [];
+                                  const set = new Set(current);
+                                  selected ? set.delete(o) : set.add(o);
+                                  updateJobRowField(
+                                    row.id,
+                                    "openReqJob",
+                                    Array.from(set).join(",")
+                                  );
+                                }}
+                              />
+                              {o}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Roster Job */}
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap gap-2">
+                        {rosterOptions.map((o) => {
+                          const selected = row.rosterJob
+                            .split(",")
+                            .filter(Boolean)
+                            .includes(o);
+                          return (
+                            <label
+                              key={o}
+                              className={`inline-flex items-center rounded-full border px-2 py-1 text-[11px] cursor-pointer ${
+                                selected
+                                  ? "bg-brand-50 border-brand-500 text-brand-700"
+                                  : "bg-gray-50 border-gray-300 text-gray-600"
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                className="mr-1 h-3 w-3"
+                                checked={selected}
+                                onChange={() => {
+                                  const current = row.rosterJob
+                                    ? row.rosterJob
+                                        .split(",")
+                                        .filter(Boolean)
+                                    : [];
+                                  const set = new Set(current);
+                                  selected ? set.delete(o) : set.add(o);
+                                  updateJobRowField(
+                                    row.id,
+                                    "rosterJob",
+                                    Array.from(set).join(",")
+                                  );
+                                }}
+                              />
+                              {o}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Schedule Job + Delete */}
+                    <div className="flex items-center gap-3">
+                      <div className="flex flex-wrap gap-2">
+                        {scheduleOptions.map((o) => {
+                          const selected = row.scheduleJob
+                            .split(",")
+                            .filter(Boolean)
+                            .includes(o);
+                          return (
+                            <label
+                              key={o}
+                              className={`inline-flex items-center rounded-full border px-2 py-1 text-[11px] cursor-pointer ${
+                                selected
+                                  ? "bg-brand-50 border-brand-500 text-brand-700"
+                                  : "bg-gray-50 border-gray-300 text-gray-600"
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                className="mr-1 h-3 w-3"
+                                checked={selected}
+                                onChange={() => {
+                                  const current = row.scheduleJob
+                                    ? row.scheduleJob
+                                        .split(",")
+                                        .filter(Boolean)
+                                    : [];
+                                  const set = new Set(current);
+                                  selected ? set.delete(o) : set.add(o);
+                                  updateJobRowField(
+                                    row.id,
+                                    "scheduleJob",
+                                    Array.from(set).join(",")
+                                  );
+                                }}
+                              />
+                              {o}
+                            </label>
+                          );
+                        })}
+                      </div>
+                      <button
+                        onClick={() => removeJobRow(row.id)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        🗑
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+              <div className="text-xs text-gray-500">
+                You can reuse the same Resource Type name with different weekend
+                rotations and campuses. Weekend rotation and campus selections
+                drive how the job is applied.
+              </div>
+              <Button type="button" onClick={addJobRow}>
+                + Add Default Job
+              </Button>
+            </div>
+          </Card>
         </div>
       </div>
 
