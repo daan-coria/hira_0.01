@@ -584,165 +584,181 @@ export default function HealthSystemSetupPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {defaultShiftDefinitions.map((row) => (
-                    <tr key={row.id} className="odd:bg-white even:bg-gray-50">
-                      <td className="border px-2 py-1">
-                        <Input
-                          id=""
-                          value={row.shift_group}
-                          onChange={(e) =>
-                            updateDefaultShift(
-                              row.id,
-                              "shift_group",
-                              e.target.value
-                            )
-                          }
-                          className="!m-0 !p-1"
-                        />
-                      </td>
-                      <td className="border px-2 py-1">
-                        <Input
-                          id=""
-                          value={row.shift_name}
-                          onChange={(e) =>
-                            updateDefaultShift(
-                              row.id,
-                              "shift_name",
-                              e.target.value
-                            )
-                          }
-                          className="!m-0 !p-1"
-                        />
-                      </td>
-                      <td className="border px-2 py-1">
-                        <Input
-                          id=""
-                          type="time"
-                          step="60"
-                          value={row.start_time === "N/A" ? "" : row.start_time}
-                          onChange={(e) =>
-                            updateDefaultShift(
-                              row.id,
-                              "start_time",
-                              e.target.value || "N/A"
-                            )
-                          }
-                          className="!m-0 !p-1"
-                        />
-                      </td>
-                      <td className="border px-2 py-1">
-                        <Input
-                          id=""
-                          type="time"
-                          step="60"
-                          value={row.end_time === "N/A" ? "" : row.end_time}
-                          onChange={(e) =>
-                            updateDefaultShift(
-                              row.id,
-                              "end_time",
-                              e.target.value || "N/A"
-                            )
-                          }
-                          className="!m-0 !p-1"
-                        />
-                      </td>
-                      <td className="border px-2 py-1">
-                        <Input
-                          id=""
-                          type="number"
-                          value={
-                            row.break_minutes === "N/A"
-                              ? ""
-                              : String(row.break_minutes)
-                          }
-                          onChange={(e) =>
-                            updateDefaultShift(
-                              row.id,
-                              "break_minutes",
-                              e.target.value === ""
-                                ? "N/A"
-                                : Number(e.target.value)
-                            )
-                          }
-                          className="!m-0 !p-1"
-                        />
-                      </td>
-                      <td className="border px-2 py-1 text-right">
-                        {row.total_hours === "N/A"
-                          ? "N/A"
-                          : Number(row.total_hours).toFixed(2)}
-                      </td>
-                      <td className="border px-2 py-1 align-top">
-                        <div className="flex flex-col gap-1 max-h-28 overflow-auto text-xs">
-                          {[
-                            "Monday",
-                            "Tuesday",
-                            "Wednesday",
-                            "Thursday",
-                            "Friday",
-                            "Saturday",
-                            "Sunday",
-                          ].map((day) => {
-                            const checked = row.days.includes(day);
-                            return (
-                              <label key={day} className="flex items-center gap-1">
-                                <input
-                                  type="checkbox"
-                                  checked={checked}
-                                  onChange={(e) => {
-                                    const updated = e.target.checked
-                                      ? [...row.days, day]
-                                      : row.days.filter((d) => d !== day);
+                  {defaultShiftDefinitions.map((row) => {
+                    console.log("CAMPUS LIST:", campuses);
 
-                                    updateDefaultShift(row.id, "days", updated as any);
-                                  }}
-                                />
-                                {day}
-                              </label>
-                            );
-                          })}
-                        </div>
-                      </td>
-                      <td className="border px-2 py-1 align-top">
-                        <div className="flex flex-col gap-1 max-h-28 overflow-auto text-xs">
+                    return (
+                      <tr key={row.id} className="odd:bg-white even:bg-gray-50">
 
-                          {campuses.length === 0 && (
-                            <div className="text-gray-400 text-[11px]">No campuses defined</div>
-                          )}
+                        {/* SHIFT GROUP */}
+                        <td className="border px-2 py-1">
+                          <Input
+                            id=""
+                            value={row.shift_group}
+                            onChange={(e) =>
+                              updateDefaultShift(row.id, "shift_group", e.target.value)
+                            }
+                            className="!m-0 !p-1"
+                          />
+                        </td>
 
-                          {campuses.map((c) => {
-                            const campusName = c.name; // Campus label
-                            const checked = row.campuses.includes(campusName);
+                        {/* SHIFT NAME */}
+                        <td className="border px-2 py-1">
+                          <Input
+                            id=""
+                            value={row.shift_name}
+                            onChange={(e) =>
+                              updateDefaultShift(row.id, "shift_name", e.target.value)
+                            }
+                            className="!m-0 !p-1"
+                          />
+                        </td>
 
-                            return (
-                              <label key={c.key} className="flex items-center gap-1">
-                                <input
-                                  type="checkbox"
-                                  checked={checked}
-                                  onChange={(e) => {
-                                    const updated = e.target.checked
-                                      ? [...row.campuses, campusName]
-                                      : row.campuses.filter((x) => x !== campusName);
+                        {/* START TIME */}
+                        <td className="border px-2 py-1">
+                          <Input
+                            id=""
+                            type="time"
+                            step="60"
+                            value={row.start_time === "N/A" ? "" : row.start_time}
+                            onChange={(e) =>
+                              updateDefaultShift(
+                                row.id,
+                                "start_time",
+                                e.target.value || "N/A"
+                              )
+                            }
+                            className="!m-0 !p-1"
+                          />
+                        </td>
 
-                                    updateDefaultShift(row.id, "campuses", updated as any);
-                                  }}
-                                />
-                                {campusName}
-                              </label>
-                            );
-                          })}
-                        </div>
-                      </td>
-                      <td className="border px-2 py-1 text-center">
-                        <button
-                          onClick={() => removeDefaultShift(row.id)}
-                          className="text-red-600 text-xs hover:underline"
-                        >
-                          Remove
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                        {/* END TIME */}
+                        <td className="border px-2 py-1">
+                          <Input
+                            id=""
+                            type="time"
+                            step="60"
+                            value={row.end_time === "N/A" ? "" : row.end_time}
+                            onChange={(e) =>
+                              updateDefaultShift(
+                                row.id,
+                                "end_time",
+                                e.target.value || "N/A"
+                              )
+                            }
+                            className="!m-0 !p-1"
+                          />
+                        </td>
+
+                        {/* BREAK MINUTES */}
+                        <td className="border px-2 py-1">
+                          <Input
+                            id=""
+                            type="number"
+                            value={
+                              row.break_minutes === "N/A"
+                                ? ""
+                                : String(row.break_minutes)
+                            }
+                            onChange={(e) =>
+                              updateDefaultShift(
+                                row.id,
+                                "break_minutes",
+                                e.target.value === ""
+                                  ? "N/A"
+                                  : Number(e.target.value)
+                              )
+                            }
+                            className="!m-0 !p-1"
+                          />
+                        </td>
+
+                        {/* TOTAL HOURS */}
+                        <td className="border px-2 py-1 text-right">
+                          {row.total_hours === "N/A"
+                            ? "N/A"
+                            : Number(row.total_hours).toFixed(2)}
+                        </td>
+
+                        {/* DAYS CHECKBOXES */}
+                        <td className="border px-2 py-1 align-top">
+                          <div className="flex flex-col gap-1 max-h-28 overflow-auto text-xs">
+                            {[
+                              "Monday",
+                              "Tuesday",
+                              "Wednesday",
+                              "Thursday",
+                              "Friday",
+                              "Saturday",
+                              "Sunday",
+                            ].map((day) => {
+                              const checked = row.days.includes(day);
+                              return (
+                                <label key={day} className="flex items-center gap-1">
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={(e) => {
+                                      const updated = e.target.checked
+                                        ? [...row.days, day]
+                                        : row.days.filter((d) => d !== day);
+
+                                      updateDefaultShift(row.id, "days", updated as any);
+                                    }}
+                                  />
+                                  {day}
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </td>
+
+                        {/* CAMPUSES CHECKBOXES */}
+                        <td className="border px-2 py-1 align-top">
+                          <div className="flex flex-col gap-1 max-h-28 overflow-auto text-xs">
+
+                            {campuses.length === 0 && (
+                              <div className="text-gray-400 text-[11px]">
+                                No campuses defined
+                              </div>
+                            )}
+
+                            {campuses.map((c) => {
+                              const campusName = c.name;
+                              const checked = row.campuses.includes(campusName);
+
+                              return (
+                                <label key={c.key} className="flex items-center gap-1">
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={(e) => {
+                                      const updated = e.target.checked
+                                        ? [...row.campuses, campusName]
+                                        : row.campuses.filter((x) => x !== campusName);
+
+                                      updateDefaultShift(row.id, "campuses", updated as any);
+                                    }}
+                                  />
+                                  {campusName}
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </td>
+
+                        {/* REMOVE BUTTON */}
+                        <td className="border px-2 py-1 text-center">
+                          <button
+                            onClick={() => removeDefaultShift(row.id)}
+                            className="text-red-600 text-xs hover:underline"
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
