@@ -27,11 +27,7 @@ type SortMode = "none" | "start" | "end" | "hours" | "group";
 type Props = { onNext?: () => void; onPrev?: () => void };
 
 export default function ShiftConfigCard({ onNext, onPrev }: Props) {
-  const {
-    data,
-    updateData,
-    defaultShiftDefinitions,
-  } = useApp();
+  const { data, updateData, defaultShiftDefinitions } = useApp();
 
   const [rows, setRows] = useState<ShiftRow[]>([]);
   const [saving, setSaving] = useState(false);
@@ -53,14 +49,22 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
   const shiftGroupSuggestions = ["Day", "Evening", "Night"];
 
   // -------------------------
+  // A function to mark that user has modified ShiftConfig
+  // -------------------------
+  const markModified = () => {
+    localStorage.setItem("hira_shift_config_user_modified", "true");
+  };
+
+  // -------------------------
   // DEBOUNCED SAVE
   // -------------------------
   const debouncedSave = useCallback(
     debounce((updated: ShiftRow[]) => {
       updateData("shiftConfig", updated);
       setSaving(false);
-    }, 1200),
-    [updateData]
+      markModified(); // Mark user modification
+    }, 1000),
+    []
   );
 
   // -------------------------
@@ -104,9 +108,6 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
     return buildFinalShiftLabel("Mixed", start, end, breakMinutes);
   };
 
-  // -------------------------
-  // FINAL LABEL BUILDER
-  // -------------------------
   const buildFinalShiftLabel = (
     label: string,
     start: string,
@@ -126,7 +127,6 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
 
     let full = `${label} ${startLabel}-${endLabel}`;
 
-    // BREAK LOGIC
     if (breakMinutes === 0) {
       full += " No Lunch";
     } else if (typeof breakMinutes === "number" && breakMinutes > 0) {
@@ -142,7 +142,7 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
   };
 
   // -------------------------
-  // TIME HELPERS
+  // Calculate Hours
   // -------------------------
   const isValidTime = (value: string) =>
     /^([01]\d|2[0-3]):([0-5]\d)$/.test(value);
@@ -188,74 +188,69 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
     };
   };
 
-// -------------------------
-// LOAD EXISTING SHIFT CONFIG
-// -------------------------
-useEffect(() => {
-  // Read the current stored shiftConfig array safely
-  const shiftArray = Array.isArray(data.shiftConfig) ? data.shiftConfig : [];
-  const hasShiftConfig = shiftArray.length > 0;
+  // -----------------------------------------------------
+  //  **THE MASTER LOGIC**
+  // -----------------------------------------------------
+  useEffect(() => {
+    const userModified =
+      localStorage.getItem("hira_shift_config_user_modified") === "true";
 
-  // Read default definitions
-  const defaults = Array.isArray(defaultShiftDefinitions)
-    ? defaultShiftDefinitions
-    : [];
-  const hasDefaults = defaults.length > 0;
+    const shiftArray = Array.isArray(data.shiftConfig)
+      ? data.shiftConfig
+      : [];
+    const hasShiftConfig = shiftArray.length > 0;
 
-  // Check initialization flag
-  const initialized = localStorage.getItem("hira_shift_config_initialized") === "true";
+    const defaults = Array.isArray(defaultShiftDefinitions)
+      ? defaultShiftDefinitions
+      : [];
+    const hasDefaults = defaults.length > 0;
 
-  // ---------------------------------------------------------
-  // CASE B: If already initialized → ALWAYS load shiftConfig
-  // ---------------------------------------------------------
-  if (initialized) {
-    // shiftConfig may be [], which is correct
+    // CASE B: User already modified → ALWAYS load shiftConfig
+    if (userModified) {
+      setRows(shiftArray);
+      return;
+    }
+
+    // CASE A1: First load → use defaults
+    if (!hasShiftConfig && hasDefaults && !userModified) {
+      const normalized = defaults.map((r: any) => ({
+        id: typeof r.id === "number" ? r.id : Date.now() + Math.random(),
+        shift_group: r.shift_group ?? "",
+        shift_name: r.shift_name || "N/A",
+        start_time: r.start_time || "N/A",
+        end_time: r.end_time || "N/A",
+        break_minutes:
+          typeof r.break_minutes === "number"
+            ? r.break_minutes
+            : "N/A",
+        total_hours:
+          typeof r.total_hours === "number"
+            ? r.total_hours
+            : "N/A",
+        shift_type: r.shift_type || "N/A",
+        days: Array.isArray(r.days) ? r.days : [],
+        campuses: Array.isArray(r.campuses) ? r.campuses : [],
+      }));
+
+      setRows(normalized);
+      updateData("shiftConfig", normalized);
+      return;
+    }
+
+    // CASE A2: First time, NO defaults → start empty
+    if (!hasShiftConfig && !hasDefaults) {
+      setRows([]);
+      updateData("shiftConfig", []);
+      return;
+    }
+
+    // CASE B fallback: user has data → load shiftConfig
     setRows(shiftArray);
-    return;
-  }
-
-  // ---------------------------------------------------------
-  // CASE A1: First time AND defaults exist → load defaults once
-  // ---------------------------------------------------------
-  if (!initialized && hasDefaults) {
-    const normalized = defaults.map((r: any) => ({
-      id: typeof r.id === "number" ? r.id : Date.now() + Math.random(),
-      shift_group: r.shift_group ?? "",
-      shift_name: r.shift_name || "N/A",
-      start_time: r.start_time || "N/A",
-      end_time: r.end_time || "N/A",
-      break_minutes:
-        typeof r.break_minutes === "number" ? r.break_minutes : "N/A",
-      total_hours:
-        typeof r.total_hours === "number" ? r.total_hours : "N/A",
-      shift_type: r.shift_type || "N/A",
-      days: Array.isArray(r.days) ? r.days : [],
-      campuses: Array.isArray(r.campuses) ? r.campuses : [],
-    }));
-
-    setRows(normalized);
-    updateData("shiftConfig", normalized);
-
-    // mark initialized
-    localStorage.setItem("hira_shift_config_initialized", "true");
-    return;
-  }
-
-  // ---------------------------------------------------------
-  // CASE A2: First time AND no defaults → leave EMPTY []
-  // ---------------------------------------------------------
-  if (!initialized && !hasDefaults) {
-    setRows([]);
-    updateData("shiftConfig", []);
-    localStorage.setItem("hira_shift_config_initialized", "true");
-    return;
-  }
-}, [data.shiftConfig, defaultShiftDefinitions]);
+  }, [data.shiftConfig, defaultShiftDefinitions]);
 
   // -------------------------
-  // UPDATE FIELD 
+  // UPDATE FIELD
   // -------------------------
-
   const defaultShiftByGroup: Record<
     string,
     { start: string; end: string; break: number }
@@ -273,32 +268,32 @@ useEffect(() => {
   ) => {
     setSaving(true);
 
+    markModified(); // <-- VERY IMPORTANT
+
     setRows((prev) => {
       const updated = prev.map((row) => {
         if (row.id !== id) return row;
 
         let newRow = { ...row };
 
-        // -------------------------
-        // SHIFT GROUP GATES THE ROW
-        // -------------------------
         if (field === "shift_group") {
           newRow.shift_group = value;
 
-          // If user clears the group → lock the row
           if (!value) {
-            newRow.shift_name = "N/A";
-            newRow.start_time = "N/A";
-            newRow.end_time = "N/A";
-            newRow.break_minutes = "N/A";
-            newRow.total_hours = "N/A";
-            newRow.shift_type = "N/A";
-            newRow.days = [];
-            newRow.campuses = [];
+            newRow = {
+              ...newRow,
+              shift_name: "N/A",
+              start_time: "N/A",
+              end_time: "N/A",
+              break_minutes: "N/A",
+              total_hours: "N/A",
+              shift_type: "N/A",
+              days: [],
+              campuses: [],
+            };
             return newRow;
           }
 
-          // Apply defaults for Day / Evening / Night
           const preset = defaultShiftByGroup[value];
           if (preset) {
             newRow.start_time = preset.start;
@@ -306,7 +301,6 @@ useEffect(() => {
             newRow.break_minutes = preset.break;
           }
 
-          // If days already selected, build name immediately
           if (newRow.days.length > 0) {
             newRow.shift_name = buildShiftName(
               newRow.days,
@@ -315,25 +309,18 @@ useEffect(() => {
               newRow.break_minutes
             );
           } else {
-            // Otherwise, name waits until days are chosen
             newRow.shift_name = "";
           }
 
           return newRow;
         }
 
-        // -------------------------
-        // UNLOCK FIELDS IF PREVIOUSLY "N/A"
-        // -------------------------
         if (newRow.shift_name === "N/A") newRow.shift_name = "";
         if (newRow.start_time === "N/A") newRow.start_time = "";
         if (newRow.end_time === "N/A") newRow.end_time = "";
         if (newRow.break_minutes === "N/A") newRow.break_minutes = 0;
         if (newRow.shift_type === "N/A") newRow.shift_type = "";
 
-        // -------------------------
-        // TS SAFE FIELD UPDATES
-        // -------------------------
         switch (field) {
           case "shift_name":
           case "start_time":
@@ -357,22 +344,16 @@ useEffect(() => {
           case "total_hours":
             newRow.total_hours = value;
             break;
-
-          default:
-            break;
         }
 
-        // -------------------------
-        // AUTO-BUILD SHIFT NAME
-        // -------------------------
         if (
           field === "start_time" ||
           field === "end_time" ||
           field === "break_minutes" ||
           field === "days"
         ) {
-          const hasStart = newRow.start_time && newRow.start_time !== "N/A";
-          const hasEnd = newRow.end_time && newRow.end_time !== "N/A";
+          const hasStart = newRow.start_time;
+          const hasEnd = newRow.end_time;
           const hasBreak = typeof newRow.break_minutes === "number";
           const hasDays = newRow.days.length > 0;
 
@@ -388,9 +369,6 @@ useEffect(() => {
           }
         }
 
-        // -------------------------
-        // RECALC HOURS
-        // -------------------------
         return recalc ? recalcRow(newRow) : newRow;
       });
 
@@ -411,6 +389,8 @@ useEffect(() => {
   // ADD / REMOVE
   // -------------------------
   const addRow = () => {
+    markModified();
+
     const newRow: ShiftRow = {
       id: Date.now(),
       shift_group: "",
@@ -423,12 +403,15 @@ useEffect(() => {
       days: [],
       campuses: [],
     };
+
     const updated = [...rows, newRow];
     setRows(updated);
     debouncedSave(updated);
   };
 
   const removeRow = (id: number) => {
+    markModified();
+
     const updated = rows.filter((r) => r.id !== id);
     setRows(updated);
     updateData("shiftConfig", updated);
@@ -443,6 +426,7 @@ useEffect(() => {
       confirmButtonText: "Yes, clear all",
     }).then((res) => {
       if (res.isConfirmed) {
+        markModified();
         setRows([]);
         updateData("shiftConfig", []);
       }
@@ -450,7 +434,7 @@ useEffect(() => {
   };
 
   // -------------------------
-  // DRAG & DROP (FULLY FIXED)
+  // DRAG & DROP
   // -------------------------
   const handleDragStart = (id: number) => {
     setDragId(id);
@@ -458,6 +442,8 @@ useEffect(() => {
 
   const handleDrop = (targetId: number) => {
     if (dragId === null || dragId === targetId) return;
+
+    markModified();
 
     setRows((prev) => {
       const currentIndex = prev.findIndex((r) => r.id === dragId);
@@ -596,9 +582,7 @@ useEffect(() => {
                 onDragOver={(e) => sortMode === "none" && e.preventDefault()}
                 onDrop={() => sortMode === "none" && handleDrop(row.id)}
                 className="odd:bg-white even:bg-gray-50 hover:bg-gray-100"
-                style={{
-                  cursor: sortMode === "none" ? "grab" : "default",
-                }}
+                style={{ cursor: sortMode === "none" ? "grab" : "default" }}
               >
                 <td className="border px-2 text-center">☰</td>
 
@@ -640,10 +624,7 @@ useEffect(() => {
                         break-words
                         resize-none
                       "
-                      style={{
-                        fontSize: "14px",
-                        lineHeight: "1.3",
-                      }}
+                      style={{ fontSize: "14px", lineHeight: "1.3" }}
                     />
                   )}
                 </td>

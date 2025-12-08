@@ -1,11 +1,13 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  ReactNode,
-} from "react";
+import React,
+  {
+    createContext,
+    useContext,
+    useState,
+    useEffect,
+    ReactNode,
+  } from "react";
 
+//
 // =====================================================
 // Unified FacilityRow – MUST MATCH CampusSetup.tsx
 // =====================================================
@@ -13,7 +15,7 @@ export type FacilityRow = {
   id: number;
   costCenterKey: string;
   costCenterName: string;
-  campus: string; // pipe-separated when float pool
+  campus: string;
   functionalArea: string;
   unitGrouping: string;
   capacity: number | "" | "N/A";
@@ -25,10 +27,10 @@ export type FacilityRow = {
 
 export type FacilitySetup = FacilityRow[];
 
+//
 // =====================================================
 // Other Data Types
 // =====================================================
-
 export type ResourceInputRow = {
   id?: number;
   employee_id: string;
@@ -89,11 +91,10 @@ export type MasterFilters = {
   };
 };
 
+//
 // =====================================================
 // Default Shift + Job Configuration Types
-// (kept local to FE / Health System Setup)
 // =====================================================
-
 export type DefaultShiftDefinition = {
   id: number;
   shift_group: string;
@@ -122,6 +123,10 @@ export type DefaultJobConfiguration = {
   isPreceptor?: boolean;
 };
 
+//
+// =====================================================
+// Context Type
+// =====================================================
 type AppContextType = {
   state: AppState;
   data: DataState;
@@ -129,7 +134,6 @@ type AppContextType = {
   updateData: (key: string, value: any) => void;
   reloadData: () => void;
 
-  // Facility Setup – unified and corrected
   setFacilitySetup: (payload: FacilitySetup) => void;
   updateFacilitySetup: (payload: FacilitySetup) => void;
 
@@ -149,7 +153,6 @@ type AppContextType = {
   master: MasterFilters;
   setMaster: React.Dispatch<React.SetStateAction<MasterFilters>>;
 
-  // NEW: Default shift + job templates managed in Health System Setup
   defaultShiftDefinitions: DefaultShiftDefinition[];
   setDefaultShiftDefinitions: React.Dispatch<
     React.SetStateAction<DefaultShiftDefinition[]>
@@ -161,6 +164,7 @@ type AppContextType = {
   >;
 };
 
+//
 // =====================================================
 // Context
 // =====================================================
@@ -172,10 +176,12 @@ export function useApp() {
   return ctx;
 }
 
+//
 // =====================================================
 // Provider
 // =====================================================
 export function AppProvider({ children }: { children: ReactNode }) {
+  //
   // -----------------------------
   // Primary State
   // -----------------------------
@@ -184,23 +190,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
     toolType: "IP",
   });
 
-  // -----------------------------
-  // Data State
-  // -----------------------------
-  const [data, setData] = useState<DataState>({
-    loading: true,
-    positions: [
-      { id: 1, name: "RN", category: "Nursing" },
-      { id: 2, name: "LPN", category: "Nursing" },
-      { id: 3, name: "CNA", category: "Support" },
-      { id: 4, name: "Clerk", category: "Other" },
-    ],
-    categories: ["Nursing", "Support", "Other"],
+  //
+  // =====================================================
+  // Data State — WITH shiftConfig localStorage support
+  // =====================================================
+  const [data, setData] = useState<DataState>(() => {
+    let shiftConfigLS: any[] = [];
+    try {
+      const raw = localStorage.getItem("hira_shift_config");
+      shiftConfigLS = raw ? JSON.parse(raw) : [];
+    } catch {
+      shiftConfigLS = [];
+    }
+
+    return {
+      loading: true,
+      positions: [
+        { id: 1, name: "RN", category: "Nursing" },
+        { id: 2, name: "LPN", category: "Nursing" },
+        { id: 3, name: "CNA", category: "Support" },
+        { id: 4, name: "Clerk", category: "Other" },
+      ],
+      categories: ["Nursing", "Support", "Other"],
+
+      // Shift configuration is restored from LS before mockdata loads
+      shiftConfig: shiftConfigLS,
+    };
   });
 
-  // -----------------------------
-  // NEW: Default Shift + Job Config (persisted to LS)
-  // -----------------------------
+  //
+  // =====================================================
+  // Default Shift + Job Config Setup
+  // =====================================================
   const [defaultShiftDefinitions, setDefaultShiftDefinitions] = useState<
     DefaultShiftDefinition[]
   >(() => {
@@ -229,9 +250,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         "hira_default_shift_definitions",
         JSON.stringify(defaultShiftDefinitions)
       );
-    } catch {
-      // ignore
-    }
+    } catch {}
   }, [defaultShiftDefinitions]);
 
   useEffect(() => {
@@ -240,14 +259,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         "hira_default_job_configurations",
         JSON.stringify(defaultJobConfigurations)
       );
-    } catch {
-      // ignore
-    }
+    } catch {}
   }, [defaultJobConfigurations]);
 
-  // -----------------------------
+  //
+  // =====================================================
   // Step Navigation
-  // -----------------------------
+  // =====================================================
   const [currentStep, setCurrentStepState] = useState(() => {
     const saved = localStorage.getItem("hira_current_step");
     return saved ? Number(saved) : 0;
@@ -261,9 +279,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  // -----------------------------
+  //
+  // =====================================================
   // AI Assistant
-  // -----------------------------
+  // =====================================================
   const [aiState, setAIState] = useState<AIState>(() => {
     try {
       const saved = localStorage.getItem("hira_ai_state");
@@ -279,14 +298,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } catch {}
   }, [aiState]);
 
-  // -----------------------------
+  //
+  // =====================================================
   // Global Navigation Menu
-  // -----------------------------
+  // =====================================================
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // -----------------------------
+  //
+  // =====================================================
   // Master Filters
-  // -----------------------------
+  // =====================================================
   const [master, setMaster] = useState<MasterFilters>(() => {
     try {
       const saved = localStorage.getItem("hira_master_filters");
@@ -322,14 +343,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } catch {}
   }, [master]);
 
+  //
   // =====================================================
-  // DATA UPDATE (resourceInput, etc)
+  // updateData WITH shiftConfig persistence
   // =====================================================
   const updateData = (key: string, value: any) => {
     setData((prev) => {
       const updated = { ...prev, [key]: value };
 
-      // Auto-update categories based on positions
+      // persist shiftConfig
+      if (key === "shiftConfig") {
+        try {
+          localStorage.setItem("hira_shift_config", JSON.stringify(value));
+        } catch {}
+      }
+
+      // auto-update categories
       if (key === "positions") {
         const rawCategories = (value as any[])
           .map((v) => v.category)
@@ -342,37 +371,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  //
   // =====================================================
-  // FACILITY SETUP — FULLY FIXED
+  // FACILITY SETUP
   // =====================================================
   const setFacilitySetup = (payload: FacilitySetup) => {
-    // 1. Save to main state
     setState((prev) => ({ ...prev, facilitySetup: payload }));
-
-    // 2. Mirror into data layer
     setData((prev) => ({ ...prev, facilitySetup: payload }));
 
-    // 3. Save to localStorage
     try {
       localStorage.setItem("hira_facilitySetup", JSON.stringify(payload));
-    } catch (err) {
-      console.error("Error saving facilitySetup to LS", err);
-    }
+    } catch {}
   };
 
   const updateFacilitySetup = (payload: FacilitySetup) => {
     setFacilitySetup(payload);
   };
 
+  //
   // =====================================================
-  // TOOL TYPE
+  // Tool Type
   // =====================================================
   const setToolType = (type: "IP" | "ED") => {
     setState((prev) => ({ ...prev, toolType: type }));
   };
 
+  //
   // =====================================================
-  // MOCK DATA LOADING (unchanged for now)
+  // reloadData() — DOES NOT OVERWRITE USER shiftConfig
   // =====================================================
   const reloadData = async () => {
     try {
@@ -384,7 +410,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         resourceInput,
         availabilityConfig,
         staffingConfig,
-        shiftConfig,
+        mockShiftConfig,
         censusOverride,
         gapSummary,
       ] = await Promise.all([
@@ -413,12 +439,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
         resourceInput,
         availabilityConfig,
         staffingConfig,
-        shiftConfig,
         censusOverride,
         gapSummary,
+
+        // Keep user's shiftConfig unless they never had any
+        shiftConfig:
+          prev.shiftConfig && prev.shiftConfig.length > 0
+            ? prev.shiftConfig
+            : mockShiftConfig,
+
         loading: false,
       }));
-    } catch (err) {
+    } catch {
       setData((prev) => ({ ...prev, loading: false }));
     }
   };
@@ -427,8 +459,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     reloadData();
   }, []);
 
+  //
   // =====================================================
-  // AI SNAPSHOT 
+  // Extra auto-save shiftConfig if changed
+  // =====================================================
+  useEffect(() => {
+    try {
+      if (Array.isArray(data.shiftConfig)) {
+        localStorage.setItem(
+          "hira_shift_config",
+          JSON.stringify(data.shiftConfig)
+        );
+      }
+    } catch {}
+  }, [data.shiftConfig]);
+
+  //
+  // =====================================================
+  // Snapshot
   // =====================================================
   const getFrontendSnapshot = () => {
     const rows =
@@ -461,8 +509,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
   };
 
+  //
   // =====================================================
-  // CONTEXT VALUE
+  // Context Value
   // =====================================================
   const value: AppContextType = {
     state,
@@ -489,6 +538,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     defaultShiftDefinitions,
     setDefaultShiftDefinitions,
+
     defaultJobConfigurations,
     setDefaultJobConfigurations,
   };
