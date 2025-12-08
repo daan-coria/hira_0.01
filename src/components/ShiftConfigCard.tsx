@@ -192,12 +192,50 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
 // LOAD EXISTING SHIFT CONFIG
 // -------------------------
 useEffect(() => {
-  const sourceRaw = Array.isArray(data?.shiftConfig)
-    ? data.shiftConfig
-    : [];
+  const hasShiftConfig = Array.isArray(data?.shiftConfig) && data.shiftConfig.length > 0;
+  const hasDefaults = Array.isArray(defaultShiftDefinitions) && defaultShiftDefinitions.length > 0;
 
-  if (!sourceRaw || sourceRaw.length === 0) {
-    // No existing data → start with 3 N/A rows
+  // CASE 1: shiftConfig exists → always use it
+  if (hasShiftConfig) {
+    const normalized = (data.shiftConfig ?? []).map((r: any) => ({
+      id: typeof r.id === "number" ? r.id : Date.now() + Math.random(),
+      shift_group: r.shift_group ?? "",
+      shift_name: r.shift_name || "N/A",
+      start_time: r.start_time || "N/A",
+      end_time: r.end_time || "N/A",
+      break_minutes: typeof r.break_minutes === "number" ? r.break_minutes : "N/A",
+      total_hours: typeof r.total_hours === "number" ? r.total_hours : "N/A",
+      shift_type: r.shift_type || "N/A",
+      days: Array.isArray(r.days) ? r.days : [],
+      campuses: Array.isArray(r.campuses) ? r.campuses : [],
+    }));
+
+    setRows(normalized);
+    return;
+  }
+
+  // CASE 2: No shiftConfig, but defaults exist → use defaults ONCE
+  if (!hasShiftConfig && hasDefaults) {
+    const normalized = defaultShiftDefinitions.map((r: any) => ({
+      id: typeof r.id === "number" ? r.id : Date.now() + Math.random(),
+      shift_group: r.shift_group ?? "",
+      shift_name: r.shift_name || "N/A",
+      start_time: r.start_time || "N/A",
+      end_time: r.end_time || "N/A",
+      break_minutes: typeof r.break_minutes === "number" ? r.break_minutes : "N/A",
+      total_hours: typeof r.total_hours === "number" ? r.total_hours : "N/A",
+      shift_type: r.shift_type || "N/A",
+      days: Array.isArray(r.days) ? r.days : [],
+      campuses: Array.isArray(r.campuses) ? r.campuses : [],
+    }));
+
+    setRows(normalized);
+    updateData("shiftConfig", normalized);
+    return;
+  }
+
+  // CASE 3: No shiftConfig AND no defaults → ONLY first-time starter rows
+  if (!hasShiftConfig && !hasDefaults) {
     const starterRows: ShiftRow[] = Array.from({ length: 3 }).map(() => ({
       id: Date.now() + Math.random(),
       shift_group: "",
@@ -213,26 +251,9 @@ useEffect(() => {
 
     setRows(starterRows);
     updateData("shiftConfig", starterRows);
-    return;
   }
+}, [data?.shiftConfig, defaultShiftDefinitions]);
 
-  const normalized = sourceRaw.map((r: any) => ({
-    id: typeof r.id === "number" ? r.id : Date.now() + Math.random(),
-    shift_group: r.shift_group ?? "",
-    shift_name: r.shift_name || "N/A",
-    start_time: r.start_time || "N/A",
-    end_time: r.end_time || "N/A",
-    break_minutes:
-      typeof r.break_minutes === "number" ? r.break_minutes : "N/A",
-    total_hours:
-      typeof r.total_hours === "number" ? r.total_hours : "N/A",
-    shift_type: (r.shift_type as ShiftType) || "N/A",
-    days: Array.isArray(r.days) ? r.days : [],
-    campuses: Array.isArray(r.campuses) ? r.campuses : [],
-  }));
-
-  setRows(normalized);
-}, [data?.shiftConfig]);
 
   // -------------------------
   // UPDATE FIELD (TS SAFE)
