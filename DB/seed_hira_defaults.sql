@@ -263,7 +263,7 @@ VALUES
   (1, 2, 'Thursday',  'Y', 'seed'),
   (1, 2, 'Friday',    'Y', 'seed'),
   (1, 2, 'Saturday',  'N', 'seed'),
-  (1, 2, 'Sunday',    'N', 'seed'),
+  (1, 2, 'Sunday',    'Y', 'seed'),
 
   -- Barbara (2)
   (2, 2, 'Monday',    'Y', 'seed'),
@@ -271,7 +271,7 @@ VALUES
   (2, 2, 'Wednesday', 'Y', 'seed'),
   (2, 2, 'Thursday',  'Y', 'seed'),
   (2, 2, 'Friday',    'Y', 'seed'),
-  (2, 2, 'Saturday',  'N', 'seed'),
+  (2, 2, 'Saturday',  'Y', 'seed'),
   (2, 2, 'Sunday',    'N', 'seed'),
 
   -- Abby (3)
@@ -363,3 +363,63 @@ VALUES
   (2, 1, 1, 1, '2024-06-11', '07:00', '19:00',
    'Scheduled', 'HIRA',
    GETUTCDATE(), GETUTCDATE(), 'seed', 'seed');
+
+/* ============================================================
+   15. HEALTHCARE SYSTEM (CUSTOMER TENANT)
+   ============================================================ */
+CREATE TABLE HealthcareSystem (
+    HealthcareSystem_Key INT IDENTITY(1,1) PRIMARY KEY,
+   
+    Name                VARCHAR(255) NOT NULL UNIQUE,   -- Full legal customer name
+    Code                VARCHAR(50),                    -- Short code for display/admin
+    Is_Active           CHAR(1) NOT NULL DEFAULT 'Y',   -- Y/N flag
+
+    -- Audit fields
+    Created_By          VARCHAR(50),
+    Created_Dt          DATETIME,
+    Updated_By          VARCHAR(50),
+    Updated_Dt          DATETIME
+);
+
+/* ============================================================
+   16. APPLICATION USERS (NO DIRECT DB ACCESS)
+   ============================================================ */
+CREATE TABLE AppUser (
+    User_ID INT IDENTITY(1,1) PRIMARY KEY,
+
+    Username            VARCHAR(100) NOT NULL UNIQUE,   -- Login or SSO identifier
+    Display_Name        VARCHAR(100),                   -- display name
+    Email               VARCHAR(255) UNIQUE,            -- email
+    External_Auth_ID    VARCHAR(255),                   -- Okta / Azure AD / SSO ID
+
+    -- Audit fields
+    Created_By          VARCHAR(50),
+    Created_Dt          DATETIME,
+    Updated_By          VARCHAR(50),
+    Updated_Dt          DATETIME
+);
+
+/* ============================================================
+   17. USER -> CAMPUS ACCESS CONTROL
+   ============================================================ */
+CREATE TABLE UserCampusAccess (
+    User_ID        INT NOT NULL,
+    Campus_Key     INT NOT NULL,
+    Campus_Role    VARCHAR(50),                        -- Viewer, Manager, Scheduler, Admin, etc.
+
+    -- Audit fields
+    Created_By     VARCHAR(50),
+    Created_Dt     DATETIME,
+    Updated_By     VARCHAR(50),
+    Updated_Dt     DATETIME,
+
+    CONSTRAINT PK_UserCampusAccess PRIMARY KEY (User_ID, Campus_Key),
+
+    CONSTRAINT FK_UserCampusAccess_User
+        FOREIGN KEY (User_ID)
+        REFERENCES AppUser(User_ID),
+
+    CONSTRAINT FK_UserCampusAccess_Campus
+        FOREIGN KEY (Campus_Key)
+        REFERENCES Campus(Campus_Key)
+);
