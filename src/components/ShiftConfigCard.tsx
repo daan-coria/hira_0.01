@@ -256,7 +256,7 @@ useEffect(() => {
 
 
   // -------------------------
-  // UPDATE FIELD (TS SAFE)
+  // UPDATE FIELD 
   // -------------------------
 
   const defaultShiftByGroup: Record<

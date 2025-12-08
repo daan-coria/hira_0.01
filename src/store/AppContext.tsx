@@ -419,7 +419,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         loading: false,
       }));
     } catch (err) {
-      console.error("❌ mockdata load failed:", err);
       setData((prev) => ({ ...prev, loading: false }));
     }
   };
@@ -429,7 +428,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // =====================================================
-  // AI SNAPSHOT — UPDATED FOR FacilityRow
+  // AI SNAPSHOT 
   // =====================================================
   const getFrontendSnapshot = () => {
     const rows =
