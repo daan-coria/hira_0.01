@@ -31,7 +31,6 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
     data,
     updateData,
     defaultShiftDefinitions,
-    setDefaultShiftDefinitions,
   } = useApp();
 
   const [rows, setRows] = useState<ShiftRow[]>([]);
@@ -59,10 +58,9 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
   const debouncedSave = useCallback(
     debounce((updated: ShiftRow[]) => {
       updateData("shiftConfig", updated);
-      setDefaultShiftDefinitions(updated as any);
       setSaving(false);
     }, 1200),
-    [updateData, setDefaultShiftDefinitions]
+    [updateData]
   );
 
   // -------------------------
@@ -190,55 +188,51 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
     };
   };
 
-  // -------------------------
-  // LOAD EXISTING (normalize)
-  // Prefer defaults defined in Health System Setup
-  // -------------------------
-  useEffect(() => {
-    const sourceRaw = Array.isArray(defaultShiftDefinitions) &&
-      defaultShiftDefinitions.length
-      ? defaultShiftDefinitions
-      : Array.isArray(data?.shiftConfig)
-      ? data.shiftConfig
-      : [];
+// -------------------------
+// LOAD EXISTING SHIFT CONFIG
+// -------------------------
+useEffect(() => {
+  const sourceRaw = Array.isArray(data?.shiftConfig)
+    ? data.shiftConfig
+    : [];
 
-    if (!sourceRaw || sourceRaw.length === 0) {
-      // No existing data → start with 3 N/A rows
-      const starterRows: ShiftRow[] = Array.from({ length: 3 }).map(() => ({
-        id: Date.now() + Math.random(),
-        shift_group: "",
-        shift_name: "N/A",
-        start_time: "N/A",
-        end_time: "N/A",
-        break_minutes: "N/A",
-        total_hours: "N/A",
-        shift_type: "N/A",
-        days: [],
-        campuses: [],
-      }));
-      setRows(starterRows);
-      updateData("shiftConfig", starterRows);
-      setDefaultShiftDefinitions(starterRows as any);
-      return;
-    }
-
-    const normalized = sourceRaw.map((r: any) => ({
-      id: typeof r.id === "number" ? r.id : Date.now() + Math.random(),
-      shift_group: r.shift_group ?? "",
-      shift_name: r.shift_name || "N/A",
-      start_time: r.start_time || "N/A",
-      end_time: r.end_time || "N/A",
-      break_minutes:
-        typeof r.break_minutes === "number" ? r.break_minutes : "N/A",
-      total_hours:
-        typeof r.total_hours === "number" ? r.total_hours : "N/A",
-      shift_type: (r.shift_type as ShiftType) || "N/A",
-      days: Array.isArray(r.days) ? r.days : [],
-      campuses: Array.isArray(r.campuses) ? r.campuses : [],
+  if (!sourceRaw || sourceRaw.length === 0) {
+    // No existing data → start with 3 N/A rows
+    const starterRows: ShiftRow[] = Array.from({ length: 3 }).map(() => ({
+      id: Date.now() + Math.random(),
+      shift_group: "",
+      shift_name: "N/A",
+      start_time: "N/A",
+      end_time: "N/A",
+      break_minutes: "N/A",
+      total_hours: "N/A",
+      shift_type: "N/A",
+      days: [],
+      campuses: [],
     }));
 
-    setRows(normalized);
-  }, [data?.shiftConfig, defaultShiftDefinitions, updateData, setDefaultShiftDefinitions]);
+    setRows(starterRows);
+    updateData("shiftConfig", starterRows);
+    return;
+  }
+
+  const normalized = sourceRaw.map((r: any) => ({
+    id: typeof r.id === "number" ? r.id : Date.now() + Math.random(),
+    shift_group: r.shift_group ?? "",
+    shift_name: r.shift_name || "N/A",
+    start_time: r.start_time || "N/A",
+    end_time: r.end_time || "N/A",
+    break_minutes:
+      typeof r.break_minutes === "number" ? r.break_minutes : "N/A",
+    total_hours:
+      typeof r.total_hours === "number" ? r.total_hours : "N/A",
+    shift_type: (r.shift_type as ShiftType) || "N/A",
+    days: Array.isArray(r.days) ? r.days : [],
+    campuses: Array.isArray(r.campuses) ? r.campuses : [],
+  }));
+
+  setRows(normalized);
+}, [data?.shiftConfig]);
 
   // -------------------------
   // UPDATE FIELD (TS SAFE)
@@ -420,7 +414,6 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
     const updated = rows.filter((r) => r.id !== id);
     setRows(updated);
     updateData("shiftConfig", updated);
-    setDefaultShiftDefinitions(updated as any);
   };
 
   const clearAll = () => {
@@ -434,7 +427,6 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
       if (res.isConfirmed) {
         setRows([]);
         updateData("shiftConfig", []);
-        setDefaultShiftDefinitions([]);
       }
     });
   };
