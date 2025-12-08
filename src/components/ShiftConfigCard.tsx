@@ -192,38 +192,42 @@ export default function ShiftConfigCard({ onNext, onPrev }: Props) {
 // LOAD EXISTING SHIFT CONFIG
 // -------------------------
 useEffect(() => {
-  const hasShiftConfig = Array.isArray(data?.shiftConfig) && data.shiftConfig.length > 0;
-  const hasDefaults = Array.isArray(defaultShiftDefinitions) && defaultShiftDefinitions.length > 0;
+  // Read the current stored shiftConfig array safely
+  const shiftArray = Array.isArray(data.shiftConfig) ? data.shiftConfig : [];
+  const hasShiftConfig = shiftArray.length > 0;
 
-  // CASE 1: shiftConfig exists → always use it
-  if (hasShiftConfig) {
-    const normalized = (data.shiftConfig ?? []).map((r: any) => ({
-      id: typeof r.id === "number" ? r.id : Date.now() + Math.random(),
-      shift_group: r.shift_group ?? "",
-      shift_name: r.shift_name || "N/A",
-      start_time: r.start_time || "N/A",
-      end_time: r.end_time || "N/A",
-      break_minutes: typeof r.break_minutes === "number" ? r.break_minutes : "N/A",
-      total_hours: typeof r.total_hours === "number" ? r.total_hours : "N/A",
-      shift_type: r.shift_type || "N/A",
-      days: Array.isArray(r.days) ? r.days : [],
-      campuses: Array.isArray(r.campuses) ? r.campuses : [],
-    }));
+  // Read default definitions
+  const defaults = Array.isArray(defaultShiftDefinitions)
+    ? defaultShiftDefinitions
+    : [];
+  const hasDefaults = defaults.length > 0;
 
-    setRows(normalized);
+  // Check initialization flag
+  const initialized = localStorage.getItem("hira_shift_config_initialized") === "true";
+
+  // ---------------------------------------------------------
+  // CASE B: If already initialized → ALWAYS load shiftConfig
+  // ---------------------------------------------------------
+  if (initialized) {
+    // shiftConfig may be [], which is correct
+    setRows(shiftArray);
     return;
   }
 
-  // CASE 2: No shiftConfig, but defaults exist → use defaults ONCE
-  if (!hasShiftConfig && hasDefaults) {
-    const normalized = defaultShiftDefinitions.map((r: any) => ({
+  // ---------------------------------------------------------
+  // CASE A1: First time AND defaults exist → load defaults once
+  // ---------------------------------------------------------
+  if (!initialized && hasDefaults) {
+    const normalized = defaults.map((r: any) => ({
       id: typeof r.id === "number" ? r.id : Date.now() + Math.random(),
       shift_group: r.shift_group ?? "",
       shift_name: r.shift_name || "N/A",
       start_time: r.start_time || "N/A",
       end_time: r.end_time || "N/A",
-      break_minutes: typeof r.break_minutes === "number" ? r.break_minutes : "N/A",
-      total_hours: typeof r.total_hours === "number" ? r.total_hours : "N/A",
+      break_minutes:
+        typeof r.break_minutes === "number" ? r.break_minutes : "N/A",
+      total_hours:
+        typeof r.total_hours === "number" ? r.total_hours : "N/A",
       shift_type: r.shift_type || "N/A",
       days: Array.isArray(r.days) ? r.days : [],
       campuses: Array.isArray(r.campuses) ? r.campuses : [],
@@ -231,29 +235,22 @@ useEffect(() => {
 
     setRows(normalized);
     updateData("shiftConfig", normalized);
+
+    // mark initialized
+    localStorage.setItem("hira_shift_config_initialized", "true");
     return;
   }
 
-  // CASE 3: No shiftConfig AND no defaults → ONLY first-time starter rows
-  if (!hasShiftConfig && !hasDefaults) {
-    const starterRows: ShiftRow[] = Array.from({ length: 3 }).map(() => ({
-      id: Date.now() + Math.random(),
-      shift_group: "",
-      shift_name: "N/A",
-      start_time: "N/A",
-      end_time: "N/A",
-      break_minutes: "N/A",
-      total_hours: "N/A",
-      shift_type: "N/A",
-      days: [],
-      campuses: [],
-    }));
-
-    setRows(starterRows);
-    updateData("shiftConfig", starterRows);
+  // ---------------------------------------------------------
+  // CASE A2: First time AND no defaults → leave EMPTY []
+  // ---------------------------------------------------------
+  if (!initialized && !hasDefaults) {
+    setRows([]);
+    updateData("shiftConfig", []);
+    localStorage.setItem("hira_shift_config_initialized", "true");
+    return;
   }
-}, [data?.shiftConfig, defaultShiftDefinitions]);
-
+}, [data.shiftConfig, defaultShiftDefinitions]);
 
   // -------------------------
   // UPDATE FIELD 
