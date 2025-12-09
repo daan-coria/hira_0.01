@@ -262,7 +262,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } catch {}
   }, [defaultJobConfigurations]);
 
-  //
   // =====================================================
   // Step Navigation
   // =====================================================
@@ -279,7 +278,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  //
   // =====================================================
   // AI Assistant
   // =====================================================

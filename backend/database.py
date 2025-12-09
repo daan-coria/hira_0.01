@@ -6,7 +6,7 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 # ---------------------------------------------------------
 
 AZURE_CONNECTION_STRING = (
-    "mssql+pyodbc://USERNAME:PASSWORD@SERVER_NAME.database.windows.net:1433/DATABASE_NAME"
+    "mssql+pyodbc://USERNAME:PASSWORD@SERVER_NAME.database.windows.net:1433/hira_db"
     "?driver=ODBC+Driver+18+for+SQL+Server"
     "&Encrypt=yes"
     "&TrustServerCertificate=no"
